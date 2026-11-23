@@ -282,6 +282,7 @@ function syncIndicatorUi(): void {
   setOn('wma', s.wma.on);
   setOn('bb', s.bb.on);
   setOn('volume', s.volume.on);
+  setOn('vwap', s.vwap.on);
   setOn('rsi', s.rsi.on);
   setOn('macd', s.macd.on);
   numInput('[data-ind-period="sma"]', s.sma.period);
@@ -310,6 +311,7 @@ function readIndicatorUi(): IndicatorSettings {
     wma: { on: on('wma'), period: num('[data-ind-period="wma"]', d.wma.period) },
     bb: { on: on('bb'), period: num('[data-ind-period="bb"]', d.bb.period), std: num('[data-ind-std="bb"]', d.bb.std) },
     volume: { on: on('volume') },
+    vwap: { on: on('vwap') },
     rsi: { on: on('rsi'), period: num('[data-ind-period="rsi"]', d.rsi.period) },
     macd: {
       on: on('macd'),

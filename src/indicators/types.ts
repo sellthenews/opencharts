@@ -30,6 +30,7 @@ export interface IndicatorSettings {
   wma: { on: boolean; period: number };
   bb: { on: boolean; period: number; std: number };
   volume: { on: boolean };
+  vwap: { on: boolean };
   rsi: { on: boolean; period: number };
   macd: { on: boolean; fast: number; slow: number; signal: number };
 }
@@ -40,6 +41,7 @@ export const DEFAULT_INDICATORS: IndicatorSettings = {
   wma: { on: false, period: 20 },
   bb: { on: false, period: 20, std: 2 },
   volume: { on: true },
+  vwap: { on: false },
   rsi: { on: false, period: 14 },
   macd: { on: false, fast: 12, slow: 26, signal: 9 },
 };

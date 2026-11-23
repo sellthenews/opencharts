@@ -27,6 +27,7 @@ export function normalizeSettings(raw: unknown): IndicatorSettings {
       std: clampFloat(Number(r.bb?.std), 0.5, 6, d.bb.std),
     },
     volume: { on: r.volume?.on ?? d.volume.on },
+    vwap: { on: Boolean(r.vwap?.on) },
     rsi: { on: Boolean(r.rsi?.on), period: clamp(Number(r.rsi?.period), 2, 400, d.rsi.period) },
     macd: {
       on: Boolean(r.macd?.on),

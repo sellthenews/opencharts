@@ -123,3 +123,17 @@ export function wma(candles: Candle[], period: number): LinePoint[] {
   }
   return out;
 }
+
+/** Cumulative VWAP from the first candle (typical price = (H+L+C)/3). */
+export function vwap(candles: Candle[]): LinePoint[] {
+  const out: LinePoint[] = [];
+  let pv = 0;
+  let vol = 0;
+  for (const c of candles) {
+    const tp = (c.high + c.low + c.close) / 3;
+    pv += tp * c.volume;
+    vol += c.volume;
+    if (vol > 0) out.push({ time: c.time, value: pv / vol });
+  }
+  return out;
+}

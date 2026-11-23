@@ -4,7 +4,7 @@
 import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../sources/types';
-import { bollinger, ema, macd, rsi, sma, wma } from './math';
+import { bollinger, ema, macd, rsi, sma, vwap, wma } from './math';
 import type { IndicatorSettings, LinePoint } from './types';
 
 function lineBase(color: string) {
@@ -25,6 +25,7 @@ export class IndicatorHost {
   private smaSeries: ISeriesApi<'Line'> | null = null;
   private emaSeries: ISeriesApi<'Line'> | null = null;
   private wmaSeries: ISeriesApi<'Line'> | null = null;
+  private vwapSeries: ISeriesApi<'Line'> | null = null;
   private bbMid: ISeriesApi<'Line'> | null = null;
   private bbUpper: ISeriesApi<'Line'> | null = null;
   private bbLower: ISeriesApi<'Line'> | null = null;
@@ -83,6 +84,13 @@ export class IndicatorHost {
       this.bbMid = this.drop(this.bbMid);
       this.bbUpper = this.drop(this.bbUpper);
       this.bbLower = this.drop(this.bbLower);
+    }
+
+    if (settings.vwap.on) {
+      if (!this.vwapSeries) this.vwapSeries = this.chart.addSeries(LineSeries, lineBase('#ff7043'), 0);
+      this.vwapSeries.setData(asLine(vwap(data)));
+    } else {
+      this.vwapSeries = this.drop(this.vwapSeries);
     }
 
     if (settings.volume.on) {
