@@ -18,6 +18,20 @@ import { interactionOptions } from './chart-options';
 export type { Drawing, Point, Tool };
 
 const COLOR = '#5b9cf6';
+
+function formatSpan(sec: number): string {
+  const abs = Math.abs(sec);
+  if (abs >= 86_400) {
+    const days = abs / 86_400;
+    return `${days >= 10 ? days.toFixed(0) : days.toFixed(1)} d`;
+  }
+  if (abs >= 3_600) {
+    const hours = abs / 3_600;
+    return `${hours >= 10 ? hours.toFixed(0) : hours.toFixed(1)} h`;
+  }
+  if (abs >= 60) return `${Math.round(abs / 60)} min`;
+  return `${Math.round(abs)} s`;
+}
 const SELECTED = '#ffcc66';
 const HANDLE = 5;
 const HIT_PX = 7;
@@ -58,6 +72,10 @@ function isDrawing(value: unknown): value is Drawing {
     case 'longpos':
     case 'shortpos':
       return isPoint(d.entry) && isPoint(d.stop) && isPoint(d.target);
+    case 'pricerange':
+    case 'daterange':
+    case 'datepricerange':
+      return isPoint(d.p1) && isPoint(d.p2);
     default:
       return false;
   }
@@ -453,6 +471,12 @@ export class DrawingLayer {
         if (handle === 'stop') d.stop = p;
         if (handle === 'target') d.target = p;
         break;
+      case 'pricerange':
+      case 'daterange':
+      case 'datepricerange':
+        if (handle === 'p1') d.p1 = p;
+        if (handle === 'p2') d.p2 = p;
+        break;
     }
   }
 
@@ -495,6 +519,14 @@ export class DrawingLayer {
           current.entry = shift(orig.entry);
           current.stop = shift(orig.stop);
           current.target = shift(orig.target);
+        }
+        break;
+      case 'pricerange':
+      case 'daterange':
+      case 'datepricerange':
+        if (orig.type === current.type) {
+          current.p1 = shift(orig.p1);
+          current.p2 = shift(orig.p2);
         }
         break;
     }
@@ -562,6 +594,12 @@ export class DrawingLayer {
         return { id, type: 'longpos', entry: points[0]!, stop: points[1]!, target: points[2]! };
       case 'shortpos':
         return { id, type: 'shortpos', entry: points[0]!, stop: points[1]!, target: points[2]! };
+      case 'pricerange':
+        return { id, type: 'pricerange', p1: points[0]!, p2: points[1]! };
+      case 'daterange':
+        return { id, type: 'daterange', p1: points[0]!, p2: points[1]! };
+      case 'datepricerange':
+        return { id, type: 'datepricerange', p1: points[0]!, p2: points[1]! };
       default:
         return null;
     }
@@ -600,6 +638,13 @@ export class DrawingLayer {
           { handle: 'entry', point: d.entry },
           { handle: 'stop', point: d.stop },
           { handle: 'target', point: d.target },
+        ];
+      case 'pricerange':
+      case 'daterange':
+      case 'datepricerange':
+        return [
+          { handle: 'p1', point: d.p1 },
+          { handle: 'p2', point: d.p2 },
         ];
     }
   }
@@ -692,6 +737,36 @@ export class DrawingLayer {
       if (a && b) best = Math.min(best, distPointToSegment(x, y, a.x, a.y, b.x, b.y));
       if (b && c) best = Math.min(best, distPointToSegment(x, y, b.x, b.y, c.x, c.y));
       return Number.isFinite(best) ? best : null;
+    }
+    if (d.type === 'pricerange') {
+      const y1 = this.series.priceToCoordinate(d.p1.price);
+      const y2 = this.series.priceToCoordinate(d.p2.price);
+      if (y1 === null || y2 === null) return null;
+      const top = Math.min(y1, y2);
+      const bottom = Math.max(y1, y2);
+      if (y >= top && y <= bottom) return 0;
+      return Math.min(Math.abs(y - top), Math.abs(y - bottom));
+    }
+    if (d.type === 'daterange') {
+      const x1 = this.timeToX(d.p1.time);
+      const x2 = this.timeToX(d.p2.time);
+      if (x1 === null || x2 === null) return null;
+      const left = Math.min(x1, x2);
+      const right = Math.max(x1, x2);
+      if (x >= left && x <= right) return 0;
+      return Math.min(Math.abs(x - left), Math.abs(x - right));
+    }
+    if (d.type === 'datepricerange') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      if (!a || !b) return null;
+      const left = Math.min(a.x, b.x);
+      const right = Math.max(a.x, b.x);
+      const top = Math.min(a.y, b.y);
+      const bottom = Math.max(a.y, b.y);
+      const inside = x >= left && x <= right && y >= top && y <= bottom;
+      const toEdge = Math.min(Math.abs(x - left), Math.abs(x - right), Math.abs(y - top), Math.abs(y - bottom));
+      return inside ? Math.min(toEdge, HIT_PX) : toEdge;
     }
     if (d.type === 'longpos' || d.type === 'shortpos') {
       const a = this.pointToXy(d.entry);
@@ -934,7 +1009,63 @@ export class DrawingLayer {
         ctx.setLineDash([]);
       }
 
+
+    } else if (d.type === 'pricerange' || d.type === 'daterange' || d.type === 'datepricerange') {
+      const x1 = this.timeToX(d.p1.time);
+      const x2 = this.timeToX(d.p2.time);
+      const y1 = this.series.priceToCoordinate(d.p1.price);
+      const y2 = this.series.priceToCoordinate(d.p2.price);
+      ctx.fillStyle = 'rgba(91, 156, 246, 0.14)';
+      ctx.strokeStyle = selected ? SELECTED : COLOR;
+      if (d.type === 'pricerange' && y1 !== null && y2 !== null) {
+        const top = Math.min(y1, y2);
+        const h = Math.abs(y2 - y1);
+        ctx.fillRect(0, top, width, h);
+        ctx.beginPath();
+        ctx.moveTo(0, y1);
+        ctx.lineTo(width, y1);
+        ctx.moveTo(0, y2);
+        ctx.lineTo(width, y2);
+        ctx.stroke();
+        const delta = d.p2.price - d.p1.price;
+        const pct = d.p1.price !== 0 ? (delta / d.p1.price) * 100 : 0;
+        const midY = (y1 + y2) / 2;
+        this.label(ctx, `${delta >= 0 ? '+' : ''}${this.formatPrice(delta)}  (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)`, 8, midY - 4, selected ? SELECTED : '#e0e3ea');
+      } else if (d.type === 'daterange' && x1 !== null && x2 !== null) {
+        const left = Math.min(x1, x2);
+        const w = Math.abs(x2 - x1);
+        ctx.fillRect(left, 0, w, height);
+        ctx.beginPath();
+        ctx.moveTo(x1, 0);
+        ctx.lineTo(x1, height);
+        ctx.moveTo(x2, 0);
+        ctx.lineTo(x2, height);
+        ctx.stroke();
+        const dt = Number(d.p2.time) - Number(d.p1.time);
+        const bars = this.stepSec > 0 ? Math.abs(dt) / this.stepSec : 0;
+        const midX = (x1 + x2) / 2;
+        const barTxt = bars >= 1 ? `  ·  ${bars >= 10 ? bars.toFixed(0) : bars.toFixed(1)} sł.` : '';
+        this.label(ctx, `${formatSpan(dt)}${barTxt}`, midX - 24, 16, selected ? SELECTED : '#e0e3ea');
+      } else if (d.type === 'datepricerange' && x1 !== null && x2 !== null && y1 !== null && y2 !== null) {
+        const left = Math.min(x1, x2);
+        const top = Math.min(y1, y2);
+        const w = Math.abs(x2 - x1);
+        const h = Math.abs(y2 - y1);
+        ctx.fillRect(left, top, w, h);
+        ctx.strokeRect(left, top, w, h);
+        const delta = d.p2.price - d.p1.price;
+        const pct = d.p1.price !== 0 ? (delta / d.p1.price) * 100 : 0;
+        const dt = Number(d.p2.time) - Number(d.p1.time);
+        this.label(
+          ctx,
+          `${delta >= 0 ? '+' : ''}${this.formatPrice(delta)}  (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)  ·  ${formatSpan(dt)}`,
+          left + 4,
+          top - 6,
+          selected ? SELECTED : '#e0e3ea',
+        );
+      }
     } else if (d.type === 'longpos' || d.type === 'shortpos') {
+
       const x1 = this.timeToX(d.entry.time);
       const x2 = this.timeToX(d.target.time);
       const yE = this.series.priceToCoordinate(d.entry.price);

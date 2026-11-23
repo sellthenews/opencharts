@@ -13,7 +13,10 @@ export type Tool =
   | 'abcd'
   | 'text'
   | 'longpos'
-  | 'shortpos';
+  | 'shortpos'
+  | 'pricerange'
+  | 'daterange'
+  | 'datepricerange';
 
 export interface Point {
   time: number;
@@ -31,7 +34,10 @@ export type Drawing =
   | { id: string; type: 'abcd'; a: Point; b: Point; c: Point }
   | { id: string; type: 'text'; p: Point; text: string }
   | { id: string; type: 'longpos'; entry: Point; stop: Point; target: Point }
-  | { id: string; type: 'shortpos'; entry: Point; stop: Point; target: Point };
+  | { id: string; type: 'shortpos'; entry: Point; stop: Point; target: Point }
+  | { id: string; type: 'pricerange'; p1: Point; p2: Point }
+  | { id: string; type: 'daterange'; p1: Point; p2: Point }
+  | { id: string; type: 'datepricerange'; p1: Point; p2: Point };
 
 export const TOOLS_POINTS: Record<Tool, number> = {
   cursor: 0,
@@ -46,4 +52,7 @@ export const TOOLS_POINTS: Record<Tool, number> = {
   abcd: 3,
   longpos: 3,
   shortpos: 3,
+  pricerange: 2,
+  daterange: 2,
+  datepricerange: 2,
 };
