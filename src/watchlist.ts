@@ -107,6 +107,7 @@ export class WatchlistPanel {
   constructor(
     private readonly root: HTMLElement,
     private readonly onOpen: (sourceId: string, pairId: PairId) => void,
+    private readonly onKrakenPairs?: (pairs: PairId[]) => void,
   ) {
     this.state = loadWatchState();
     this.root.addEventListener('click', (ev) => this.onClick(ev));
@@ -118,6 +119,14 @@ export class WatchlistPanel {
     this.render();
     void this.refreshQuotes();
     this.startTimer();
+    this.notifyKrakenPairs();
+  }
+
+  private notifyKrakenPairs(): void {
+    const pairs = this.activeList()
+      .items.filter((i) => i.sourceId === 'kraken')
+      .map((i) => i.pairId);
+    this.onKrakenPairs?.([...new Set(pairs)]);
   }
 
   getState(): WatchState {
@@ -298,6 +307,7 @@ export class WatchlistPanel {
         </button>`;
       })
       .join('');
+    this.notifyKrakenPairs();
     this.root.innerHTML = `
       <div class="watch-head">
         <h2>Obserwowane</h2>

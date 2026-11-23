@@ -306,3 +306,19 @@ button.danger:hover {
 .watch-add button {
   min-width: 0;
 }
+
+.live-status {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.live-status[data-live="connecting"] {
+  color: #ffcc66;
+  border-color: #8a7438;
+}
+.live-status[data-live="live"] {
+  color: #26a69a;
+  border-color: #1e7a72;
+}

@@ -15,6 +15,8 @@ import { loadIndicatorSettings, saveIndicatorSettings } from './indicators/setti
 import type { IndicatorSettings } from './indicators/types';
 import { INTERVALS, getSource, sources } from './sources';
 import type { Candle, IntervalId, PairId } from './sources';
+import { KrakenLive, type LiveStatus } from './live/kraken-ws';
+import { mergeLiveCandle } from './live/merge';
 import { WatchlistPanel } from './watchlist';
 import type { WatchState } from './watchlist';
 
@@ -203,6 +205,68 @@ function persistIndicatorsFromUi(): void {
   applyIndicators();
 }
 
+
+function applyPriceData(candles: Candle[], fit: boolean): void {
+  lastCandles = candles;
+  if (!candles.length) {
+    series.setData([]);
+    applyIndicators();
+    return;
+  }
+  const mid = candles[Math.floor(candles.length / 2)]!;
+  series.applyOptions({ priceFormat: priceFormatFor(mid.close) });
+  series.setData(
+    candles.map((c) => ({
+      time: c.time as UTCTimestamp,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+    })),
+  );
+  applyIndicators();
+  const step = candles.length >= 2 ? candles[candles.length - 1]!.time - candles[candles.length - 2]!.time : 86400;
+  drawings.setTimeInfo(candles[candles.length - 1]!.time, step);
+  if (fit) chart.timeScale().fitContent();
+}
+
+function setLiveStatus(status: LiveStatus): void {
+  const el = document.querySelector<HTMLElement>('#live-status');
+  if (el) {
+    el.dataset.live = status;
+    el.textContent = status === 'live' ? 'Na żywo' : status === 'connecting' ? 'Łączenie…' : 'Offline';
+  }
+  appEl.dataset.live = status;
+}
+
+const live = new KrakenLive(
+  (pair, _srcInterval, candle) => {
+    if (sourceId !== 'kraken' || pair !== pairId) return;
+    const merged = mergeLiveCandle(lastCandles, candle, intervalId);
+    lastCandles = merged;
+    const last = merged[merged.length - 1];
+    if (last) {
+      series.update({
+        time: last.time as UTCTimestamp,
+        open: last.open,
+        high: last.high,
+        low: last.low,
+        close: last.close,
+      });
+      applyIndicators();
+    }
+  },
+  (pair, ticker) => {
+    watchlist?.updateQuote('kraken', pair, ticker);
+  },
+  (status) => setLiveStatus(status),
+);
+
+function syncLiveChart(): void {
+  if (sourceId === 'kraken') live.setChart(pairId, intervalId);
+  else live.setChart(null, null);
+}
+
 async function loadChart(): Promise<void> {
   const seq = ++loadSeq;
   const src = currentSource();
@@ -214,24 +278,9 @@ async function loadChart(): Promise<void> {
     const candles = await src.fetchCandles(pairId, intervalId);
     if (seq !== loadSeq) return;
     if (!candles.length) throw new Error('Brak świec w odpowiedzi API');
-    lastCandles = candles;
-
-    const mid = candles[Math.floor(candles.length / 2)]!;
-    series.applyOptions({ priceFormat: priceFormatFor(mid.close) });
-    series.setData(
-      candles.map((c) => ({
-        time: c.time as UTCTimestamp,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-      })),
-    );
-    applyIndicators();
-    chart.timeScale().fitContent();
-    const step = candles.length >= 2 ? candles[candles.length - 1]!.time - candles[candles.length - 2]!.time : 86400;
-    drawings.setTimeInfo(candles[candles.length - 1]!.time, step);
+    applyPriceData(candles, true);
     drawings.setContext(src.id, pairId);
+    syncLiveChart();
 
     const first = isoDate(candles[0]!.time);
     const last = isoDate(candles[candles.length - 1]!.time);
@@ -243,10 +292,9 @@ async function loadChart(): Promise<void> {
     requestAnimationFrame(() => drawings.syncSize());
   } catch (err) {
     if (seq !== loadSeq) return;
-    lastCandles = [];
-    series.setData([]);
-    applyIndicators();
+    applyPriceData([], false);
     drawings.setContext(src.id, pairId);
+    syncLiveChart();
     const message = err instanceof Error ? err.message : String(err);
     setStatus(`Nie udało się pobrać danych z ${src.name}: ${message}`, true);
     setReady(false);
@@ -334,10 +382,16 @@ syncIndicatorUi();
 drawings.setContext(sourceId, pairId);
 
 const watchRoot = document.querySelector<HTMLElement>('#watchlist')!;
-watchlist = new WatchlistPanel(watchRoot, (src, pair) => {
-  applySelection(src, pair, true);
-});
+watchlist = new WatchlistPanel(
+  watchRoot,
+  (src, pair) => {
+    applySelection(src, pair, true);
+  },
+  (pairs) => live.setTickers(pairs),
+);
 watchlist.highlight(sourceId, pairId);
+live.start();
+syncLiveChart();
 
 declare global {
   interface Window {
