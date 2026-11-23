@@ -134,7 +134,7 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 - [x] P2 StochRSI
 - [x] P2 CCI
 - [x] P2 SAR (Parabolic)
-- [ ] P2 Keltner Channels
+- [x] P2 Keltner Channels
 - [ ] P2 Donchian Channels
 - [ ] P2 OBV
 - [ ] P2 MFI

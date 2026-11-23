@@ -464,3 +464,18 @@ export function parabolicSar(
   return out;
 }
 
+/** Keltner channels: EMA mid, bands at mid ± multiplier × ATR. */
+export function keltner(candles: Candle[], period = 20, atrPeriod = 10, multiplier = 2): BandPoint[] {
+  const mid = ema(candles, period);
+  const atrLine = atr(candles, atrPeriod);
+  if (!mid.length || !atrLine.length) return [];
+  const atrMap = new Map(atrLine.map((p) => [p.time, p.value]));
+  const out: BandPoint[] = [];
+  for (const m of mid) {
+    const a = atrMap.get(m.time);
+    if (a === undefined) continue;
+    out.push({ time: m.time, mid: m.value, upper: m.value + multiplier * a, lower: m.value - multiplier * a });
+  }
+  return out;
+}
+

@@ -78,7 +78,8 @@ export type IndicatorKind =
   | 'vwap'
   | 'stochRsi'
   | 'cci'
-  | 'sar';
+  | 'sar'
+  | 'keltner';
 
 export type IndicatorGroupId = 'trend' | 'momentum' | 'volatility' | 'volume';
 
@@ -218,6 +219,20 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     pane: 'price',
   },
   { kind: 'cci', name: 'CCI', short: 'CCI', aliases: ['cci', 'commodity'], group: 'momentum', defaults: { period: 20 }, fields: [periodField()], pane: 'osc' },
+  {
+    kind: 'keltner',
+    name: 'Keltner Channels',
+    short: 'Keltner',
+    aliases: ['keltner', 'kc'],
+    group: 'volatility',
+    defaults: { period: 20, kPeriod: 10, multiplier: 2 },
+    fields: [
+      periodField('Okres EMA'),
+      { key: 'kPeriod', label: 'Okres ATR', min: 2, max: 400, step: 1 },
+      { key: 'multiplier', label: 'Mnożnik', min: 0.5, max: 10, step: 0.1 },
+    ],
+    pane: 'price',
+  },
   { kind: 'atr', name: 'ATR', short: 'ATR', aliases: ['atr'], group: 'volatility', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   { kind: 'volume', name: 'Wolumen', short: 'Wolumen', aliases: ['volume', 'vol', 'wolumen'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
   { kind: 'vwap', name: 'VWAP', short: 'VWAP', aliases: ['vwap'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
@@ -257,6 +272,8 @@ export function formatIndicatorLabel(item: IndicatorInstance): string {
       return `CCI ${fmtNum(p.period, 20)}`;
     case 'sar':
       return `SAR ${fmtNum(p.start, 0.02)} ${fmtNum(p.max, 0.2)}`;
+    case 'keltner':
+      return `Keltner ${fmtNum(p.period, 20)} ${fmtNum(p.kPeriod, 10)} ${fmtNum(p.multiplier, 2)}`;
     default:
       return meta.short;
   }
