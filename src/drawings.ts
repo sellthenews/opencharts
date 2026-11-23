@@ -141,6 +141,10 @@ export class DrawingLayer {
     this.redraw();
   }
 
+  syncSize(): void {
+    this.resize();
+  }
+
   destroy(): void {
     this.ro.disconnect();
     window.removeEventListener('keydown', this.onKey);
@@ -173,12 +177,27 @@ export class DrawingLayer {
   }
 
   private resize(): void {
-    const rect = this.wrap.getBoundingClientRect();
+    let width = 0;
+    let height = 0;
+    try {
+      const pane = this.chart.paneSize(0);
+      width = pane.width;
+      height = pane.height;
+    } catch {
+      /* pane size may be unavailable before the first layout */
+    }
+    if (width < 2 || height < 2) {
+      const rect = this.wrap.getBoundingClientRect();
+      width = rect.width;
+      height = rect.height;
+    }
     const dpr = window.devicePixelRatio || 1;
-    this.canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-    this.canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-    this.canvas.style.width = `${rect.width}px`;
-    this.canvas.style.height = `${rect.height}px`;
+    this.canvas.width = Math.max(1, Math.floor(width * dpr));
+    this.canvas.height = Math.max(1, Math.floor(height * dpr));
+    this.canvas.style.width = `${width}px`;
+    this.canvas.style.height = `${height}px`;
+    this.canvas.style.top = '0';
+    this.canvas.style.left = '0';
     this.redraw();
   }
 

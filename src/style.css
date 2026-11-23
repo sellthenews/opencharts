@@ -143,11 +143,48 @@ button.danger:hover {
 
 #draw-overlay {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
   z-index: 2;
   pointer-events: auto;
 }
 
 #draw-overlay.passthrough {
   pointer-events: none;
+}
+
+.indicators-bar {
+  border-top: 0;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.muted-label {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 4px;
+}
+
+.ind {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text);
+  user-select: none;
+}
+
+.ind input[type="number"] {
+  width: 52px;
+  background: var(--btn);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 4px;
+  font: inherit;
+}
+
+.ind input[type="checkbox"] {
+  accent-color: var(--accent);
 }

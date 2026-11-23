@@ -40,6 +40,20 @@
         <div id="status" class="status" role="status">Ładowanie…</div>
       </header>
 
+      <div class="toolbar indicators-bar" id="indicators-bar">
+        <span class="muted-label">Wskaźniki</span>
+        <label class="ind"><input type="checkbox" data-ind="sma" /> SMA <input type="number" data-ind-period="sma" min="2" max="400" value="20" title="Okres SMA" /></label>
+        <label class="ind"><input type="checkbox" data-ind="ema" /> EMA <input type="number" data-ind-period="ema" min="2" max="400" value="20" title="Okres EMA" /></label>
+        <label class="ind"><input type="checkbox" data-ind="bb" /> Bollinger <input type="number" data-ind-period="bb" min="2" max="400" value="20" title="Okres Bollinger" /> <input type="number" data-ind-std="bb" min="0.5" max="6" step="0.1" value="2" title="Odchylenie std." /></label>
+        <label class="ind"><input type="checkbox" data-ind="volume" checked /> Wolumen</label>
+        <label class="ind"><input type="checkbox" data-ind="rsi" /> RSI <input type="number" data-ind-period="rsi" min="2" max="400" value="14" title="Okres RSI" /></label>
+        <label class="ind"><input type="checkbox" data-ind="macd" /> MACD
+          <input type="number" data-ind-macd="fast" min="2" max="200" value="12" title="MACD szybka" />
+          <input type="number" data-ind-macd="slow" min="3" max="400" value="26" title="MACD wolna" />
+          <input type="number" data-ind-macd="signal" min="2" max="200" value="9" title="MACD sygnał" />
+        </label>
+      </div>
+
       <div id="chart-wrap">
         <div id="chart"></div>
         <canvas id="draw-overlay" class="passthrough"></canvas>
