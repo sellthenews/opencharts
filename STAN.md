@@ -98,16 +98,16 @@ Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w eta
 - [ ] P2 Elipsa
 - [ ] P2 Trójkąt (kształt)
 - [ ] P2 Łuk
-- [ ] P2 Strzałki
+- [x] P2 Strzałki
 - [ ] P3 Ścieżka
 - [ ] P3 Pędzel
 
 ### Tekst i notatki
 
 - [x] P1 Tekst
-- [ ] P2 Notatka
-- [ ] P2 Objaśnienie (callout / balloon)
-- [ ] P2 Etykieta ceny
+- [x] P2 Notatka
+- [x] P2 Objaśnienie (callout / balloon)
+- [x] P2 Etykieta ceny
 - [ ] P3 Flaga
 
 ### Wskaźniki

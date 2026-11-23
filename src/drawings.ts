@@ -81,6 +81,14 @@ function isDrawing(value: unknown): value is Drawing {
     case 'hray':
     case 'extline':
       return isPoint(d.p1) && isPoint(d.p2);
+    case 'arrow':
+      return isPoint(d.p1) && isPoint(d.p2);
+    case 'pricelabel':
+      return isPoint(d.p);
+    case 'note':
+      return isPoint(d.p) && typeof d.text === 'string';
+    case 'callout':
+      return isPoint(d.p1) && isPoint(d.p2) && typeof d.text === 'string';
     default:
       return false;
   }
@@ -504,6 +512,20 @@ export class DrawingLayer {
         if (handle === 'p1') d.p1 = p;
         if (handle === 'p2') d.p2 = p;
         break;
+      case 'arrow':
+        if (handle === 'p1') d.p1 = p;
+        if (handle === 'p2') d.p2 = p;
+        break;
+      case 'pricelabel':
+        if (handle === 'p') d.p = p;
+        break;
+      case 'note':
+        if (handle === 'p') d.p = p;
+        break;
+      case 'callout':
+        if (handle === 'p1') d.p1 = p;
+        if (handle === 'p2') d.p2 = p;
+        break;
     }
   }
 
@@ -566,6 +588,24 @@ export class DrawingLayer {
           current.p2 = shift(orig.p2);
         }
         break;
+      case 'arrow':
+        if (orig.type === 'arrow') {
+          current.p1 = shift(orig.p1);
+          current.p2 = shift(orig.p2);
+        }
+        break;
+      case 'pricelabel':
+        if (orig.type === 'pricelabel') current.p = shift(orig.p);
+        break;
+      case 'note':
+        if (orig.type === 'note') current.p = shift(orig.p);
+        break;
+      case 'callout':
+        if (orig.type === 'callout') {
+          current.p1 = shift(orig.p1);
+          current.p2 = shift(orig.p2);
+        }
+        break;
     }
   }
 
@@ -591,6 +631,20 @@ export class DrawingLayer {
     }
     if (!this.draft) {
       if (needed === 1) {
+        if (this.tool === 'note') {
+          const text = window.prompt('Notatka', 'Notatka');
+          if (text && text.trim()) {
+            const drawing = this.commitPoints('note', [point]);
+            if (drawing && drawing.type === 'note') {
+              drawing.text = text.trim();
+              this.drawings.push(drawing);
+              this.selectedId = drawing.id;
+              this.persist();
+            }
+          }
+          this.redraw();
+          return;
+        }
         const drawing = this.commitPoints(this.tool, [point]);
         if (drawing) {
           this.drawings.push(drawing);
@@ -607,6 +661,24 @@ export class DrawingLayer {
     const points = [...this.draft.points, point];
     if (points.length < needed) {
       this.draft = { type: this.tool, points, current: point };
+      this.redraw();
+      return;
+    }
+    if (this.tool === 'callout') {
+      const text = window.prompt('Objaśnienie', 'Objaśnienie');
+      if (!(text && text.trim())) {
+        this.draft = null;
+        this.redraw();
+        return;
+      }
+      const created = this.commitPoints('callout', points);
+      if (created && created.type === 'callout') {
+        created.text = text.trim();
+        this.drawings.push(created);
+        this.selectedId = created.id;
+        this.persist();
+      }
+      this.draft = null;
       this.redraw();
       return;
     }
@@ -653,6 +725,14 @@ export class DrawingLayer {
         return { id, type: 'hray', p1: points[0]!, p2: points[1]! };
       case 'extline':
         return { id, type: 'extline', p1: points[0]!, p2: points[1]! };
+      case 'arrow':
+        return { id, type: 'arrow', p1: points[0]!, p2: points[1]! };
+      case 'pricelabel':
+        return { id, type: 'pricelabel', p: points[0]! };
+      case 'note':
+        return { id, type: 'note', p: points[0]!, text: '' };
+      case 'callout':
+        return { id, type: 'callout', p1: points[0]!, p2: points[1]!, text: '' };
       default:
         return null;
     }
@@ -703,6 +783,20 @@ export class DrawingLayer {
         return [{ handle: 'time', point: { time: d.time, price: 0 } }];
       case 'hray':
       case 'extline':
+        return [
+          { handle: 'p1', point: d.p1 },
+          { handle: 'p2', point: d.p2 },
+        ];
+      case 'arrow':
+        return [
+          { handle: 'p1', point: d.p1 },
+          { handle: 'p2', point: d.p2 },
+        ];
+      case 'pricelabel':
+        return [{ handle: 'p', point: d.p }];
+      case 'note':
+        return [{ handle: 'p', point: d.p }];
+      case 'callout':
         return [
           { handle: 'p1', point: d.p1 },
           { handle: 'p2', point: d.p2 },
@@ -774,10 +868,26 @@ export class DrawingLayer {
       const ext = extendLine(a.x, a.y, b.x, b.y, width, height);
       return distPointToSegment(x, y, ext.a.x, ext.a.y, ext.b.x, ext.b.y);
     }
-    if (d.type === 'text') {
+    if (d.type === 'text' || d.type === 'pricelabel' || d.type === 'note') {
       const xy = this.pointToXy(d.p);
       if (!xy) return null;
-      return x >= xy.x - 2 && x <= xy.x + 80 && y >= xy.y - 14 && y <= xy.y + 4 ? 0 : 80;
+      const w = d.type === 'text' ? 80 : 120;
+      const h = d.type === 'note' ? 28 : 18;
+      return x >= xy.x - 2 && x <= xy.x + w && y >= xy.y - h && y <= xy.y + 6 ? 0 : 80;
+    }
+    if (d.type === 'arrow') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      if (!a || !b) return null;
+      return distPointToSegment(x, y, a.x, a.y, b.x, b.y);
+    }
+    if (d.type === 'callout') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      if (!a || !b) return null;
+      const onLine = distPointToSegment(x, y, a.x, a.y, b.x, b.y);
+      const inBox = x >= b.x - 2 && x <= b.x + 130 && y >= b.y - 22 && y <= b.y + 8 ? 0 : 80;
+      return Math.min(onLine, inBox);
     }
     if (d.type === 'trend' || d.type === 'ray') {
       const a = this.pointToXy(d.p1);
@@ -1230,10 +1340,78 @@ export class DrawingLayer {
         this.label(ctx, `SL ${this.formatPrice(d.stop.price)}`, left + 4, yS - 4);
       }
     } else if (d.type === 'text') {
-
       const xy = this.pointToXy(d.p);
       if (xy) this.label(ctx, d.text, xy.x, xy.y, selected ? SELECTED : '#e0e3ea');
+    } else if (d.type === 'arrow') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      if (a && b) {
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        const ang = Math.atan2(b.y - a.y, b.x - a.x);
+        const size = 9;
+        ctx.fillStyle = selected ? SELECTED : COLOR;
+        ctx.beginPath();
+        ctx.moveTo(b.x, b.y);
+        ctx.lineTo(b.x - size * Math.cos(ang - 0.4), b.y - size * Math.sin(ang - 0.4));
+        ctx.lineTo(b.x - size * Math.cos(ang + 0.4), b.y - size * Math.sin(ang + 0.4));
+        ctx.closePath();
+        ctx.fill();
+      }
+    } else if (d.type === 'pricelabel') {
+      const xy = this.pointToXy(d.p);
+      if (xy) this.paintBadge(ctx, this.formatPrice(d.p.price), xy.x + 6, xy.y, selected);
+    } else if (d.type === 'note') {
+      const xy = this.pointToXy(d.p);
+      if (xy) this.paintBadge(ctx, d.text || 'Notatka', xy.x, xy.y, selected);
+    } else if (d.type === 'callout') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      if (a && b) {
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(a.x, a.y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = selected ? SELECTED : COLOR;
+        ctx.fill();
+        this.paintBadge(ctx, d.text || 'Objaśnienie', b.x, b.y, selected);
+      }
     }
+    ctx.restore();
+  }
+
+  private paintBadge(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, selected: boolean): void {
+    ctx.save();
+    ctx.font = '11px system-ui, sans-serif';
+    const padX = 6;
+    const padY = 4;
+    const w = Math.min(220, ctx.measureText(text).width + padX * 2);
+    const h = 18;
+    const left = x;
+    const top = y - h;
+    ctx.fillStyle = selected ? 'rgba(255, 204, 102, 0.16)' : 'rgba(19, 23, 34, 0.92)';
+    ctx.strokeStyle = selected ? SELECTED : COLOR;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    const r = 3;
+    ctx.moveTo(left + r, top);
+    ctx.lineTo(left + w - r, top);
+    ctx.quadraticCurveTo(left + w, top, left + w, top + r);
+    ctx.lineTo(left + w, top + h - r);
+    ctx.quadraticCurveTo(left + w, top + h, left + w - r, top + h);
+    ctx.lineTo(left + r, top + h);
+    ctx.quadraticCurveTo(left, top + h, left, top + h - r);
+    ctx.lineTo(left, top + r);
+    ctx.quadraticCurveTo(left, top, left + r, top);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = selected ? SELECTED : '#e0e3ea';
+    ctx.fillText(text, left + padX, top + h - padY - 1);
     ctx.restore();
   }
 }
