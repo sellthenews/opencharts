@@ -495,3 +495,19 @@ export function donchian(candles: Candle[], period = 20): BandPoint[] {
   return out;
 }
 
+/** On-Balance Volume. */
+export function obv(candles: Candle[]): LinePoint[] {
+  const out: LinePoint[] = [];
+  let val = 0;
+  for (let i = 0; i < candles.length; i++) {
+    const c = candles[i]!;
+    if (i > 0) {
+      const prev = candles[i - 1]!.close;
+      if (c.close > prev) val += c.volume;
+      else if (c.close < prev) val -= c.volume;
+    }
+    out.push({ time: c.time, value: val });
+  }
+  return out;
+}
+

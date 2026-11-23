@@ -80,7 +80,8 @@ export type IndicatorKind =
   | 'cci'
   | 'sar'
   | 'keltner'
-  | 'donchian';
+  | 'donchian'
+  | 'obv';
 
 export type IndicatorGroupId = 'trend' | 'momentum' | 'volatility' | 'volume';
 
@@ -237,6 +238,7 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
   { kind: 'donchian', name: 'Donchian Channels', short: 'Donchian', aliases: ['donchian', 'dc'], group: 'volatility', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
   { kind: 'atr', name: 'ATR', short: 'ATR', aliases: ['atr'], group: 'volatility', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   { kind: 'volume', name: 'Wolumen', short: 'Wolumen', aliases: ['volume', 'vol', 'wolumen'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
+  { kind: 'obv', name: 'On-Balance Volume', short: 'OBV', aliases: ['obv', 'on balance'], group: 'volume', defaults: {}, fields: [], pane: 'osc' },
   { kind: 'vwap', name: 'VWAP', short: 'VWAP', aliases: ['vwap'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
 ];
 
@@ -278,6 +280,8 @@ export function formatIndicatorLabel(item: IndicatorInstance): string {
       return `Keltner ${fmtNum(p.period, 20)} ${fmtNum(p.kPeriod, 10)} ${fmtNum(p.multiplier, 2)}`;
     case 'donchian':
       return `Donchian ${fmtNum(p.period, 20)}`;
+    case 'obv':
+      return 'OBV';
     default:
       return meta.short;
   }
