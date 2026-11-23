@@ -581,3 +581,27 @@ export function momentum(candles: Candle[], period = 10): LinePoint[] {
   return out;
 }
 
+/** Chaikin Money Flow. */
+export function cmf(candles: Candle[], period = 20): LinePoint[] {
+  if (period < 1 || candles.length < period) return [];
+  const mfv: number[] = [];
+  for (const c of candles) {
+    const den = c.high - c.low;
+    const mfm = den === 0 ? 0 : (2 * c.close - c.high - c.low) / den;
+    mfv.push(mfm * c.volume);
+  }
+  const out: LinePoint[] = [];
+  let flow = 0;
+  let vol = 0;
+  for (let i = 0; i < candles.length; i++) {
+    flow += mfv[i]!;
+    vol += candles[i]!.volume;
+    if (i >= period) {
+      flow -= mfv[i - period]!;
+      vol -= candles[i - period]!.volume;
+    }
+    if (i >= period - 1) out.push({ time: candles[i]!.time, value: vol === 0 ? 0 : flow / vol });
+  }
+  return out;
+}
+

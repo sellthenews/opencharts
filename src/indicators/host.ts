@@ -4,7 +4,7 @@
 import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, IPriceLine, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../sources/types';
-import { adx, atr, bollinger, cci, donchian, ema, ichimoku, keltner, macd, mfi, momentum, obv, parabolicSar, pivotPoints, roc, rsi, sma, stochRsi, stochastic, supertrend, vwap, williamsR, wma } from './math';
+import { adx, atr, bollinger, cci, cmf, donchian, ema, ichimoku, keltner, macd, mfi, momentum, obv, parabolicSar, pivotPoints, roc, rsi, sma, stochRsi, stochastic, supertrend, vwap, williamsR, wma } from './math';
 import { CATALOG_BY_KIND, type IndicatorInstance, type LinePoint } from './types';
 
 function lineBase(color: string) {
@@ -44,6 +44,7 @@ const KIND_COLOR: Record<string, string> = {
   willr: '#ec407a',
   roc: '#7e57c2',
   momentum: '#42a5f5',
+  cmf: '#26a69a',
   volume: '#26a69a',
   pivots: '#787b86',
 };
@@ -324,6 +325,11 @@ export class IndicatorHost {
       s.setData(asLine(cci(data, p.period ?? 20)));
       s.createPriceLine({ price: 100, color: '#6d5a78', title: '', ...dotted });
       s.createPriceLine({ price: -100, color: '#6d5a78', title: '', ...dotted });
+      this.keep(s);
+    } else if (item.kind === 'cmf') {
+      const s = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
+      s.setData(asLine(cmf(data, p.period ?? 20)));
+      s.createPriceLine({ price: 0, color: '#6d5a78', title: '', ...dotted });
       this.keep(s);
     } else if (item.kind === 'mfi') {
       const s = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
