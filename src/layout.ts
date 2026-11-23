@@ -3,6 +3,7 @@
 
 import type { IntervalId, PairId } from './sources';
 import { PAIR_IDS } from './sources';
+import type { MiniState } from './minichart';
 
 export const LAYOUT_KEY = 'wykresy:layout';
 
@@ -11,6 +12,8 @@ export interface LayoutState {
   pairId: PairId;
   intervalId: IntervalId;
   theme: 'dark' | 'light';
+  paneCount?: 1 | 2 | 4;
+  extras?: MiniState[];
 }
 
 const INTERVALS: IntervalId[] = ['1h', '4h', '1D', '1W', '1M'];
@@ -24,7 +27,9 @@ export function loadLayout(): LayoutState | null {
     if (!PAIR_IDS.includes(p.pairId as PairId)) return null;
     if (!INTERVALS.includes(p.intervalId as IntervalId)) return null;
     if (p.theme !== 'light' && p.theme !== 'dark') return null;
-    return { sourceId: p.sourceId, pairId: p.pairId as PairId, intervalId: p.intervalId as IntervalId, theme: p.theme };
+    const paneCount = p.paneCount === 2 || p.paneCount === 4 ? p.paneCount : 1;
+    const extras = Array.isArray(p.extras) ? p.extras : undefined;
+    return { sourceId: p.sourceId, pairId: p.pairId as PairId, intervalId: p.intervalId as IntervalId, theme: p.theme, paneCount, extras };
   } catch {
     return null;
   }

@@ -64,6 +64,11 @@
           <button type="button" id="extend-right-btn" title="Przedłuż poziomy Fibo rozszerzenia w prawo">Przedłuż w prawo</button>
         </div>
 
+        <div class="group" id="layout-btns" role="group" aria-label="Układ wykresów">
+          <button type="button" data-panes="1" class="is-active" title="Jeden wykres">1</button>
+          <button type="button" data-panes="2" title="Dwa wykresy">2</button>
+          <button type="button" data-panes="4" title="Cztery wykresy">4</button>
+        </div>
         <button type="button" id="theme-btn" title="Przełącz motyw jasny/ciemny">Motyw jasny</button>
         <span id="live-status" class="live-status" data-live="off" title="Publiczny WebSocket Krakena (OHLC i ticker)">Offline</span>
         <div id="status" class="status" role="status">Ładowanie…</div>
@@ -91,9 +96,14 @@
         </label>
       </div>
 
-      <div id="chart-wrap">
-        <div id="chart"></div>
-        <canvas id="draw-overlay" class="passthrough"></canvas>
+      <div id="charts" data-panes="1">
+        <div id="chart-wrap">
+          <div id="chart"></div>
+          <canvas id="draw-overlay" class="passthrough"></canvas>
+        </div>
+        <div class="chart-cell extra-cell" data-extra="0"></div>
+        <div class="chart-cell extra-cell" data-extra="1"></div>
+        <div class="chart-cell extra-cell" data-extra="2"></div>
       </div>
       </div>
     </div>

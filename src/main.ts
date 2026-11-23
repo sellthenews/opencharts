@@ -16,6 +16,8 @@ import type { IndicatorSettings } from './indicators/types';
 import { INTERVALS, getSource, sources } from './sources';
 import type { Candle, IntervalId, PairId } from './sources';
 import { loadLayout, saveLayout } from './layout';
+import { MiniChart } from './minichart';
+import type { MiniState } from './minichart';
 import { alertLabel, checkAlert, createAlert, loadAlerts, saveAlerts } from './alerts';
 import type { PriceAlert } from './alerts';
 import { KrakenLive, type LiveStatus } from './live/kraken-ws';
@@ -82,8 +84,17 @@ let sourceId = DEFAULT_SOURCE;
 let pairId: PairId = DEFAULT_PAIR;
 let intervalId: IntervalId = DEFAULT_INTERVAL;
 
+let paneCount: 1 | 2 | 4 = 1;
+const defaultExtras: MiniState[] = [
+  { sourceId: 'kraken', pairId: 'BTCUSD', intervalId: '1D' },
+  { sourceId: 'kraken', pairId: 'ETHUSD', intervalId: '1D' },
+  { sourceId: 'kraken', pairId: 'XRPUSD', intervalId: '4h' },
+];
+let extras: MiniState[] = defaultExtras.map((e) => ({ ...e }));
+const miniCharts: MiniChart[] = [];
+
 function persistLayout(): void {
-  saveLayout({ sourceId, pairId, intervalId, theme });
+  saveLayout({ sourceId, pairId, intervalId, theme, paneCount, extras });
 }
 
 const savedLayout = loadLayout();
@@ -92,6 +103,10 @@ if (savedLayout) {
   pairId = savedLayout.pairId;
   intervalId = savedLayout.intervalId;
   theme = savedLayout.theme;
+  if (savedLayout.paneCount === 2 || savedLayout.paneCount === 4) paneCount = savedLayout.paneCount;
+  if (savedLayout.extras?.length) {
+    extras = defaultExtras.map((e, i) => ({ ...e, ...(savedLayout.extras?.[i] ?? {}) }));
+  }
 }
 let loadSeq = 0;
 let lastCandles: Candle[] = [];
@@ -232,6 +247,7 @@ document.querySelector<HTMLButtonElement>('#theme-btn')?.addEventListener('click
       fontFamily: 'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
     },
   });
+  miniCharts.forEach((m) => m.setTheme(theme === 'light'));
 });
 
 
@@ -550,6 +566,37 @@ watchlist = new WatchlistPanel(
 watchlist.highlight(sourceId, pairId);
 live.start();
 syncLiveChart();
+
+function setPaneCount(count: 1 | 2 | 4): void {
+  paneCount = count;
+  const grid = document.querySelector<HTMLElement>('#charts');
+  if (grid) grid.dataset.panes = String(count);
+  document.querySelectorAll('#layout-btns [data-panes]').forEach((btn) => {
+    btn.classList.toggle('is-active', btn.getAttribute('data-panes') === String(count));
+  });
+  persistLayout();
+}
+
+document.querySelector('#layout-btns')?.addEventListener('click', (ev) => {
+  const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-panes]');
+  if (!btn) return;
+  const n = Number(btn.dataset.panes);
+  if (n === 1 || n === 2 || n === 4) setPaneCount(n);
+});
+
+document.querySelectorAll<HTMLElement>('.extra-cell').forEach((cell, i) => {
+  miniCharts[i] = new MiniChart(
+    cell,
+    extras[i] ?? defaultExtras[i]!,
+    sources.map((s) => ({ id: s.id, name: s.name })),
+    (state) => {
+      extras[i] = state;
+      persistLayout();
+    },
+  );
+});
+setPaneCount(paneCount);
+
 
 declare global {
   interface Window {
