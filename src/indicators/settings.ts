@@ -34,6 +34,7 @@ export function normalizeSettings(raw: unknown): IndicatorSettings {
     supertrend: { on: Boolean(r.supertrend?.on), period: clamp(Number(r.supertrend?.period), 2, 400, d.supertrend.period), multiplier: clampFloat(Number(r.supertrend?.multiplier), 0.5, 10, d.supertrend.multiplier) },
     pivots: { on: Boolean(r.pivots?.on) },
     ichimoku: { on: Boolean(r.ichimoku?.on) },
+    adx: { on: Boolean(r.adx?.on), period: clamp(Number(r.adx?.period), 2, 400, d.adx.period) },
     macd: {
       on: Boolean(r.macd?.on),
       fast: clamp(Number(r.macd?.fast), 2, 200, d.macd.fast),

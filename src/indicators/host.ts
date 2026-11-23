@@ -4,7 +4,7 @@
 import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, IPriceLine, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../sources/types';
-import { atr, bollinger, ema, ichimoku, macd, pivotPoints, rsi, sma, stochastic, supertrend, vwap, wma } from './math';
+import { adx, atr, bollinger, ema, ichimoku, macd, pivotPoints, rsi, sma, stochastic, supertrend, vwap, wma } from './math';
 import type { IndicatorSettings, LinePoint } from './types';
 
 function lineBase(color: string) {
@@ -42,6 +42,9 @@ export class IndicatorHost {
   private stochK: ISeriesApi<'Line'> | null = null;
   private stochD: ISeriesApi<'Line'> | null = null;
   private atrSeries: ISeriesApi<'Line'> | null = null;
+  private adxLine: ISeriesApi<'Line'> | null = null;
+  private plusDi: ISeriesApi<'Line'> | null = null;
+  private minusDi: ISeriesApi<'Line'> | null = null;
   private macdLine: ISeriesApi<'Line'> | null = null;
   private macdSignal: ISeriesApi<'Line'> | null = null;
   private macdHist: ISeriesApi<'Histogram'> | null = null;
@@ -199,6 +202,9 @@ export class IndicatorHost {
     this.stochK = this.drop(this.stochK);
     this.stochD = this.drop(this.stochD);
     this.atrSeries = this.drop(this.atrSeries);
+    this.adxLine = this.drop(this.adxLine);
+    this.plusDi = this.drop(this.plusDi);
+    this.minusDi = this.drop(this.minusDi);
     this.macdLine = this.drop(this.macdLine);
     this.macdSignal = this.drop(this.macdSignal);
     this.macdHist = this.drop(this.macdHist);
@@ -237,6 +243,18 @@ export class IndicatorHost {
       const idx = this.chart.panes().length - 1;
       this.atrSeries = this.chart.addSeries(LineSeries, { ...lineBase('#ffa726'), lastValueVisible: true }, idx);
       this.atrSeries.setData(asLine(atr(data, settings.atr.period)));
+    }
+
+    if (settings.adx.on) {
+      this.chart.addPane();
+      const idx = this.chart.panes().length - 1;
+      const pts = adx(data, settings.adx.period);
+      this.adxLine = this.chart.addSeries(LineSeries, { ...lineBase('#9c27b0'), lastValueVisible: true }, idx);
+      this.plusDi = this.chart.addSeries(LineSeries, lineBase('#26a69a'), idx);
+      this.minusDi = this.chart.addSeries(LineSeries, lineBase('#ef5350'), idx);
+      this.adxLine.setData(asLine(pts.map((p) => ({ time: p.time, value: p.adx }))));
+      this.plusDi.setData(asLine(pts.map((p) => ({ time: p.time, value: p.pdi }))));
+      this.minusDi.setData(asLine(pts.map((p) => ({ time: p.time, value: p.mdi }))));
     }
 
     if (settings.macd.on) {

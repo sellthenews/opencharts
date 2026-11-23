@@ -288,6 +288,7 @@ function syncIndicatorUi(): void {
   setOn('pivots', s.pivots.on);
   setOn('ichimoku', s.ichimoku.on);
   setOn('supertrend', s.supertrend.on);
+  setOn('adx', s.adx.on);
   setOn('atr', s.atr.on);
   setOn('macd', s.macd.on);
   numInput('[data-ind-period="sma"]', s.sma.period);
@@ -300,6 +301,7 @@ function syncIndicatorUi(): void {
   numInput('[data-ind-stoch="d"]', s.stoch.dPeriod);
   numInput('[data-ind-st="period"]', s.supertrend.period);
   numInput('[data-ind-st="mult"]', s.supertrend.multiplier);
+  numInput('[data-ind-period="adx"]', s.adx.period);
   numInput('[data-ind-period="atr"]', s.atr.period);
   numInput('[data-ind-macd="fast"]', s.macd.fast);
   numInput('[data-ind-macd="slow"]', s.macd.slow);
@@ -327,6 +329,7 @@ function readIndicatorUi(): IndicatorSettings {
     pivots: { on: on('pivots') },
     ichimoku: { on: on('ichimoku') },
     supertrend: { on: on('supertrend'), period: num('[data-ind-st="period"]', d.supertrend.period), multiplier: num('[data-ind-st="mult"]', d.supertrend.multiplier) },
+    adx: { on: on('adx'), period: num('[data-ind-period="adx"]', d.adx.period) },
     atr: { on: on('atr'), period: num('[data-ind-period="atr"]', d.atr.period) },
     macd: {
       on: on('macd'),

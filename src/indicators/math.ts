@@ -300,3 +300,55 @@ export function ichimoku(
   }
   return { tenkan, kijun, spanA, spanB, chikou };
 }
+
+export function adx(
+  candles: Candle[],
+  period = 14,
+): { time: number; adx: number; pdi: number; mdi: number }[] {
+  if (period < 1 || candles.length < period + 2) return [];
+  const plus: number[] = [0];
+  const minus: number[] = [0];
+  const tr: number[] = [candles[0]!.high - candles[0]!.low];
+  for (let i = 1; i < candles.length; i++) {
+    const up = candles[i]!.high - candles[i - 1]!.high;
+    const down = candles[i - 1]!.low - candles[i]!.low;
+    plus.push(up > down && up > 0 ? up : 0);
+    minus.push(down > up && down > 0 ? down : 0);
+    tr.push(trueRange(candles, i));
+  }
+  let smP = 0;
+  let smM = 0;
+  let smTr = 0;
+  for (let i = 1; i <= period; i++) {
+    smP += plus[i]!;
+    smM += minus[i]!;
+    smTr += tr[i]!;
+  }
+  const dxs: { time: number; pdi: number; mdi: number; dx: number }[] = [];
+  const pushDx = (i: number, p: number, m: number, trs: number) => {
+    const pdi = trs === 0 ? 0 : (100 * p) / trs;
+    const mdi = trs === 0 ? 0 : (100 * m) / trs;
+    const den = pdi + mdi;
+    const dx = den === 0 ? 0 : (100 * Math.abs(pdi - mdi)) / den;
+    dxs.push({ time: candles[i]!.time, pdi, mdi, dx });
+  };
+  pushDx(period, smP, smM, smTr);
+  for (let i = period + 1; i < candles.length; i++) {
+    smP = smP - smP / period + plus[i]!;
+    smM = smM - smM / period + minus[i]!;
+    smTr = smTr - smTr / period + tr[i]!;
+    pushDx(i, smP, smM, smTr);
+  }
+  if (dxs.length < period) return [];
+  let adxVal = 0;
+  for (let i = 0; i < period; i++) adxVal += dxs[i]!.dx;
+  adxVal /= period;
+  const out: { time: number; adx: number; pdi: number; mdi: number }[] = [
+    { time: dxs[period - 1]!.time, adx: adxVal, pdi: dxs[period - 1]!.pdi, mdi: dxs[period - 1]!.mdi },
+  ];
+  for (let i = period; i < dxs.length; i++) {
+    adxVal = (adxVal * (period - 1) + dxs[i]!.dx) / period;
+    out.push({ time: dxs[i]!.time, adx: adxVal, pdi: dxs[i]!.pdi, mdi: dxs[i]!.mdi });
+  }
+  return out;
+}

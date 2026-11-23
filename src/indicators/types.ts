@@ -37,6 +37,7 @@ export interface IndicatorSettings {
   supertrend: { on: boolean; period: number; multiplier: number };
   pivots: { on: boolean };
   ichimoku: { on: boolean };
+  adx: { on: boolean; period: number };
   macd: { on: boolean; fast: number; slow: number; signal: number };
 }
 
@@ -53,6 +54,7 @@ export const DEFAULT_INDICATORS: IndicatorSettings = {
   supertrend: { on: false, period: 10, multiplier: 3 },
   pivots: { on: false },
   ichimoku: { on: false },
+  adx: { on: false, period: 14 },
   macd: { on: false, fast: 12, slow: 26, signal: 9 },
 };
 
