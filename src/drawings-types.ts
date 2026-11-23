@@ -26,7 +26,9 @@ export type Tool =
   | 'callout'
   | 'ellipse'
   | 'triangle'
-  | 'regress';
+  | 'regress'
+  | 'xabcd'
+  | 'hs';
 
 export interface Point {
   time: number;
@@ -57,7 +59,9 @@ export type Drawing =
   | { id: string; type: 'callout'; p1: Point; p2: Point; text: string }
   | { id: string; type: 'ellipse'; p1: Point; p2: Point }
   | { id: string; type: 'triangle'; p1: Point; p2: Point; p3: Point }
-  | { id: string; type: 'regress'; p1: Point; p2: Point };
+  | { id: string; type: 'regress'; p1: Point; p2: Point }
+  | { id: string; type: 'xabcd'; x: Point; a: Point; b: Point; c: Point; d: Point }
+  | { id: string; type: 'hs'; ls: Point; n1: Point; head: Point; n2: Point; rs: Point };
 
 export const TOOLS_POINTS: Record<Tool, number> = {
   cursor: 0,
@@ -85,4 +89,6 @@ export const TOOLS_POINTS: Record<Tool, number> = {
   ellipse: 2,
   triangle: 3,
   regress: 2,
+  xabcd: 5,
+  hs: 5,
 };

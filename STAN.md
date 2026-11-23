@@ -77,8 +77,8 @@ Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w eta
 ### Formacje
 
 - [x] P1 ABCD / korekta 1:1 (AB=CD), z projekcjami 1.272 i 1.618
-- [ ] P2 XABCD / formacje harmoniczne
-- [ ] P2 Głowa z ramionami
+- [x] P2 XABCD / formacje harmoniczne
+- [x] P2 Głowa z ramionami
 - [ ] P2 Trójkąt
 - [ ] P3 Fale Elliotta (impuls)
 - [ ] P3 Fale Elliotta (korekta)

@@ -141,6 +141,10 @@ function isDrawing(value: unknown): value is Drawing {
       return isPoint(d.p1) && isPoint(d.p2) && isPoint(d.p3);
     case 'regress':
       return isPoint(d.p1) && isPoint(d.p2);
+    case 'xabcd':
+      return isPoint(d.x) && isPoint(d.a) && isPoint(d.b) && isPoint(d.c) && isPoint(d.d);
+    case 'hs':
+      return isPoint(d.ls) && isPoint(d.n1) && isPoint(d.head) && isPoint(d.n2) && isPoint(d.rs);
     default:
       return false;
   }
@@ -597,6 +601,20 @@ export class DrawingLayer {
         if (handle === 'p1') d.p1 = p;
         if (handle === 'p2') d.p2 = p;
         break;
+      case 'xabcd':
+        if (handle === 'x') d.x = p;
+        if (handle === 'a') d.a = p;
+        if (handle === 'b') d.b = p;
+        if (handle === 'c') d.c = p;
+        if (handle === 'd') d.d = p;
+        break;
+      case 'hs':
+        if (handle === 'ls') d.ls = p;
+        if (handle === 'n1') d.n1 = p;
+        if (handle === 'head') d.head = p;
+        if (handle === 'n2') d.n2 = p;
+        if (handle === 'rs') d.rs = p;
+        break;
     }
   }
 
@@ -694,6 +712,24 @@ export class DrawingLayer {
         if (orig.type === 'regress') {
           current.p1 = shift(orig.p1);
           current.p2 = shift(orig.p2);
+        }
+        break;
+      case 'xabcd':
+        if (orig.type === 'xabcd') {
+          current.x = shift(orig.x);
+          current.a = shift(orig.a);
+          current.b = shift(orig.b);
+          current.c = shift(orig.c);
+          current.d = shift(orig.d);
+        }
+        break;
+      case 'hs':
+        if (orig.type === 'hs') {
+          current.ls = shift(orig.ls);
+          current.n1 = shift(orig.n1);
+          current.head = shift(orig.head);
+          current.n2 = shift(orig.n2);
+          current.rs = shift(orig.rs);
         }
         break;
     }
@@ -829,6 +865,10 @@ export class DrawingLayer {
         return { id, type: 'triangle', p1: points[0]!, p2: points[1]!, p3: points[2]! };
       case 'regress':
         return { id, type: 'regress', p1: points[0]!, p2: points[1]! };
+      case 'xabcd':
+        return { id, type: 'xabcd', x: points[0]!, a: points[1]!, b: points[2]!, c: points[3]!, d: points[4]! };
+      case 'hs':
+        return { id, type: 'hs', ls: points[0]!, n1: points[1]!, head: points[2]!, n2: points[3]!, rs: points[4]! };
       default:
         return null;
     }
@@ -912,6 +952,22 @@ export class DrawingLayer {
         return [
           { handle: 'p1', point: d.p1 },
           { handle: 'p2', point: d.p2 },
+        ];
+      case 'xabcd':
+        return [
+          { handle: 'x', point: d.x },
+          { handle: 'a', point: d.a },
+          { handle: 'b', point: d.b },
+          { handle: 'c', point: d.c },
+          { handle: 'd', point: d.d },
+        ];
+      case 'hs':
+        return [
+          { handle: 'ls', point: d.ls },
+          { handle: 'n1', point: d.n1 },
+          { handle: 'head', point: d.head },
+          { handle: 'n2', point: d.n2 },
+          { handle: 'rs', point: d.rs },
         ];
     }
   }
@@ -1011,6 +1067,28 @@ export class DrawingLayer {
       const ry = Math.max(1, Math.abs(b.y - a.y) / 2);
       const v = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2;
       return v <= 1 ? 0 : Math.sqrt(v) * Math.min(rx, ry) - Math.min(rx, ry);
+    }
+    if (d.type === 'xabcd') {
+      const pts = [d.x, d.a, d.b, d.c, d.d].map((p) => this.pointToXy(p));
+      if (pts.some((p) => !p)) return null;
+      let best = Infinity;
+      for (let i = 0; i < pts.length - 1; i++) {
+        best = Math.min(best, distPointToSegment(x, y, pts[i]!.x, pts[i]!.y, pts[i + 1]!.x, pts[i + 1]!.y));
+      }
+      return Number.isFinite(best) ? best : null;
+    }
+    if (d.type === 'hs') {
+      const pts = [d.ls, d.n1, d.head, d.n2, d.rs].map((p) => this.pointToXy(p));
+      const n1 = this.pointToXy(d.n1);
+      const n2 = this.pointToXy(d.n2);
+      if (pts.some((p) => !p) || !n1 || !n2) return null;
+      let best = Infinity;
+      for (let i = 0; i < pts.length - 1; i++) {
+        best = Math.min(best, distPointToSegment(x, y, pts[i]!.x, pts[i]!.y, pts[i + 1]!.x, pts[i + 1]!.y));
+      }
+      const ext = extendLine(n1.x, n1.y, n2.x, n2.y, width, height);
+      best = Math.min(best, distPointToSegment(x, y, ext.a.x, ext.a.y, ext.b.x, ext.b.y));
+      return Number.isFinite(best) ? best : null;
     }
     if (d.type === 'regress') {
       const chan = linearChannel(this.priceSamples, d.p1.time, d.p2.time);
@@ -1608,6 +1686,62 @@ export class DrawingLayer {
         ctx.stroke();
         ctx.setLineDash([]);
         if (chan) this.label(ctx, 'Regresja  ±2σ', midA.x + 4, midA.y - 6, selected ? SELECTED : '#e0e3ea');
+      }
+    } else if (d.type === 'xabcd') {
+      const pts = [
+        ['X', d.x],
+        ['A', d.a],
+        ['B', d.b],
+        ['C', d.c],
+        ['D', d.d],
+      ] as const;
+      const xy = pts.map(([, p]) => this.pointToXy(p));
+      if (!xy.some((p) => !p)) {
+        ctx.beginPath();
+        ctx.moveTo(xy[0]!.x, xy[0]!.y);
+        for (let i = 1; i < xy.length; i++) ctx.lineTo(xy[i]!.x, xy[i]!.y);
+        ctx.stroke();
+        for (let i = 0; i < pts.length; i++) {
+          this.label(ctx, pts[i]![0], xy[i]!.x + 4, xy[i]!.y - 6, selected ? SELECTED : '#e0e3ea');
+        }
+        const swing = (from: Point, to: Point) => Math.abs(to.price - from.price);
+        const xa = swing(d.x, d.a);
+        const ratios = [
+          ['AB/XA', xa ? swing(d.a, d.b) / xa : 0],
+          ['BC/AB', swing(d.a, d.b) ? swing(d.b, d.c) / swing(d.a, d.b) : 0],
+          ['CD/BC', swing(d.b, d.c) ? swing(d.c, d.d) / swing(d.b, d.c) : 0],
+          ['CD/XA', xa ? swing(d.c, d.d) / xa : 0],
+        ] as const;
+        const mid = xy[4]!;
+        this.label(ctx, ratios.map(([n, v]) => `${n} ${v.toFixed(3)}`).join('  '), mid.x + 4, mid.y + 14, selected ? SELECTED : '#e0e3ea');
+      }
+    } else if (d.type === 'hs') {
+      const named = [
+        ['LS', d.ls],
+        ['N', d.n1],
+        ['H', d.head],
+        ['N', d.n2],
+        ['RS', d.rs],
+      ] as const;
+      const xy = named.map(([, p]) => this.pointToXy(p));
+      const n1 = xy[1];
+      const n2 = xy[3];
+      if (!xy.some((p) => !p) && n1 && n2) {
+        ctx.beginPath();
+        ctx.moveTo(xy[0]!.x, xy[0]!.y);
+        for (let i = 1; i < xy.length; i++) ctx.lineTo(xy[i]!.x, xy[i]!.y);
+        ctx.stroke();
+        ctx.setLineDash([6, 4]);
+        const ext = extendLine(n1.x, n1.y, n2.x, n2.y, width, height);
+        ctx.beginPath();
+        ctx.moveTo(ext.a.x, ext.a.y);
+        ctx.lineTo(ext.b.x, ext.b.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        for (let i = 0; i < named.length; i++) {
+          this.label(ctx, named[i]![0], xy[i]!.x + 4, xy[i]!.y - 6, selected ? SELECTED : '#e0e3ea');
+        }
+        this.label(ctx, 'Głowa z ramionami', xy[2]!.x + 4, xy[2]!.y - 18, selected ? SELECTED : '#e0e3ea');
       }
     }
     ctx.restore();
