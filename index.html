@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wykresy</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="toolbar">
+        <div class="brand" title="Wykresy">Wykresy</div>
+
+        <label class="field">
+          <span>Giełda</span>
+          <select id="source" data-source></select>
+        </label>
+
+        <label class="field">
+          <span>Para</span>
+          <select id="pair" data-pair></select>
+        </label>
+
+        <div class="group" role="group" aria-label="Interwał" id="intervals"></div>
+
+        <div class="sep"></div>
+
+        <div class="group" role="group" aria-label="Narzędzia rysowania">
+          <button type="button" class="tool is-active" data-tool="cursor" title="Kursor (przesuwanie wykresu)">Kursor</button>
+          <button type="button" class="tool" data-tool="trend" title="Linia trendu — dwa kliknięcia">Linia trendu</button>
+          <button type="button" class="tool" data-tool="hline" title="Linia pozioma — jedno kliknięcie">Linia pozioma</button>
+          <button type="button" class="tool" data-tool="rect" title="Prostokąt — dwa kliknięcia">Prostokąt</button>
+        </div>
+
+        <div class="group">
+          <button type="button" id="delete-btn" title="Usuń zaznaczony rysunek (Delete)">Usuń</button>
+          <button type="button" id="clear-btn" class="danger" title="Usuń wszystkie rysunki tej pary">Wyczyść wszystko</button>
+        </div>
+
+        <div id="status" class="status" role="status">Ładowanie…</div>
+      </header>
+
+      <div id="chart-wrap">
+        <div id="chart"></div>
+        <canvas id="draw-overlay" class="passthrough"></canvas>
+      </div>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
