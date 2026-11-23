@@ -29,7 +29,7 @@ export class MiniChart {
   state: MiniState;
 
   constructor(
-    root: HTMLElement,
+    private readonly root: HTMLElement,
     initial: MiniState,
     private readonly sources: { id: string; name: string }[],
     private readonly onChange: (state: MiniState) => void,
@@ -81,6 +81,14 @@ export class MiniChart {
       void this.reload();
     });
     void this.reload();
+  }
+
+  resize(): void {
+    const plot = this.root.querySelector<HTMLElement>('.extra-plot');
+    if (!plot) return;
+    const w = plot.clientWidth;
+    const h = plot.clientHeight;
+    if (w > 0 && h > 0) this.chart.resize(w, h);
   }
 
   setTheme(light: boolean): void {

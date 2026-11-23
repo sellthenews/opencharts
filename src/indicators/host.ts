@@ -5,7 +5,7 @@ import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, IPriceLine, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../sources/types';
 import { adx, atr, bollinger, ema, ichimoku, macd, pivotPoints, rsi, sma, stochastic, supertrend, vwap, wma } from './math';
-import type { IndicatorSettings, LinePoint } from './types';
+import { CATALOG_BY_KIND, type IndicatorInstance, type LinePoint } from './types';
 
 function lineBase(color: string) {
   return {
@@ -21,266 +21,247 @@ function asLine(points: LinePoint[]): { time: UTCTimestamp; value: number }[] {
   return points.map((p) => ({ time: p.time as UTCTimestamp, value: p.value }));
 }
 
+const KIND_COLOR: Record<string, string> = {
+  sma: '#f5d76e',
+  ema: '#42a5f5',
+  wma: '#66bb6a',
+  vwap: '#ff7043',
+  bb: '#787b86',
+  ichimoku: '#26a69a',
+  supertrend: '#26a69a',
+  rsi: '#ab47bc',
+  stoch: '#26a69a',
+  atr: '#ffa726',
+  adx: '#9c27b0',
+  macd: '#26c6da',
+  volume: '#26a69a',
+  pivots: '#787b86',
+};
+
+const PALETTE = ['#42a5f5', '#26a69a', '#ab47bc', '#ff9800', '#ef5350', '#f5d76e', '#66bb6a', '#ff7043', '#26c6da', '#9c27b0'];
+
+export type PaneMap = Record<string, number>;
+
 export class IndicatorHost {
-  private smaSeries: ISeriesApi<'Line'> | null = null;
-  private emaSeries: ISeriesApi<'Line'> | null = null;
-  private wmaSeries: ISeriesApi<'Line'> | null = null;
-  private vwapSeries: ISeriesApi<'Line'> | null = null;
-  private stUp: ISeriesApi<'Line'> | null = null;
-  private stDown: ISeriesApi<'Line'> | null = null;
+  private series: (ISeriesApi<'Line'> | ISeriesApi<'Histogram'>)[] = [];
   private pivotLines: IPriceLine[] = [];
-  private tenkan: ISeriesApi<'Line'> | null = null;
-  private kijun: ISeriesApi<'Line'> | null = null;
-  private spanA: ISeriesApi<'Line'> | null = null;
-  private spanB: ISeriesApi<'Line'> | null = null;
-  private chikou: ISeriesApi<'Line'> | null = null;
-  private bbMid: ISeriesApi<'Line'> | null = null;
-  private bbUpper: ISeriesApi<'Line'> | null = null;
-  private bbLower: ISeriesApi<'Line'> | null = null;
-  private volumeSeries: ISeriesApi<'Histogram'> | null = null;
-  private rsiSeries: ISeriesApi<'Line'> | null = null;
-  private stochK: ISeriesApi<'Line'> | null = null;
-  private stochD: ISeriesApi<'Line'> | null = null;
-  private atrSeries: ISeriesApi<'Line'> | null = null;
-  private adxLine: ISeriesApi<'Line'> | null = null;
-  private plusDi: ISeriesApi<'Line'> | null = null;
-  private minusDi: ISeriesApi<'Line'> | null = null;
-  private macdLine: ISeriesApi<'Line'> | null = null;
-  private macdSignal: ISeriesApi<'Line'> | null = null;
-  private macdHist: ISeriesApi<'Histogram'> | null = null;
 
   constructor(
     private readonly chart: IChartApi,
     private readonly candles: ISeriesApi<'Candlestick'>,
   ) {}
 
-  apply(data: Candle[], settings: IndicatorSettings): void {
-    this.applyOverlays(data, settings);
-    this.applyOscillators(data, settings);
+  apply(data: Candle[], items: IndicatorInstance[]): PaneMap {
+    this.clear();
+    const map: PaneMap = {};
+    const visible = items.filter((i) => i.visible);
+    const kindCount: Record<string, number> = {};
+    let hasVolume = false;
+
+    for (const item of visible) {
+      if (CATALOG_BY_KIND[item.kind].pane === 'osc') continue;
+      const slot = kindCount[item.kind] ?? 0;
+      kindCount[item.kind] = slot + 1;
+      this.addOverlay(data, item, this.color(item.kind, slot));
+      map[item.id] = 0;
+      if (item.kind === 'volume') hasVolume = true;
+    }
+
+    this.candles.priceScale().applyOptions({
+      scaleMargins: { top: 0.05, bottom: hasVolume ? 0.2 : 0.03 },
+    });
+
+    for (const item of visible) {
+      if (CATALOG_BY_KIND[item.kind].pane !== 'osc') continue;
+      this.chart.addPane();
+      const idx = this.chart.panes().length - 1;
+      const slot = kindCount[item.kind] ?? 0;
+      kindCount[item.kind] = slot + 1;
+      this.addOscillator(data, item, idx, this.color(item.kind, slot));
+      map[item.id] = idx;
+    }
+
+    const panes = this.chart.panes();
+    panes[0]?.setStretchFactor(3);
+    for (let i = 1; i < panes.length; i++) panes[i]!.setStretchFactor(1);
+    return map;
   }
 
-  private drop<T>(series: T | null): null {
-    if (series) this.chart.removeSeries(series as never);
-    return null;
+  paneOffset(index: number): number {
+    let y = 0;
+    const n = this.chart.panes().length;
+    for (let i = 0; i < index && i < n; i++) {
+      y += this.chart.paneSize(i).height;
+    }
+    return y;
   }
 
-  private clearPivots(): void {
+  private color(kind: string, slot: number): string {
+    if (slot === 0) return KIND_COLOR[kind] ?? PALETTE[0]!;
+    return PALETTE[slot % PALETTE.length]!;
+  }
+
+  private keep(series: ISeriesApi<'Line'> | ISeriesApi<'Histogram'>): void {
+    this.series.push(series);
+  }
+
+  private clear(): void {
     for (const line of this.pivotLines) this.candles.removePriceLine(line);
     this.pivotLines = [];
+    for (const s of this.series) this.chart.removeSeries(s);
+    this.series = [];
+    const panes = this.chart.panes();
+    for (let i = panes.length - 1; i >= 1; i--) this.chart.removePane(i);
   }
 
-  private applyOverlays(data: Candle[], settings: IndicatorSettings): void {
-    if (settings.sma.on) {
-      if (!this.smaSeries) this.smaSeries = this.chart.addSeries(LineSeries, lineBase('#f5d76e'), 0);
-      this.smaSeries.setData(asLine(sma(data, settings.sma.period)));
-    } else {
-      this.smaSeries = this.drop(this.smaSeries);
-    }
-
-    if (settings.ema.on) {
-      if (!this.emaSeries) this.emaSeries = this.chart.addSeries(LineSeries, lineBase('#42a5f5'), 0);
-      this.emaSeries.setData(asLine(ema(data, settings.ema.period)));
-    } else {
-      this.emaSeries = this.drop(this.emaSeries);
-    }
-
-    if (settings.wma.on) {
-      if (!this.wmaSeries) this.wmaSeries = this.chart.addSeries(LineSeries, lineBase('#66bb6a'), 0);
-      this.wmaSeries.setData(asLine(wma(data, settings.wma.period)));
-    } else {
-      this.wmaSeries = this.drop(this.wmaSeries);
-    }
-
-    if (settings.bb.on) {
-      if (!this.bbMid) this.bbMid = this.chart.addSeries(LineSeries, lineBase('#787b86'), 0);
-      if (!this.bbUpper) this.bbUpper = this.chart.addSeries(LineSeries, lineBase('#787b86'), 0);
-      if (!this.bbLower) this.bbLower = this.chart.addSeries(LineSeries, lineBase('#787b86'), 0);
-      const bands = bollinger(data, settings.bb.period, settings.bb.std);
-      this.bbMid.setData(asLine(bands.map((b) => ({ time: b.time, value: b.mid }))));
-      this.bbUpper.setData(asLine(bands.map((b) => ({ time: b.time, value: b.upper }))));
-      this.bbLower.setData(asLine(bands.map((b) => ({ time: b.time, value: b.lower }))));
-    } else {
-      this.bbMid = this.drop(this.bbMid);
-      this.bbUpper = this.drop(this.bbUpper);
-      this.bbLower = this.drop(this.bbLower);
-    }
-
-    if (settings.ichimoku.on) {
-      if (!this.tenkan) this.tenkan = this.chart.addSeries(LineSeries, lineBase('#f44336'), 0);
-      if (!this.kijun) this.kijun = this.chart.addSeries(LineSeries, lineBase('#2196f3'), 0);
-      if (!this.spanA) this.spanA = this.chart.addSeries(LineSeries, lineBase('#26a69a'), 0);
-      if (!this.spanB) this.spanB = this.chart.addSeries(LineSeries, lineBase('#ef5350'), 0);
-      if (!this.chikou) this.chikou = this.chart.addSeries(LineSeries, lineBase('#9c27b0'), 0);
+  private addOverlay(data: Candle[], item: IndicatorInstance, color: string): void {
+    const p = item.params;
+    if (item.kind === 'sma') {
+      const s = this.chart.addSeries(LineSeries, lineBase(color), 0);
+      s.setData(asLine(sma(data, p.period ?? 20)));
+      this.keep(s);
+    } else if (item.kind === 'ema') {
+      const s = this.chart.addSeries(LineSeries, lineBase(color), 0);
+      s.setData(asLine(ema(data, p.period ?? 20)));
+      this.keep(s);
+    } else if (item.kind === 'wma') {
+      const s = this.chart.addSeries(LineSeries, lineBase(color), 0);
+      s.setData(asLine(wma(data, p.period ?? 20)));
+      this.keep(s);
+    } else if (item.kind === 'vwap') {
+      const s = this.chart.addSeries(LineSeries, lineBase(color), 0);
+      s.setData(asLine(vwap(data)));
+      this.keep(s);
+    } else if (item.kind === 'bb') {
+      const bands = bollinger(data, p.period ?? 20, p.std ?? 2);
+      const mid = this.chart.addSeries(LineSeries, lineBase(color), 0);
+      const up = this.chart.addSeries(LineSeries, lineBase(color), 0);
+      const lo = this.chart.addSeries(LineSeries, lineBase(color), 0);
+      mid.setData(asLine(bands.map((b) => ({ time: b.time, value: b.mid }))));
+      up.setData(asLine(bands.map((b) => ({ time: b.time, value: b.upper }))));
+      lo.setData(asLine(bands.map((b) => ({ time: b.time, value: b.lower }))));
+      this.keep(mid);
+      this.keep(up);
+      this.keep(lo);
+    } else if (item.kind === 'ichimoku') {
       const cloud = ichimoku(data);
-      this.tenkan.setData(asLine(cloud.tenkan));
-      this.kijun.setData(asLine(cloud.kijun));
-      this.spanA.setData(asLine(cloud.spanA));
-      this.spanB.setData(asLine(cloud.spanB));
-      this.chikou.setData(asLine(cloud.chikou));
-    } else {
-      this.tenkan = this.drop(this.tenkan);
-      this.kijun = this.drop(this.kijun);
-      this.spanA = this.drop(this.spanA);
-      this.spanB = this.drop(this.spanB);
-      this.chikou = this.drop(this.chikou);
-    }
-
-    this.clearPivots();
-    if (settings.pivots.on) {
+      const tenkan = this.chart.addSeries(LineSeries, lineBase('#f44336'), 0);
+      const kijun = this.chart.addSeries(LineSeries, lineBase('#2196f3'), 0);
+      const spanA = this.chart.addSeries(LineSeries, lineBase('#26a69a'), 0);
+      const spanB = this.chart.addSeries(LineSeries, lineBase('#ef5350'), 0);
+      const chikou = this.chart.addSeries(LineSeries, lineBase('#9c27b0'), 0);
+      tenkan.setData(asLine(cloud.tenkan));
+      kijun.setData(asLine(cloud.kijun));
+      spanA.setData(asLine(cloud.spanA));
+      spanB.setData(asLine(cloud.spanB));
+      chikou.setData(asLine(cloud.chikou));
+      this.keep(tenkan);
+      this.keep(kijun);
+      this.keep(spanA);
+      this.keep(spanB);
+      this.keep(chikou);
+    } else if (item.kind === 'supertrend') {
+      const pts = supertrend(data, p.period ?? 10, p.multiplier ?? 3);
+      const up = this.chart.addSeries(LineSeries, lineBase('#26a69a'), 0);
+      const down = this.chart.addSeries(LineSeries, lineBase('#ef5350'), 0);
+      up.setData(asLine(pts.filter((x) => x.dir === 1).map((x) => ({ time: x.time, value: x.value }))));
+      down.setData(asLine(pts.filter((x) => x.dir === -1).map((x) => ({ time: x.time, value: x.value }))));
+      this.keep(up);
+      this.keep(down);
+    } else if (item.kind === 'pivots') {
       const lv = pivotPoints(data);
-      if (lv) {
-        const add = (price: number, color: string, title: string) => {
-          this.pivotLines.push(
-            this.candles.createPriceLine({
-              price,
-              color,
-              lineWidth: 1,
-              lineStyle: LineStyle.Dotted,
-              axisLabelVisible: true,
-              title,
-            }),
-          );
-        };
-        add(lv.p, '#787b86', 'P');
-        add(lv.r1, '#ef5350', 'R1');
-        add(lv.r2, '#ef5350', 'R2');
-        add(lv.r3, '#ef5350', 'R3');
-        add(lv.s1, '#26a69a', 'S1');
-        add(lv.s2, '#26a69a', 'S2');
-        add(lv.s3, '#26a69a', 'S3');
-      }
-    }
-
-    if (settings.supertrend.on) {
-      if (!this.stUp) this.stUp = this.chart.addSeries(LineSeries, lineBase('#26a69a'), 0);
-      if (!this.stDown) this.stDown = this.chart.addSeries(LineSeries, lineBase('#ef5350'), 0);
-      const pts = supertrend(data, settings.supertrend.period, settings.supertrend.multiplier);
-      this.stUp.setData(asLine(pts.filter((p) => p.dir === 1).map((p) => ({ time: p.time, value: p.value }))));
-      this.stDown.setData(asLine(pts.filter((p) => p.dir === -1).map((p) => ({ time: p.time, value: p.value }))));
-    } else {
-      this.stUp = this.drop(this.stUp);
-      this.stDown = this.drop(this.stDown);
-    }
-
-    if (settings.vwap.on) {
-      if (!this.vwapSeries) this.vwapSeries = this.chart.addSeries(LineSeries, lineBase('#ff7043'), 0);
-      this.vwapSeries.setData(asLine(vwap(data)));
-    } else {
-      this.vwapSeries = this.drop(this.vwapSeries);
-    }
-
-    if (settings.volume.on) {
-      if (!this.volumeSeries) {
-        this.volumeSeries = this.chart.addSeries(
-          HistogramSeries,
-          { priceScaleId: 'volume', priceLineVisible: false, lastValueVisible: false },
-          0,
+      if (!lv) return;
+      const add = (price: number, col: string, title: string) => {
+        this.pivotLines.push(
+          this.candles.createPriceLine({
+            price,
+            color: col,
+            lineWidth: 1,
+            lineStyle: LineStyle.Dotted,
+            axisLabelVisible: true,
+            title,
+          }),
         );
-        this.chart.priceScale('volume', 0).applyOptions({
-          scaleMargins: { top: 0.8, bottom: 0 },
-          borderVisible: false,
-        });
-      }
-      this.volumeSeries.setData(
+      };
+      add(lv.p, '#787b86', 'P');
+      add(lv.r1, '#ef5350', 'R1');
+      add(lv.r2, '#ef5350', 'R2');
+      add(lv.r3, '#ef5350', 'R3');
+      add(lv.s1, '#26a69a', 'S1');
+      add(lv.s2, '#26a69a', 'S2');
+      add(lv.s3, '#26a69a', 'S3');
+    } else if (item.kind === 'volume') {
+      const s = this.chart.addSeries(
+        HistogramSeries,
+        { priceScaleId: 'volume', priceLineVisible: false, lastValueVisible: false },
+        0,
+      );
+      this.chart.priceScale('volume', 0).applyOptions({
+        scaleMargins: { top: 0.8, bottom: 0 },
+        borderVisible: false,
+      });
+      s.setData(
         data.map((c) => ({
           time: c.time as UTCTimestamp,
           value: c.volume,
           color: c.close >= c.open ? 'rgba(38, 166, 154, 0.45)' : 'rgba(239, 83, 80, 0.45)',
         })),
       );
-    } else {
-      this.volumeSeries = this.drop(this.volumeSeries);
+      this.keep(s);
     }
-
-    this.candles.priceScale().applyOptions({
-      scaleMargins: { top: 0.05, bottom: settings.volume.on ? 0.2 : 0.03 },
-    });
   }
 
-  private applyOscillators(data: Candle[], settings: IndicatorSettings): void {
-    this.rsiSeries = this.drop(this.rsiSeries);
-    this.stochK = this.drop(this.stochK);
-    this.stochD = this.drop(this.stochD);
-    this.atrSeries = this.drop(this.atrSeries);
-    this.adxLine = this.drop(this.adxLine);
-    this.plusDi = this.drop(this.plusDi);
-    this.minusDi = this.drop(this.minusDi);
-    this.macdLine = this.drop(this.macdLine);
-    this.macdSignal = this.drop(this.macdSignal);
-    this.macdHist = this.drop(this.macdHist);
-    const panes = this.chart.panes();
-    for (let i = panes.length - 1; i >= 1; i--) this.chart.removePane(i);
-
-    if (settings.rsi.on) {
-      this.chart.addPane();
-      const idx = this.chart.panes().length - 1;
-      this.rsiSeries = this.chart.addSeries(
-        LineSeries,
-        { ...lineBase('#ab47bc'), lastValueVisible: true },
-        idx,
-      );
-      this.rsiSeries.setData(asLine(rsi(data, settings.rsi.period)));
-      const line = { lineWidth: 1 as const, lineStyle: LineStyle.Dotted, axisLabelVisible: false };
-      this.rsiSeries.createPriceLine({ price: 70, color: '#6d5a78', title: '', ...line });
-      this.rsiSeries.createPriceLine({ price: 30, color: '#6d5a78', title: '', ...line });
-    }
-
-    if (settings.stoch.on) {
-      this.chart.addPane();
-      const idx = this.chart.panes().length - 1;
-      const pts = stochastic(data, settings.stoch.kPeriod, settings.stoch.dPeriod);
-      this.stochK = this.chart.addSeries(LineSeries, { ...lineBase('#26a69a'), lastValueVisible: true }, idx);
-      this.stochD = this.chart.addSeries(LineSeries, lineBase('#ef5350'), idx);
-      this.stochK.setData(asLine(pts.map((p) => ({ time: p.time, value: p.k }))));
-      this.stochD.setData(asLine(pts.map((p) => ({ time: p.time, value: p.d }))));
-      const line = { lineWidth: 1 as const, lineStyle: LineStyle.Dotted, axisLabelVisible: false };
-      this.stochK.createPriceLine({ price: 80, color: '#6d5a78', title: '', ...line });
-      this.stochK.createPriceLine({ price: 20, color: '#6d5a78', title: '', ...line });
-    }
-
-    if (settings.atr.on) {
-      this.chart.addPane();
-      const idx = this.chart.panes().length - 1;
-      this.atrSeries = this.chart.addSeries(LineSeries, { ...lineBase('#ffa726'), lastValueVisible: true }, idx);
-      this.atrSeries.setData(asLine(atr(data, settings.atr.period)));
-    }
-
-    if (settings.adx.on) {
-      this.chart.addPane();
-      const idx = this.chart.panes().length - 1;
-      const pts = adx(data, settings.adx.period);
-      this.adxLine = this.chart.addSeries(LineSeries, { ...lineBase('#9c27b0'), lastValueVisible: true }, idx);
-      this.plusDi = this.chart.addSeries(LineSeries, lineBase('#26a69a'), idx);
-      this.minusDi = this.chart.addSeries(LineSeries, lineBase('#ef5350'), idx);
-      this.adxLine.setData(asLine(pts.map((p) => ({ time: p.time, value: p.adx }))));
-      this.plusDi.setData(asLine(pts.map((p) => ({ time: p.time, value: p.pdi }))));
-      this.minusDi.setData(asLine(pts.map((p) => ({ time: p.time, value: p.mdi }))));
-    }
-
-    if (settings.macd.on) {
-      this.chart.addPane();
-      const idx = this.chart.panes().length - 1;
-      const pts = macd(data, settings.macd.fast, settings.macd.slow, settings.macd.signal);
-      this.macdHist = this.chart.addSeries(
-        HistogramSeries,
-        { priceLineVisible: false, lastValueVisible: false },
-        idx,
-      );
-      this.macdHist.setData(
-        pts.map((p) => ({
-          time: p.time as UTCTimestamp,
-          value: p.histogram,
-          color: p.histogram >= 0 ? 'rgba(38, 166, 154, 0.6)' : 'rgba(239, 83, 80, 0.6)',
+  private addOscillator(data: Candle[], item: IndicatorInstance, idx: number, color: string): void {
+    const p = item.params;
+    const dotted = { lineWidth: 1 as const, lineStyle: LineStyle.Dotted, axisLabelVisible: false };
+    if (item.kind === 'rsi') {
+      const s = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
+      s.setData(asLine(rsi(data, p.period ?? 14)));
+      s.createPriceLine({ price: 70, color: '#6d5a78', title: '', ...dotted });
+      s.createPriceLine({ price: 30, color: '#6d5a78', title: '', ...dotted });
+      this.keep(s);
+    } else if (item.kind === 'stoch') {
+      const pts = stochastic(data, p.kPeriod ?? 14, p.dPeriod ?? 3);
+      const k = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
+      const d = this.chart.addSeries(LineSeries, lineBase('#ef5350'), idx);
+      k.setData(asLine(pts.map((x) => ({ time: x.time, value: x.k }))));
+      d.setData(asLine(pts.map((x) => ({ time: x.time, value: x.d }))));
+      k.createPriceLine({ price: 80, color: '#6d5a78', title: '', ...dotted });
+      k.createPriceLine({ price: 20, color: '#6d5a78', title: '', ...dotted });
+      this.keep(k);
+      this.keep(d);
+    } else if (item.kind === 'atr') {
+      const s = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
+      s.setData(asLine(atr(data, p.period ?? 14)));
+      this.keep(s);
+    } else if (item.kind === 'adx') {
+      const pts = adx(data, p.period ?? 14);
+      const line = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
+      const plus = this.chart.addSeries(LineSeries, lineBase('#26a69a'), idx);
+      const minus = this.chart.addSeries(LineSeries, lineBase('#ef5350'), idx);
+      line.setData(asLine(pts.map((x) => ({ time: x.time, value: x.adx }))));
+      plus.setData(asLine(pts.map((x) => ({ time: x.time, value: x.pdi }))));
+      minus.setData(asLine(pts.map((x) => ({ time: x.time, value: x.mdi }))));
+      this.keep(line);
+      this.keep(plus);
+      this.keep(minus);
+    } else if (item.kind === 'macd') {
+      const pts = macd(data, p.fast ?? 12, p.slow ?? 26, p.signal ?? 9);
+      const hist = this.chart.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: false }, idx);
+      hist.setData(
+        pts.map((x) => ({
+          time: x.time as UTCTimestamp,
+          value: x.histogram,
+          color: x.histogram >= 0 ? 'rgba(38, 166, 154, 0.6)' : 'rgba(239, 83, 80, 0.6)',
         })),
       );
-      this.macdLine = this.chart.addSeries(LineSeries, lineBase('#26c6da'), idx);
-      this.macdLine.setData(asLine(pts.map((p) => ({ time: p.time, value: p.macd }))));
-      this.macdSignal = this.chart.addSeries(LineSeries, lineBase('#ff9800'), idx);
-      this.macdSignal.setData(asLine(pts.map((p) => ({ time: p.time, value: p.signal }))));
+      const line = this.chart.addSeries(LineSeries, lineBase(color), idx);
+      const signal = this.chart.addSeries(LineSeries, lineBase('#ff9800'), idx);
+      line.setData(asLine(pts.map((x) => ({ time: x.time, value: x.macd }))));
+      signal.setData(asLine(pts.map((x) => ({ time: x.time, value: x.signal }))));
+      this.keep(hist);
+      this.keep(line);
+      this.keep(signal);
     }
-
-    const all = this.chart.panes();
-    all[0]?.setStretchFactor(3);
-    for (let i = 1; i < all.length; i++) all[i]!.setStretchFactor(1);
   }
 }

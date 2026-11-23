@@ -152,3 +152,10 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 - [x] P1 Motyw ciemny (domyślny)
 - [x] P1 Motyw jasny
 - [x] P1 Zapis układu (layout) — automatyczny zapis giełdy, pary, interwału i motywu
+
+## UI wskaźników i panel (23 XI 2026)
+
+- Pasek checkboxów zastąpiony przyciskiem „fx Wskaźniki”: okno z wyszukiwarką i grupami (Trend, Momentum, Zmienność, Wolumen), wiele instancji tego samego wskaźnika, etykiety na wykresie (ustawienia / ukryj / usuń). Zapis `wykresy:indicators` v2 z migracją ze starych ustawień.
+- Etykiety tylko na głównym wykresie — dodatkowe panele układu wielu wykresów nie mają własnych wskaźników.
+- Panel obserwowanych i alertów cenowych po prawej stronie. Przycisk „Panel” w górnym pasku chowa/pokazuje panel; wykresy zajmują wtedy całą szerokość. Stan w `wykresy:sidebar`.
+

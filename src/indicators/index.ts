@@ -2,6 +2,6 @@
 // Copyright (C) 2026 Wykresy contributors
 
 export { adx, atr, bollinger, ema, ichimoku, macd, pivotPoints, rsi, sma, stochastic, supertrend, vwap, wma } from './math';
-export { loadIndicatorSettings, normalizeSettings, saveIndicatorSettings } from './settings';
+export { loadIndicatorSettings, saveIndicatorSettings } from './settings';
 export { DEFAULT_INDICATORS, INDICATOR_STORAGE_KEY } from './types';
-export type { BandPoint, IndicatorSettings, LinePoint, MacdPoint } from './types';
+export type { BandPoint, IndicatorInstance, IndicatorSettings, LinePoint, MacdPoint } from './types';

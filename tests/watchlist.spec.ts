@@ -23,4 +23,18 @@ test('lista obserwowanych: domyślne pary Krakena i otwieranie wykresu', async (
   await expect(page.locator('#source')).toHaveValue('kraken');
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
   await expect(page.locator('#status')).toContainText(/BTC|XBT/);
+
+  const before = await page.locator('#chart-wrap').boundingBox();
+  expect(before).toBeTruthy();
+  await expect(page.locator('#sidebar')).toBeVisible();
+  await page.locator('#sidebar-btn').click();
+  await expect(page.locator('#sidebar')).toBeHidden();
+  const after = await page.locator('#chart-wrap').boundingBox();
+  expect(after).toBeTruthy();
+  expect(after!.width).toBeGreaterThan(before!.width + 40);
+
+  await page.reload();
+  await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
+  await expect(page.locator('#sidebar')).toBeHidden();
+  await expect(page.locator('#app')).toHaveAttribute('data-sidebar', 'off');
 });

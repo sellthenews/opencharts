@@ -11,8 +11,10 @@ import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import { DrawingLayer } from './drawings';
 import type { Tool } from './drawings';
 import { IndicatorHost } from './indicators/host';
+import type { PaneMap } from './indicators/host';
 import { loadIndicatorSettings, saveIndicatorSettings } from './indicators/settings';
-import type { IndicatorSettings } from './indicators/types';
+import { IndicatorHud } from './indicators/ui';
+import type { IndicatorInstance } from './indicators/types';
 import { INTERVALS, getSource, sources } from './sources';
 import type { Candle, IntervalId, PairId } from './sources';
 import { loadLayout, saveLayout } from './layout';
@@ -29,6 +31,7 @@ const DEFAULT_SOURCE = 'kraken';
 const DEFAULT_PAIR: PairId = 'XRPUSD';
 const DEFAULT_INTERVAL: IntervalId = '1D';
 const THEME_KEY = 'wykresy:theme';
+const SIDEBAR_KEY = 'wykresy:sidebar';
 type ThemeName = 'dark' | 'light';
 
 function loadTheme(): ThemeName {
@@ -65,6 +68,7 @@ function applyTheme(name: ThemeName): void {
 
 
 const appEl = document.querySelector<HTMLDivElement>('#app')!;
+appEl.dataset.sidebar = localStorage.getItem(SIDEBAR_KEY) !== 'off' ? 'on' : 'off';
 const sourceEl = document.querySelector<HTMLSelectElement>('#source')!;
 const pairEl = document.querySelector<HTMLSelectElement>('#pair')!;
 const intervalsEl = document.querySelector<HTMLDivElement>('#intervals')!;
@@ -78,7 +82,6 @@ const exportBtn = document.querySelector<HTMLButtonElement>('#export-btn')!;
 const importBtn = document.querySelector<HTMLButtonElement>('#import-btn')!;
 const importFile = document.querySelector<HTMLInputElement>('#import-file')!;
 const extendRightBtn = document.querySelector<HTMLButtonElement>('#extend-right-btn')!;
-const indicatorsBar = document.querySelector<HTMLDivElement>('#indicators-bar')!;
 
 let sourceId = DEFAULT_SOURCE;
 let pairId: PairId = DEFAULT_PAIR;
@@ -161,7 +164,9 @@ function evaluateAlerts(source: string, pair: PairId, last: number): void {
     renderAlerts();
   }
 }
-let indicatorSettings = loadIndicatorSettings();
+let indicatorItems = loadIndicatorSettings();
+let paneMap: PaneMap = {};
+let indicatorHud: IndicatorHud;
 let watchlist: WatchlistPanel;
 
 applyTheme(theme);
@@ -282,97 +287,62 @@ renderAlerts();
   if (reload) void loadChart();
 }
 
-function numInput(selector: string, value: number): void {
-  const el = indicatorsBar.querySelector<HTMLInputElement>(selector);
-  if (el) el.value = String(value);
-}
-
-function syncIndicatorUi(): void {
-  const s = indicatorSettings;
-  const setOn = (id: string, on: boolean) => {
-    const el = indicatorsBar.querySelector<HTMLInputElement>(`input[data-ind="${id}"]`);
-    if (el) el.checked = on;
-  };
-  setOn('sma', s.sma.on);
-  setOn('ema', s.ema.on);
-  setOn('wma', s.wma.on);
-  setOn('bb', s.bb.on);
-  setOn('volume', s.volume.on);
-  setOn('vwap', s.vwap.on);
-  setOn('rsi', s.rsi.on);
-  setOn('stoch', s.stoch.on);
-  setOn('pivots', s.pivots.on);
-  setOn('ichimoku', s.ichimoku.on);
-  setOn('supertrend', s.supertrend.on);
-  setOn('adx', s.adx.on);
-  setOn('atr', s.atr.on);
-  setOn('macd', s.macd.on);
-  numInput('[data-ind-period="sma"]', s.sma.period);
-  numInput('[data-ind-period="ema"]', s.ema.period);
-  numInput('[data-ind-period="wma"]', s.wma.period);
-  numInput('[data-ind-period="bb"]', s.bb.period);
-  numInput('[data-ind-std="bb"]', s.bb.std);
-  numInput('[data-ind-period="rsi"]', s.rsi.period);
-  numInput('[data-ind-stoch="k"]', s.stoch.kPeriod);
-  numInput('[data-ind-stoch="d"]', s.stoch.dPeriod);
-  numInput('[data-ind-st="period"]', s.supertrend.period);
-  numInput('[data-ind-st="mult"]', s.supertrend.multiplier);
-  numInput('[data-ind-period="adx"]', s.adx.period);
-  numInput('[data-ind-period="atr"]', s.atr.period);
-  numInput('[data-ind-macd="fast"]', s.macd.fast);
-  numInput('[data-ind-macd="slow"]', s.macd.slow);
-  numInput('[data-ind-macd="signal"]', s.macd.signal);
-  appEl.dataset.rsi = s.rsi.on ? 'on' : 'off';
-  appEl.dataset.macd = s.macd.on ? 'on' : 'off';
-}
-
-function readIndicatorUi(): IndicatorSettings {
-  const on = (id: string) => Boolean(indicatorsBar.querySelector<HTMLInputElement>(`input[data-ind="${id}"]`)?.checked);
-  const num = (sel: string, fallback: number) => {
-    const v = Number(indicatorsBar.querySelector<HTMLInputElement>(sel)?.value);
-    return Number.isFinite(v) ? v : fallback;
-  };
-  const d = indicatorSettings;
-  return {
-    sma: { on: on('sma'), period: num('[data-ind-period="sma"]', d.sma.period) },
-    ema: { on: on('ema'), period: num('[data-ind-period="ema"]', d.ema.period) },
-    wma: { on: on('wma'), period: num('[data-ind-period="wma"]', d.wma.period) },
-    bb: { on: on('bb'), period: num('[data-ind-period="bb"]', d.bb.period), std: num('[data-ind-std="bb"]', d.bb.std) },
-    volume: { on: on('volume') },
-    vwap: { on: on('vwap') },
-    rsi: { on: on('rsi'), period: num('[data-ind-period="rsi"]', d.rsi.period) },
-    stoch: { on: on('stoch'), kPeriod: num('[data-ind-stoch="k"]', d.stoch.kPeriod), dPeriod: num('[data-ind-stoch="d"]', d.stoch.dPeriod) },
-    pivots: { on: on('pivots') },
-    ichimoku: { on: on('ichimoku') },
-    supertrend: { on: on('supertrend'), period: num('[data-ind-st="period"]', d.supertrend.period), multiplier: num('[data-ind-st="mult"]', d.supertrend.multiplier) },
-    adx: { on: on('adx'), period: num('[data-ind-period="adx"]', d.adx.period) },
-    atr: { on: on('atr'), period: num('[data-ind-period="atr"]', d.atr.period) },
-    macd: {
-      on: on('macd'),
-      fast: num('[data-ind-macd="fast"]', d.macd.fast),
-      slow: num('[data-ind-macd="slow"]', d.macd.slow),
-      signal: num('[data-ind-macd="signal"]', d.macd.signal),
-    },
-  };
+function visibleKinds(): Set<string> {
+  return new Set(indicatorItems.filter((i) => i.visible).map((i) => i.kind));
 }
 
 function applyIndicators(): void {
-  indicators.apply(lastCandles, indicatorSettings);
-  appEl.dataset.rsi = indicatorSettings.rsi.on ? 'on' : 'off';
-  appEl.dataset.macd = indicatorSettings.macd.on ? 'on' : 'off';
+  paneMap = indicators.apply(lastCandles, indicatorItems);
+  const kinds = visibleKinds();
+  appEl.dataset.rsi = kinds.has('rsi') ? 'on' : 'off';
+  appEl.dataset.macd = kinds.has('macd') ? 'on' : 'off';
+  indicatorHud?.setPaneMap(paneMap);
+  indicatorHud?.setItems(indicatorItems);
   requestAnimationFrame(() => {
     drawings.syncSize();
-    requestAnimationFrame(() => drawings.syncSize());
+    indicatorHud?.relayout();
+    requestAnimationFrame(() => {
+      drawings.syncSize();
+      indicatorHud?.relayout();
+    });
   });
 }
 
-function persistIndicatorsFromUi(): void {
-  indicatorSettings = readIndicatorUi();
-  saveIndicatorSettings(indicatorSettings);
-  syncIndicatorUi();
+function persistIndicators(items: IndicatorInstance[]): void {
+  indicatorItems = items;
+  saveIndicatorSettings(indicatorItems);
   applyIndicators();
 }
 
+function resizeCharts(): void {
+  const r = wrapEl.getBoundingClientRect();
+  if (r.width > 0 && r.height > 0) chart.resize(r.width, r.height);
+  for (const mini of miniCharts) mini.resize();
+  indicatorHud?.setPaneMap(paneMap);
+  requestAnimationFrame(() => {
+    drawings.syncSize();
+    indicatorHud?.relayout();
+    const again = wrapEl.getBoundingClientRect();
+    if (again.width > 0 && again.height > 0) chart.resize(again.width, again.height);
+    for (const mini of miniCharts) mini.resize();
+    requestAnimationFrame(() => indicatorHud?.relayout());
+  });
+}
+
+function sidebarIsOn(): boolean {
+  return localStorage.getItem(SIDEBAR_KEY) !== 'off';
+}
+
+function setSidebar(on: boolean): void {
+  localStorage.setItem(SIDEBAR_KEY, on ? 'on' : 'off');
+  appEl.dataset.sidebar = on ? 'on' : 'off';
+  const btn = document.querySelector<HTMLButtonElement>('#sidebar-btn');
+  if (btn) {
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.title = on ? 'Ukryj panel obserwowanych' : 'Pokaż panel obserwowanych';
+  }
+  resizeCharts();
+}
 
 function applyPriceData(candles: Candle[], fit: boolean): void {
   lastCandles = candles;
@@ -547,12 +517,9 @@ extendRightBtn.addEventListener('click', () => {
   }
 });
 
-indicatorsBar.addEventListener('change', () => persistIndicatorsFromUi());
-
 fillSources();
 fillPairs();
 fillIntervals();
-syncIndicatorUi();
 drawings.setContext(sourceId, pairId);
 
 const watchRoot = document.querySelector<HTMLElement>('#watchlist')!;
@@ -575,6 +542,7 @@ function setPaneCount(count: 1 | 2 | 4): void {
     btn.classList.toggle('is-active', btn.getAttribute('data-panes') === String(count));
   });
   persistLayout();
+  resizeCharts();
 }
 
 document.querySelector('#layout-btns')?.addEventListener('click', (ev) => {
@@ -597,6 +565,25 @@ document.querySelectorAll<HTMLElement>('.extra-cell').forEach((cell, i) => {
 });
 setPaneCount(paneCount);
 
+indicatorHud = new IndicatorHud(
+  indicatorItems,
+  {
+    onChange: persistIndicators,
+    paneOffset: (index) => indicators.paneOffset(index),
+  },
+  document.querySelector('#ind-labels')!,
+  document.querySelector('#ind-modal')!,
+  document.querySelector('#ind-search')!,
+  document.querySelector('#ind-catalog')!,
+  document.querySelector('#ind-btn')!,
+  document.querySelector('#ind-modal-close')!,
+);
+
+setSidebar(sidebarIsOn());
+document.querySelector('#sidebar-btn')?.addEventListener('click', () => setSidebar(!sidebarIsOn()));
+window.addEventListener('resize', () => resizeCharts());
+
+
 
 declare global {
   interface Window {
@@ -606,8 +593,7 @@ declare global {
       getAbcdScreen: () => ReturnType<DrawingLayer['getAbcdScreen']>;
       exportDrawings: () => string;
       importDrawings: (raw: string) => void;
-      getIndicatorSettings: () => IndicatorSettings;
-      setIndicator: (patch: Partial<IndicatorSettings>) => void;
+      getIndicators: () => IndicatorInstance[];
       getWatchState: () => WatchState;
       applySelection: (sourceId: string, pairId: PairId) => void;
     };
@@ -620,13 +606,7 @@ window.__wykresy = {
   getAbcdScreen: () => drawings.getAbcdScreen(),
   exportDrawings: () => drawings.exportJson(),
   importDrawings: (raw) => drawings.importJson(raw),
-  getIndicatorSettings: () => indicatorSettings,
-  setIndicator: (patch) => {
-    indicatorSettings = { ...indicatorSettings, ...patch };
-    saveIndicatorSettings(indicatorSettings);
-    syncIndicatorUi();
-    applyIndicators();
-  },
+  getIndicators: () => indicatorItems,
   getWatchState: () => watchlist.getState(),
   applySelection: (src, pair) => applySelection(src, pair, true),
 };

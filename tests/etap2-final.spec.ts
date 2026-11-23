@@ -19,8 +19,11 @@ test('zrzut etap 2: XRP/USD 1D Kraken, RSI, Fibo, obserwowane', async ({ page })
   await expect(page.locator('#watchlist')).toBeVisible();
   await expect(page.locator('.watch-row')).toHaveCount(3);
 
-  await page.locator('input[data-ind="rsi"]').check();
+  await page.locator('#ind-btn').click();
+  await page.locator('[data-ind-add="rsi"]').click();
+  await page.keyboard.press('Escape');
   await expect(page.locator('#app')).toHaveAttribute('data-rsi', 'on');
+  await expect(page.locator('.ind-label[data-kind="rsi"]')).toBeVisible();
   await page.waitForTimeout(400);
 
   const box = await page.locator('#chart-wrap').boundingBox();

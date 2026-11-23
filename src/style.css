@@ -190,40 +190,208 @@ button.danger:hover {
   pointer-events: none;
 }
 
-.indicators-bar {
-  border-top: 0;
-  padding-top: 6px;
-  padding-bottom: 6px;
+#ind-labels {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
 }
 
-.muted-label {
-  color: var(--muted);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-right: 4px;
+.ind-label-stack {
+  position: absolute;
+  left: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  pointer-events: auto;
+  max-width: min(360px, 70%);
 }
 
-.ind {
+.ind-label {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+  position: relative;
+  padding: 1px 4px 1px 6px;
+  background: color-mix(in srgb, var(--panel) 86%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 1.2;
   color: var(--text);
+  white-space: nowrap;
   user-select: none;
 }
 
-.ind input[type="number"] {
-  width: 52px;
+.ind-label[data-visible="off"] {
+  opacity: 0.5;
+}
+
+.ind-label-text {
+  margin-right: 2px;
+  font-weight: 600;
+}
+
+.ind-ico {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 3px;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.ind-ico:hover {
+  color: var(--text);
+  background: var(--btn-hover);
+}
+
+.ind-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 150px;
+  padding: 8px;
+  background: var(--bar);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.ind-popover label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.ind-popover input {
+  width: 64px;
   background: var(--btn);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 3px 4px;
+  border-radius: 3px;
+  padding: 3px 5px;
   font: inherit;
 }
 
-.ind input[type="checkbox"] {
-  accent-color: var(--accent);
+#ind-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+}
+
+#ind-modal[hidden] {
+  display: none;
+}
+
+.ind-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.ind-modal-box {
+  position: relative;
+  width: min(420px, calc(100% - 32px));
+  max-height: min(72vh, 640px);
+  margin: 10vh auto 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bar);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.ind-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ind-modal-head h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+#ind-modal-close {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#ind-search {
+  margin: 10px 12px 6px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--btn);
+  color: var(--text);
+  font: inherit;
+}
+
+#ind-catalog {
+  overflow: auto;
+  padding: 0 8px 12px;
+}
+
+.ind-group h3 {
+  margin: 10px 4px 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.ind-add {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.ind-add:hover {
+  background: var(--btn-hover);
+}
+
+.ind-add-short {
+  font-weight: 700;
+  min-width: 5.5em;
+}
+
+.ind-add-name {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ind-empty {
+  margin: 16px 8px;
+  color: var(--muted);
 }
 
 #sidebar {
@@ -232,7 +400,11 @@ button.danger:hover {
   display: flex;
   flex-direction: column;
   background: var(--bar);
-  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+}
+
+#app[data-sidebar="off"] #sidebar {
+  display: none;
 }
 
 #watchlist {

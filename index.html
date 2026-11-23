@@ -8,21 +8,6 @@
   </head>
   <body>
     <div id="app">
-      <div id="sidebar">
-      <aside id="watchlist" aria-label="Listy obserwowanych"></aside>
-      <aside id="alerts-panel" aria-label="Alerty cenowe">
-        <h2>Alerty cenowe</h2>
-        <form id="alert-form" class="alert-form">
-          <select id="alert-dir" aria-label="Kierunek">
-            <option value="above">Cena ≥</option>
-            <option value="below">Cena ≤</option>
-          </select>
-          <input type="number" id="alert-price" step="any" min="0" required placeholder="Poziom" />
-          <button type="submit">Dodaj</button>
-        </form>
-        <div id="alert-list" class="alert-list"></div>
-      </aside>
-      </div>
       <div id="alert-toast" class="alert-toast" hidden role="status"></div>
       <div id="workspace">
       <header class="toolbar">
@@ -69,42 +54,49 @@
           <button type="button" data-panes="2" title="Dwa wykresy">2</button>
           <button type="button" data-panes="4" title="Cztery wykresy">4</button>
         </div>
+        <button type="button" id="ind-btn" title="Wskaźniki">fx Wskaźniki</button>
+        <button type="button" id="sidebar-btn" aria-pressed="true" title="Panel obserwowanych i alertów">Panel</button>
         <button type="button" id="theme-btn" title="Przełącz motyw jasny/ciemny">Motyw jasny</button>
         <span id="live-status" class="live-status" data-live="off" title="Publiczny WebSocket Krakena (OHLC i ticker)">Offline</span>
         <div id="status" class="status" role="status">Ładowanie…</div>
       </header>
 
-      <div class="toolbar indicators-bar" id="indicators-bar">
-        <span class="muted-label">Wskaźniki</span>
-        <label class="ind"><input type="checkbox" data-ind="sma" /> SMA <input type="number" data-ind-period="sma" min="2" max="400" value="20" title="Okres SMA" /></label>
-        <label class="ind"><input type="checkbox" data-ind="wma" /> WMA <input type="number" data-ind-period="wma" min="2" max="400" value="20" title="Okres WMA" /></label>
-        <label class="ind"><input type="checkbox" data-ind="ema" /> EMA <input type="number" data-ind-period="ema" min="2" max="400" value="20" title="Okres EMA" /></label>
-        <label class="ind"><input type="checkbox" data-ind="bb" /> Bollinger <input type="number" data-ind-period="bb" min="2" max="400" value="20" title="Okres Bollinger" /> <input type="number" data-ind-std="bb" min="0.5" max="6" step="0.1" value="2" title="Odchylenie std." /></label>
-        <label class="ind"><input type="checkbox" data-ind="volume" checked /> Wolumen</label>
-        <label class="ind"><input type="checkbox" data-ind="vwap" /> VWAP</label>
-        <label class="ind"><input type="checkbox" data-ind="stoch" /> Stochastic <input type="number" data-ind-stoch="k" min="2" max="400" value="14" title="Stochastic %K" /> <input type="number" data-ind-stoch="d" min="1" max="100" value="3" title="Stochastic %D" /></label>
-        <label class="ind"><input type="checkbox" data-ind="rsi" /> RSI <input type="number" data-ind-period="rsi" min="2" max="400" value="14" title="Okres RSI" /></label>
-        <label class="ind"><input type="checkbox" data-ind="pivots" /> Pivot Points</label>
-        <label class="ind"><input type="checkbox" data-ind="ichimoku" /> Ichimoku</label>
-        <label class="ind"><input type="checkbox" data-ind="supertrend" /> Supertrend <input type="number" data-ind-st="period" min="2" max="400" value="10" title="Okres ATR Supertrend" /> <input type="number" data-ind-st="mult" min="0.5" max="10" step="0.1" value="3" title="Mnożnik Supertrend" /></label>
-        <label class="ind"><input type="checkbox" data-ind="adx" /> ADX/DMI <input type="number" data-ind-period="adx" min="2" max="400" value="14" title="Okres ADX" /></label>
-        <label class="ind"><input type="checkbox" data-ind="atr" /> ATR <input type="number" data-ind-period="atr" min="2" max="400" value="14" title="Okres ATR" /></label>
-        <label class="ind"><input type="checkbox" data-ind="macd" /> MACD
-          <input type="number" data-ind-macd="fast" min="2" max="200" value="12" title="MACD szybka" />
-          <input type="number" data-ind-macd="slow" min="3" max="400" value="26" title="MACD wolna" />
-          <input type="number" data-ind-macd="signal" min="2" max="200" value="9" title="MACD sygnał" />
-        </label>
-      </div>
-
       <div id="charts" data-panes="1">
         <div id="chart-wrap">
           <div id="chart"></div>
           <canvas id="draw-overlay" class="passthrough"></canvas>
+          <div id="ind-labels"></div>
         </div>
         <div class="chart-cell extra-cell" data-extra="0"></div>
         <div class="chart-cell extra-cell" data-extra="1"></div>
         <div class="chart-cell extra-cell" data-extra="2"></div>
       </div>
+      </div>
+      <div id="sidebar">
+        <aside id="watchlist" aria-label="Listy obserwowanych"></aside>
+        <aside id="alerts-panel" aria-label="Alerty cenowe">
+          <h2>Alerty cenowe</h2>
+          <form id="alert-form" class="alert-form">
+            <select id="alert-dir" aria-label="Kierunek">
+              <option value="above">Cena ≥</option>
+              <option value="below">Cena ≤</option>
+            </select>
+            <input type="number" id="alert-price" step="any" min="0" required placeholder="Poziom" />
+            <button type="submit">Dodaj</button>
+          </form>
+          <div id="alert-list" class="alert-list"></div>
+        </aside>
+      </div>
+      <div id="ind-modal" hidden>
+        <div class="ind-modal-backdrop"></div>
+        <div class="ind-modal-box" role="dialog" aria-modal="true" aria-labelledby="ind-modal-title">
+          <div class="ind-modal-head">
+            <h2 id="ind-modal-title">Wskaźniki</h2>
+            <button type="button" id="ind-modal-close" aria-label="Zamknij">×</button>
+          </div>
+          <input id="ind-search" type="search" placeholder="Szukaj wskaźnika" autocomplete="off" />
+          <div id="ind-catalog"></div>
+        </div>
       </div>
     </div>
     <script type="module" src="./src/main.ts"></script>
