@@ -111,6 +111,9 @@ export class DrawingLayer {
   private lastTime = 0;
   private stepSec = 86400;
   private ro: ResizeObserver;
+  private rafId = 0;
+  private needsPaint = false;
+  private lastDpr = 0;
   private drag: { mode: 'point' | 'move'; handle?: HandleName; startX: number; startY: number; orig: Drawing } | null =
     null;
 
@@ -123,7 +126,8 @@ export class DrawingLayer {
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(this.wrap);
     this.resize();
-    this.chart.timeScale().subscribeVisibleLogicalRangeChange(() => this.redraw());
+    this.chart.timeScale().subscribeVisibleLogicalRangeChange(() => this.scheduleRedraw());
+    window.addEventListener('resize', this.onWinResize);
 
     this.canvas.addEventListener('mousedown', (ev) => this.onPointer(ev, 'down'));
     this.canvas.addEventListener('mousemove', (ev) => this.onPointer(ev, 'move'));
@@ -225,6 +229,23 @@ export class DrawingLayer {
   destroy(): void {
     this.ro.disconnect();
     window.removeEventListener('keydown', this.onKey);
+    window.removeEventListener('resize', this.onWinResize);
+    if (this.rafId) cancelAnimationFrame(this.rafId);
+  }
+
+  private onWinResize = (): void => {
+    this.resize();
+  };
+
+  private scheduleRedraw(): void {
+    this.needsPaint = true;
+    if (this.rafId) return;
+    this.rafId = requestAnimationFrame(() => {
+      this.rafId = 0;
+      if (!this.needsPaint) return;
+      this.needsPaint = false;
+      this.paintFrame();
+    });
   }
 
   private onKey = (ev: KeyboardEvent): void => {
@@ -265,13 +286,14 @@ export class DrawingLayer {
       height = rect.height;
     }
     const dpr = window.devicePixelRatio || 1;
+    this.lastDpr = dpr;
     this.canvas.width = Math.max(1, Math.floor(width * dpr));
     this.canvas.height = Math.max(1, Math.floor(height * dpr));
     this.canvas.style.width = `${width}px`;
     this.canvas.style.height = `${height}px`;
     this.canvas.style.top = '0';
     this.canvas.style.left = '0';
-    this.redraw();
+    this.paintFrame();
   }
 
   private timeToX(time: number): number | null {
@@ -659,6 +681,15 @@ export class DrawingLayer {
   }
 
   redraw(): void {
+    this.scheduleRedraw();
+  }
+
+  private paintFrame(): void {
+    const dprNow = window.devicePixelRatio || 1;
+    if (dprNow !== this.lastDpr) {
+      this.resize();
+      return;
+    }
     const ctx = this.canvas.getContext('2d');
     if (!ctx) return;
     const dpr = window.devicePixelRatio || 1;
