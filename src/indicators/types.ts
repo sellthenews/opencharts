@@ -84,7 +84,8 @@ export type IndicatorKind =
   | 'obv'
   | 'mfi'
   | 'willr'
-  | 'roc';
+  | 'roc'
+  | 'momentum';
 
 export type IndicatorGroupId = 'trend' | 'momentum' | 'volatility' | 'volume';
 
@@ -223,6 +224,7 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     ],
     pane: 'price',
   },
+  { kind: 'momentum', name: 'Momentum', short: 'Momentum', aliases: ['momentum', 'mom'], group: 'momentum', defaults: { period: 10 }, fields: [periodField()], pane: 'osc' },
   { kind: 'roc', name: 'Rate of Change', short: 'ROC', aliases: ['roc', 'rate of change'], group: 'momentum', defaults: { period: 12 }, fields: [periodField()], pane: 'osc' },
   { kind: 'willr', name: 'Williams %R', short: '%R', aliases: ['williams', '%r', 'willr', 'wpr'], group: 'momentum', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   { kind: 'cci', name: 'CCI', short: 'CCI', aliases: ['cci', 'commodity'], group: 'momentum', defaults: { period: 20 }, fields: [periodField()], pane: 'osc' },
@@ -294,6 +296,8 @@ export function formatIndicatorLabel(item: IndicatorInstance): string {
       return `%R ${fmtNum(p.period, 14)}`;
     case 'roc':
       return `ROC ${fmtNum(p.period, 12)}`;
+    case 'momentum':
+      return `Momentum ${fmtNum(p.period, 10)}`;
     default:
       return meta.short;
   }

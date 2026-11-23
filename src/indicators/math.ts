@@ -570,3 +570,14 @@ export function roc(candles: Candle[], period = 12): LinePoint[] {
   return out;
 }
 
+/** Momentum as 100 × close / close[n] (100 = unchanged). */
+export function momentum(candles: Candle[], period = 10): LinePoint[] {
+  if (period < 1 || candles.length < period + 1) return [];
+  const out: LinePoint[] = [];
+  for (let i = period; i < candles.length; i++) {
+    const prev = candles[i - period]!.close;
+    out.push({ time: candles[i]!.time, value: prev === 0 ? 100 : (100 * candles[i]!.close) / prev });
+  }
+  return out;
+}
+

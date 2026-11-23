@@ -140,7 +140,7 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 - [x] P2 MFI
 - [x] P2 Williams %R
 - [x] P2 ROC
-- [ ] P2 Momentum
+- [x] P2 Momentum
 - [ ] P2 CMF
 - [ ] P2 Aroon
 - [ ] P3 pozostałe z typowej listy ~100 (np. Alligator, Awesome Oscillator, Chaikin Oscillator, Detrended Price, Elder Ray, Envelope, Force Index, Hull MA, KAMA, Mass Index, McGinley, PSAR wariantów, Trix, Ultimate Oscillator, Vortex, ZigZag, volume profile itd.)
