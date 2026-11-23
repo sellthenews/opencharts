@@ -4,7 +4,7 @@
 import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, IPriceLine, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../sources/types';
-import { adx, atr, bollinger, cci, ema, ichimoku, keltner, macd, parabolicSar, pivotPoints, rsi, sma, stochRsi, stochastic, supertrend, vwap, wma } from './math';
+import { adx, atr, bollinger, cci, donchian, ema, ichimoku, keltner, macd, parabolicSar, pivotPoints, rsi, sma, stochRsi, stochastic, supertrend, vwap, wma } from './math';
 import { CATALOG_BY_KIND, type IndicatorInstance, type LinePoint } from './types';
 
 function lineBase(color: string) {
@@ -38,6 +38,7 @@ const KIND_COLOR: Record<string, string> = {
   cci: '#29b6f6',
   sar: '#26a69a',
   keltner: '#26c6da',
+  donchian: '#8d6e63',
   volume: '#26a69a',
   pivots: '#787b86',
 };
@@ -194,6 +195,17 @@ export class IndicatorHost {
       add(lv.s1, '#26a69a', 'S1');
       add(lv.s2, '#26a69a', 'S2');
       add(lv.s3, '#26a69a', 'S3');
+    } else if (item.kind === 'donchian') {
+      const bands = donchian(data, p.period ?? 20);
+      const mid = this.chart.addSeries(LineSeries, lineBase(color), 0);
+      const up = this.chart.addSeries(LineSeries, lineBase(color), 0);
+      const lo = this.chart.addSeries(LineSeries, lineBase(color), 0);
+      mid.setData(asLine(bands.map((b) => ({ time: b.time, value: b.mid }))));
+      up.setData(asLine(bands.map((b) => ({ time: b.time, value: b.upper }))));
+      lo.setData(asLine(bands.map((b) => ({ time: b.time, value: b.lower }))));
+      this.keep(mid);
+      this.keep(up);
+      this.keep(lo);
     } else if (item.kind === 'keltner') {
       const bands = keltner(data, p.period ?? 20, p.kPeriod ?? 10, p.multiplier ?? 2);
       const mid = this.chart.addSeries(LineSeries, lineBase(color), 0);

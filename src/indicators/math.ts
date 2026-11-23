@@ -479,3 +479,19 @@ export function keltner(candles: Candle[], period = 20, atrPeriod = 10, multipli
   return out;
 }
 
+/** Donchian channels: highest high, lowest low, and midpoint. */
+export function donchian(candles: Candle[], period = 20): BandPoint[] {
+  if (period < 1 || candles.length < period) return [];
+  const out: BandPoint[] = [];
+  for (let i = period - 1; i < candles.length; i++) {
+    let hh = -Infinity;
+    let ll = Infinity;
+    for (let j = i - period + 1; j <= i; j++) {
+      hh = Math.max(hh, candles[j]!.high);
+      ll = Math.min(ll, candles[j]!.low);
+    }
+    out.push({ time: candles[i]!.time, mid: (hh + ll) / 2, upper: hh, lower: ll });
+  }
+  return out;
+}
+
