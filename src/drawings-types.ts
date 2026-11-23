@@ -25,7 +25,8 @@ export type Tool =
   | 'note'
   | 'callout'
   | 'ellipse'
-  | 'triangle';
+  | 'triangle'
+  | 'regress';
 
 export interface Point {
   time: number;
@@ -55,7 +56,8 @@ export type Drawing =
   | { id: string; type: 'note'; p: Point; text: string }
   | { id: string; type: 'callout'; p1: Point; p2: Point; text: string }
   | { id: string; type: 'ellipse'; p1: Point; p2: Point }
-  | { id: string; type: 'triangle'; p1: Point; p2: Point; p3: Point };
+  | { id: string; type: 'triangle'; p1: Point; p2: Point; p3: Point }
+  | { id: string; type: 'regress'; p1: Point; p2: Point };
 
 export const TOOLS_POINTS: Record<Tool, number> = {
   cursor: 0,
@@ -82,4 +84,5 @@ export const TOOLS_POINTS: Record<Tool, number> = {
   callout: 2,
   ellipse: 2,
   triangle: 3,
+  regress: 2,
 };

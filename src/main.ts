@@ -383,6 +383,7 @@ function applyPriceData(candles: Candle[], fit: boolean): void {
   applyIndicators();
   const step = candles.length >= 2 ? candles[candles.length - 1]!.time - candles[candles.length - 2]!.time : 86400;
   drawings.setTimeInfo(candles[candles.length - 1]!.time, step);
+  drawings.setPriceData(candles.map((c) => ({ time: c.time, close: c.close })));
   if (fit) chart.timeScale().fitContent();
   else if (range) chart.timeScale().setVisibleLogicalRange(range);
   evaluateAlerts(sourceId, pairId, candles[candles.length - 1]!.close);

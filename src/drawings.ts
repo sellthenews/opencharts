@@ -19,6 +19,52 @@ export type { Drawing, Point, Tool };
 
 const COLOR = '#5b9cf6';
 
+type PriceSample = { time: number; close: number };
+
+function linearChannel(samples: PriceSample[], t1: number, t2: number): {
+  t1: number;
+  t2: number;
+  mid1: number;
+  mid2: number;
+  dev: number;
+} | null {
+  const lo = Math.min(t1, t2);
+  const hi = Math.max(t1, t2);
+  const pts = samples.filter((s) => s.time >= lo && s.time <= hi);
+  if (pts.length < 3) return null;
+  const n = pts.length;
+  let sumX = 0;
+  let sumY = 0;
+  let sumXY = 0;
+  let sumXX = 0;
+  for (const s of pts) {
+    sumX += s.time;
+    sumY += s.close;
+    sumXY += s.time * s.close;
+    sumXX += s.time * s.time;
+  }
+  const denom = n * sumXX - sumX * sumX;
+  if (denom === 0) return null;
+  const slope = (n * sumXY - sumX * sumY) / denom;
+  const intercept = (sumY - slope * sumX) / n;
+  let varSum = 0;
+  for (const s of pts) {
+    const yhat = intercept + slope * s.time;
+    const r = s.close - yhat;
+    varSum += r * r;
+  }
+  const dev = Math.sqrt(varSum / Math.max(1, n - 2)) * 2;
+  const a = Math.min(t1, t2);
+  const b = Math.max(t1, t2);
+  return {
+    t1: a,
+    t2: b,
+    mid1: intercept + slope * a,
+    mid2: intercept + slope * b,
+    dev,
+  };
+}
+
 function formatSpan(sec: number): string {
   const abs = Math.abs(sec);
   if (abs >= 86_400) {
@@ -93,6 +139,8 @@ function isDrawing(value: unknown): value is Drawing {
       return isPoint(d.p1) && isPoint(d.p2);
     case 'triangle':
       return isPoint(d.p1) && isPoint(d.p2) && isPoint(d.p3);
+    case 'regress':
+      return isPoint(d.p1) && isPoint(d.p2);
     default:
       return false;
   }
@@ -162,6 +210,7 @@ export class DrawingLayer {
   private pairId = 'XRPUSD';
   private lastTime = 0;
   private stepSec = 86400;
+  private priceSamples: PriceSample[] = [];
   private ro: ResizeObserver;
   private rafId = 0;
   private needsPaint = false;
@@ -219,6 +268,11 @@ export class DrawingLayer {
   setTimeInfo(lastTime: number, stepSec: number): void {
     this.lastTime = lastTime;
     this.stepSec = stepSec > 0 ? stepSec : 86400;
+  }
+
+  setPriceData(samples: PriceSample[]): void {
+    this.priceSamples = samples;
+    this.scheduleRedraw();
   }
 
   setContext(sourceId: string, pairId: string): void {
@@ -539,6 +593,10 @@ export class DrawingLayer {
         if (handle === 'p2') d.p2 = p;
         if (handle === 'p3') d.p3 = p;
         break;
+      case 'regress':
+        if (handle === 'p1') d.p1 = p;
+        if (handle === 'p2') d.p2 = p;
+        break;
     }
   }
 
@@ -630,6 +688,12 @@ export class DrawingLayer {
           current.p1 = shift(orig.p1);
           current.p2 = shift(orig.p2);
           current.p3 = shift(orig.p3);
+        }
+        break;
+      case 'regress':
+        if (orig.type === 'regress') {
+          current.p1 = shift(orig.p1);
+          current.p2 = shift(orig.p2);
         }
         break;
     }
@@ -763,6 +827,8 @@ export class DrawingLayer {
         return { id, type: 'ellipse', p1: points[0]!, p2: points[1]! };
       case 'triangle':
         return { id, type: 'triangle', p1: points[0]!, p2: points[1]!, p3: points[2]! };
+      case 'regress':
+        return { id, type: 'regress', p1: points[0]!, p2: points[1]! };
       default:
         return null;
     }
@@ -841,6 +907,11 @@ export class DrawingLayer {
           { handle: 'p1', point: d.p1 },
           { handle: 'p2', point: d.p2 },
           { handle: 'p3', point: d.p3 },
+        ];
+      case 'regress':
+        return [
+          { handle: 'p1', point: d.p1 },
+          { handle: 'p2', point: d.p2 },
         ];
     }
   }
@@ -940,6 +1011,29 @@ export class DrawingLayer {
       const ry = Math.max(1, Math.abs(b.y - a.y) / 2);
       const v = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2;
       return v <= 1 ? 0 : Math.sqrt(v) * Math.min(rx, ry) - Math.min(rx, ry);
+    }
+    if (d.type === 'regress') {
+      const chan = linearChannel(this.priceSamples, d.p1.time, d.p2.time);
+      if (!chan) {
+        const a = this.pointToXy(d.p1);
+        const b = this.pointToXy(d.p2);
+        if (!a || !b) return null;
+        return distPointToSegment(x, y, a.x, a.y, b.x, b.y);
+      }
+      const pts = [
+        this.pointToXy({ time: chan.t1, price: chan.mid1 }),
+        this.pointToXy({ time: chan.t2, price: chan.mid2 }),
+        this.pointToXy({ time: chan.t1, price: chan.mid1 + chan.dev }),
+        this.pointToXy({ time: chan.t2, price: chan.mid2 + chan.dev }),
+        this.pointToXy({ time: chan.t1, price: chan.mid1 - chan.dev }),
+        this.pointToXy({ time: chan.t2, price: chan.mid2 - chan.dev }),
+      ];
+      if (pts.some((p) => !p)) return null;
+      return Math.min(
+        distPointToSegment(x, y, pts[0]!.x, pts[0]!.y, pts[1]!.x, pts[1]!.y),
+        distPointToSegment(x, y, pts[2]!.x, pts[2]!.y, pts[3]!.x, pts[3]!.y),
+        distPointToSegment(x, y, pts[4]!.x, pts[4]!.y, pts[5]!.x, pts[5]!.y),
+      );
     }
     if (d.type === 'triangle') {
       const a = this.pointToXy(d.p1);
@@ -1476,6 +1570,44 @@ export class DrawingLayer {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+      }
+    } else if (d.type === 'regress') {
+      const chan = linearChannel(this.priceSamples, d.p1.time, d.p2.time);
+      const midA = chan
+        ? this.pointToXy({ time: chan.t1, price: chan.mid1 })
+        : this.pointToXy(d.p1);
+      const midB = chan
+        ? this.pointToXy({ time: chan.t2, price: chan.mid2 })
+        : this.pointToXy(d.p2);
+      if (midA && midB) {
+        if (chan) {
+          const upA = this.pointToXy({ time: chan.t1, price: chan.mid1 + chan.dev });
+          const upB = this.pointToXy({ time: chan.t2, price: chan.mid2 + chan.dev });
+          const dnA = this.pointToXy({ time: chan.t1, price: chan.mid1 - chan.dev });
+          const dnB = this.pointToXy({ time: chan.t2, price: chan.mid2 - chan.dev });
+          if (upA && upB && dnA && dnB) {
+            ctx.beginPath();
+            ctx.moveTo(upA.x, upA.y);
+            ctx.lineTo(upB.x, upB.y);
+            ctx.lineTo(dnB.x, dnB.y);
+            ctx.lineTo(dnA.x, dnA.y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(upA.x, upA.y);
+            ctx.lineTo(upB.x, upB.y);
+            ctx.moveTo(dnA.x, dnA.y);
+            ctx.lineTo(dnB.x, dnB.y);
+            ctx.stroke();
+          }
+        }
+        ctx.setLineDash(chan ? [] : [6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(midA.x, midA.y);
+        ctx.lineTo(midB.x, midB.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        if (chan) this.label(ctx, 'Regresja  ±2σ', midA.x + 4, midA.y - 6, selected ? SELECTED : '#e0e3ea');
       }
     }
     ctx.restore();

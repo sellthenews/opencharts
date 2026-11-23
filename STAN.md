@@ -55,7 +55,7 @@ Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w eta
 - [x] P2 Linia pozioma-promień (horizontal ray)
 - [x] P2 Linia pionowa
 - [x] P1 Kanał równoległy
-- [ ] P2 Kanał regresji
+- [x] P2 Kanał regresji
 - [ ] P3 Widły Andrewsa
 
 ### Fibonacci
