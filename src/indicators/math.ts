@@ -230,3 +230,30 @@ export function supertrend(
   }
   return out;
 }
+
+export interface PivotLevels {
+  p: number;
+  r1: number;
+  r2: number;
+  r3: number;
+  s1: number;
+  s2: number;
+  s3: number;
+}
+
+/** Classic floor pivots from the previous completed candle. */
+export function pivotPoints(candles: Candle[]): PivotLevels | null {
+  const src = candles.length >= 2 ? candles[candles.length - 2]! : candles[candles.length - 1];
+  if (!src) return null;
+  const p = (src.high + src.low + src.close) / 3;
+  const range = src.high - src.low;
+  return {
+    p,
+    r1: 2 * p - src.low,
+    s1: 2 * p - src.high,
+    r2: p + range,
+    s2: p - range,
+    r3: src.high + 2 * (p - src.low),
+    s3: src.low - 2 * (src.high - p),
+  };
+}

@@ -2,9 +2,9 @@
 // Copyright (C) 2026 Wykresy contributors
 
 import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
-import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
+import type { IChartApi, IPriceLine, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../sources/types';
-import { atr, bollinger, ema, macd, rsi, sma, stochastic, supertrend, vwap, wma } from './math';
+import { atr, bollinger, ema, macd, pivotPoints, rsi, sma, stochastic, supertrend, vwap, wma } from './math';
 import type { IndicatorSettings, LinePoint } from './types';
 
 function lineBase(color: string) {
@@ -28,6 +28,7 @@ export class IndicatorHost {
   private vwapSeries: ISeriesApi<'Line'> | null = null;
   private stUp: ISeriesApi<'Line'> | null = null;
   private stDown: ISeriesApi<'Line'> | null = null;
+  private pivotLines: IPriceLine[] = [];
   private bbMid: ISeriesApi<'Line'> | null = null;
   private bbUpper: ISeriesApi<'Line'> | null = null;
   private bbLower: ISeriesApi<'Line'> | null = null;
@@ -53,6 +54,11 @@ export class IndicatorHost {
   private drop<T>(series: T | null): null {
     if (series) this.chart.removeSeries(series as never);
     return null;
+  }
+
+  private clearPivots(): void {
+    for (const line of this.pivotLines) this.candles.removePriceLine(line);
+    this.pivotLines = [];
   }
 
   private applyOverlays(data: Candle[], settings: IndicatorSettings): void {
@@ -89,6 +95,32 @@ export class IndicatorHost {
       this.bbMid = this.drop(this.bbMid);
       this.bbUpper = this.drop(this.bbUpper);
       this.bbLower = this.drop(this.bbLower);
+    }
+
+    this.clearPivots();
+    if (settings.pivots.on) {
+      const lv = pivotPoints(data);
+      if (lv) {
+        const add = (price: number, color: string, title: string) => {
+          this.pivotLines.push(
+            this.candles.createPriceLine({
+              price,
+              color,
+              lineWidth: 1,
+              lineStyle: LineStyle.Dotted,
+              axisLabelVisible: true,
+              title,
+            }),
+          );
+        };
+        add(lv.p, '#787b86', 'P');
+        add(lv.r1, '#ef5350', 'R1');
+        add(lv.r2, '#ef5350', 'R2');
+        add(lv.r3, '#ef5350', 'R3');
+        add(lv.s1, '#26a69a', 'S1');
+        add(lv.s2, '#26a69a', 'S2');
+        add(lv.s3, '#26a69a', 'S3');
+      }
     }
 
     if (settings.supertrend.on) {
