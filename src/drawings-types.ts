@@ -16,7 +16,10 @@ export type Tool =
   | 'shortpos'
   | 'pricerange'
   | 'daterange'
-  | 'datepricerange';
+  | 'datepricerange'
+  | 'vline'
+  | 'hray'
+  | 'extline';
 
 export interface Point {
   time: number;
@@ -37,7 +40,10 @@ export type Drawing =
   | { id: string; type: 'shortpos'; entry: Point; stop: Point; target: Point }
   | { id: string; type: 'pricerange'; p1: Point; p2: Point }
   | { id: string; type: 'daterange'; p1: Point; p2: Point }
-  | { id: string; type: 'datepricerange'; p1: Point; p2: Point };
+  | { id: string; type: 'datepricerange'; p1: Point; p2: Point }
+  | { id: string; type: 'vline'; time: number }
+  | { id: string; type: 'hray'; p1: Point; p2: Point }
+  | { id: string; type: 'extline'; p1: Point; p2: Point };
 
 export const TOOLS_POINTS: Record<Tool, number> = {
   cursor: 0,
@@ -55,4 +61,7 @@ export const TOOLS_POINTS: Record<Tool, number> = {
   pricerange: 2,
   daterange: 2,
   datepricerange: 2,
+  vline: 1,
+  hray: 2,
+  extline: 2,
 };

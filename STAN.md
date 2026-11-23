@@ -50,10 +50,10 @@ Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w eta
 
 - [x] P1 Linia trendu
 - [x] P1 Promień (ray)
-- [ ] P2 Linia rozszerzona (extended line)
+- [x] P2 Linia rozszerzona (extended line)
 - [x] P1 Linia pozioma
-- [ ] P2 Linia pozioma-promień (horizontal ray)
-- [ ] P2 Linia pionowa
+- [x] P2 Linia pozioma-promień (horizontal ray)
+- [x] P2 Linia pionowa
 - [x] P1 Kanał równoległy
 - [ ] P2 Kanał regresji
 - [ ] P3 Widły Andrewsa

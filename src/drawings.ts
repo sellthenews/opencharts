@@ -76,6 +76,11 @@ function isDrawing(value: unknown): value is Drawing {
     case 'daterange':
     case 'datepricerange':
       return isPoint(d.p1) && isPoint(d.p2);
+    case 'vline':
+      return typeof d.time === 'number' && Number.isFinite(d.time);
+    case 'hray':
+    case 'extline':
+      return isPoint(d.p1) && isPoint(d.p2);
     default:
       return false;
   }
@@ -105,6 +110,20 @@ function distPointToSegment(px: number, py: number, x1: number, y1: number, x2: 
   let t = ((px - x1) * dx + (py - y1) * dy) / len2;
   t = Math.max(0, Math.min(1, t));
   return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
+function extendLine(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  width: number,
+  height: number,
+): { a: { x: number; y: number }; b: { x: number; y: number } } {
+  return {
+    a: extendRay(x2, y2, x1, y1, width, height),
+    b: extendRay(x1, y1, x2, y2, width, height),
+  };
 }
 
 function extendRay(x1: number, y1: number, x2: number, y2: number, width: number, height: number): { x: number; y: number } {
@@ -477,6 +496,14 @@ export class DrawingLayer {
         if (handle === 'p1') d.p1 = p;
         if (handle === 'p2') d.p2 = p;
         break;
+      case 'vline':
+        if (handle === 'time') d.time = p.time;
+        break;
+      case 'hray':
+      case 'extline':
+        if (handle === 'p1') d.p1 = p;
+        if (handle === 'p2') d.p2 = p;
+        break;
     }
   }
 
@@ -529,6 +556,16 @@ export class DrawingLayer {
           current.p2 = shift(orig.p2);
         }
         break;
+      case 'vline':
+        if (orig.type === 'vline') current.time = shift({ time: orig.time, price: 0 }).time;
+        break;
+      case 'hray':
+      case 'extline':
+        if (orig.type === current.type) {
+          current.p1 = shift(orig.p1);
+          current.p2 = shift(orig.p2);
+        }
+        break;
     }
   }
 
@@ -553,6 +590,16 @@ export class DrawingLayer {
       return;
     }
     if (!this.draft) {
+      if (needed === 1) {
+        const drawing = this.commitPoints(this.tool, [point]);
+        if (drawing) {
+          this.drawings.push(drawing);
+          this.selectedId = drawing.id;
+          this.persist();
+        }
+        this.redraw();
+        return;
+      }
       this.draft = { type: this.tool, points: [point], current: point };
       this.redraw();
       return;
@@ -600,6 +647,12 @@ export class DrawingLayer {
         return { id, type: 'daterange', p1: points[0]!, p2: points[1]! };
       case 'datepricerange':
         return { id, type: 'datepricerange', p1: points[0]!, p2: points[1]! };
+      case 'vline':
+        return { id, type: 'vline', time: points[0]!.time };
+      case 'hray':
+        return { id, type: 'hray', p1: points[0]!, p2: points[1]! };
+      case 'extline':
+        return { id, type: 'extline', p1: points[0]!, p2: points[1]! };
       default:
         return null;
     }
@@ -646,6 +699,14 @@ export class DrawingLayer {
           { handle: 'p1', point: d.p1 },
           { handle: 'p2', point: d.p2 },
         ];
+      case 'vline':
+        return [{ handle: 'time', point: { time: d.time, price: 0 } }];
+      case 'hray':
+      case 'extline':
+        return [
+          { handle: 'p1', point: d.p1 },
+          { handle: 'p2', point: d.p2 },
+        ];
     }
   }
 
@@ -657,6 +718,17 @@ export class DrawingLayer {
           const yy = this.series.priceToCoordinate(d.price);
           if (yy === null) continue;
           xy = { x: this.canvas.getBoundingClientRect().width / 2, y: yy };
+        }
+        if (d.type === 'vline') {
+          const xx = this.timeToX(d.time);
+          if (xx === null) continue;
+          xy = { x: xx, y: this.canvas.getBoundingClientRect().height / 2 };
+        }
+        if (d.type === 'hray' && h.handle === 'p2') {
+          const yy = this.series.priceToCoordinate(d.p1.price);
+          const xx = this.timeToX(d.p2.time);
+          if (yy === null || xx === null) continue;
+          xy = { x: xx, y: yy };
         }
         if (!xy) continue;
         if (Math.hypot(x - xy.x, y - xy.y) <= HANDLE + 3) return { id: d.id, handle: h.handle };
@@ -681,6 +753,26 @@ export class DrawingLayer {
     if (d.type === 'hline') {
       const yy = this.series.priceToCoordinate(d.price);
       return yy === null ? null : Math.abs(y - yy);
+    }
+    if (d.type === 'vline') {
+      const xx = this.timeToX(d.time);
+      return xx === null ? null : Math.abs(x - xx);
+    }
+    if (d.type === 'hray') {
+      const yy = this.series.priceToCoordinate(d.p1.price);
+      const x1 = this.timeToX(d.p1.time);
+      if (yy === null || x1 === null) return null;
+      const goRight = d.p2.time >= d.p1.time;
+      if (goRight && x < x1 - 2) return Math.hypot(x - x1, y - yy);
+      if (!goRight && x > x1 + 2) return Math.hypot(x - x1, y - yy);
+      return Math.abs(y - yy);
+    }
+    if (d.type === 'extline') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      if (!a || !b) return null;
+      const ext = extendLine(a.x, a.y, b.x, b.y, width, height);
+      return distPointToSegment(x, y, ext.a.x, ext.a.y, ext.b.x, ext.b.y);
     }
     if (d.type === 'text') {
       const xy = this.pointToXy(d.p);
@@ -851,6 +943,17 @@ export class DrawingLayer {
         if (yy === null) continue;
         xy = { x: width / 2, y: yy };
       }
+      if (d.type === 'vline') {
+        const xx = this.timeToX(d.time);
+        if (xx === null) continue;
+        xy = { x: xx, y: this.canvas.getBoundingClientRect().height / 2 };
+      }
+      if (d.type === 'hray' && h.handle === 'p2') {
+        const yy = this.series.priceToCoordinate(d.p1.price);
+        const xx = this.timeToX(d.p2.time);
+        if (yy === null || xx === null) continue;
+        xy = { x: xx, y: yy };
+      }
       if (!xy) continue;
       ctx.fillStyle = '#131722';
       ctx.strokeStyle = SELECTED;
@@ -894,6 +997,34 @@ export class DrawingLayer {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+    } else if (d.type === 'vline') {
+      const x0 = this.timeToX(d.time);
+      if (x0 !== null) {
+        ctx.beginPath();
+        ctx.moveTo(x0, 0);
+        ctx.lineTo(x0, height);
+        ctx.stroke();
+      }
+    } else if (d.type === 'hray') {
+      const y0 = this.series.priceToCoordinate(d.p1.price);
+      const x0 = this.timeToX(d.p1.time);
+      if (y0 !== null && x0 !== null) {
+        const endX = d.p2.time >= d.p1.time ? width : 0;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(endX, y0);
+        ctx.stroke();
+      }
+    } else if (d.type === 'extline') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      if (a && b) {
+        const ext = extendLine(a.x, a.y, b.x, b.y, width, height);
+        ctx.beginPath();
+        ctx.moveTo(ext.a.x, ext.a.y);
+        ctx.lineTo(ext.b.x, ext.b.y);
         ctx.stroke();
       }
     } else if (d.type === 'trend' || d.type === 'ray' || d.type === 'rect') {
