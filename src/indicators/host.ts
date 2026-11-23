@@ -4,7 +4,7 @@
 import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../sources/types';
-import { bollinger, ema, macd, rsi, sma, vwap, wma } from './math';
+import { bollinger, ema, macd, rsi, sma, stochastic, vwap, wma } from './math';
 import type { IndicatorSettings, LinePoint } from './types';
 
 function lineBase(color: string) {
@@ -31,6 +31,8 @@ export class IndicatorHost {
   private bbLower: ISeriesApi<'Line'> | null = null;
   private volumeSeries: ISeriesApi<'Histogram'> | null = null;
   private rsiSeries: ISeriesApi<'Line'> | null = null;
+  private stochK: ISeriesApi<'Line'> | null = null;
+  private stochD: ISeriesApi<'Line'> | null = null;
   private macdLine: ISeriesApi<'Line'> | null = null;
   private macdSignal: ISeriesApi<'Line'> | null = null;
   private macdHist: ISeriesApi<'Histogram'> | null = null;
@@ -123,6 +125,8 @@ export class IndicatorHost {
 
   private applyOscillators(data: Candle[], settings: IndicatorSettings): void {
     this.rsiSeries = this.drop(this.rsiSeries);
+    this.stochK = this.drop(this.stochK);
+    this.stochD = this.drop(this.stochD);
     this.macdLine = this.drop(this.macdLine);
     this.macdSignal = this.drop(this.macdSignal);
     this.macdHist = this.drop(this.macdHist);
@@ -141,6 +145,19 @@ export class IndicatorHost {
       const line = { lineWidth: 1 as const, lineStyle: LineStyle.Dotted, axisLabelVisible: false };
       this.rsiSeries.createPriceLine({ price: 70, color: '#6d5a78', title: '', ...line });
       this.rsiSeries.createPriceLine({ price: 30, color: '#6d5a78', title: '', ...line });
+    }
+
+    if (settings.stoch.on) {
+      this.chart.addPane();
+      const idx = this.chart.panes().length - 1;
+      const pts = stochastic(data, settings.stoch.kPeriod, settings.stoch.dPeriod);
+      this.stochK = this.chart.addSeries(LineSeries, { ...lineBase('#26a69a'), lastValueVisible: true }, idx);
+      this.stochD = this.chart.addSeries(LineSeries, lineBase('#ef5350'), idx);
+      this.stochK.setData(asLine(pts.map((p) => ({ time: p.time, value: p.k }))));
+      this.stochD.setData(asLine(pts.map((p) => ({ time: p.time, value: p.d }))));
+      const line = { lineWidth: 1 as const, lineStyle: LineStyle.Dotted, axisLabelVisible: false };
+      this.stochK.createPriceLine({ price: 80, color: '#6d5a78', title: '', ...line });
+      this.stochK.createPriceLine({ price: 20, color: '#6d5a78', title: '', ...line });
     }
 
     if (settings.macd.on) {

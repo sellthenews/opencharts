@@ -137,3 +137,27 @@ export function vwap(candles: Candle[]): LinePoint[] {
   }
   return out;
 }
+
+export function stochastic(candles: Candle[], kPeriod = 14, dPeriod = 3): { time: number; k: number; d: number }[] {
+  if (kPeriod < 1 || dPeriod < 1 || candles.length < kPeriod) return [];
+  const ks: LinePoint[] = [];
+  for (let i = kPeriod - 1; i < candles.length; i++) {
+    let hh = -Infinity;
+    let ll = Infinity;
+    for (let j = i - kPeriod + 1; j <= i; j++) {
+      hh = Math.max(hh, candles[j]!.high);
+      ll = Math.min(ll, candles[j]!.low);
+    }
+    const den = hh - ll;
+    ks.push({ time: candles[i]!.time, value: den === 0 ? 50 : (100 * (candles[i]!.close - ll)) / den });
+  }
+  const out: { time: number; k: number; d: number }[] = [];
+  if (ks.length < dPeriod) return [];
+  let sum = 0;
+  for (let i = 0; i < ks.length; i++) {
+    sum += ks[i]!.value;
+    if (i >= dPeriod) sum -= ks[i - dPeriod]!.value;
+    if (i >= dPeriod - 1) out.push({ time: ks[i]!.time, k: ks[i]!.value, d: sum / dPeriod });
+  }
+  return out;
+}

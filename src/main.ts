@@ -284,6 +284,7 @@ function syncIndicatorUi(): void {
   setOn('volume', s.volume.on);
   setOn('vwap', s.vwap.on);
   setOn('rsi', s.rsi.on);
+  setOn('stoch', s.stoch.on);
   setOn('macd', s.macd.on);
   numInput('[data-ind-period="sma"]', s.sma.period);
   numInput('[data-ind-period="ema"]', s.ema.period);
@@ -291,6 +292,8 @@ function syncIndicatorUi(): void {
   numInput('[data-ind-period="bb"]', s.bb.period);
   numInput('[data-ind-std="bb"]', s.bb.std);
   numInput('[data-ind-period="rsi"]', s.rsi.period);
+  numInput('[data-ind-stoch="k"]', s.stoch.kPeriod);
+  numInput('[data-ind-stoch="d"]', s.stoch.dPeriod);
   numInput('[data-ind-macd="fast"]', s.macd.fast);
   numInput('[data-ind-macd="slow"]', s.macd.slow);
   numInput('[data-ind-macd="signal"]', s.macd.signal);
@@ -313,6 +316,7 @@ function readIndicatorUi(): IndicatorSettings {
     volume: { on: on('volume') },
     vwap: { on: on('vwap') },
     rsi: { on: on('rsi'), period: num('[data-ind-period="rsi"]', d.rsi.period) },
+    stoch: { on: on('stoch'), kPeriod: num('[data-ind-stoch="k"]', d.stoch.kPeriod), dPeriod: num('[data-ind-stoch="d"]', d.stoch.dPeriod) },
     macd: {
       on: on('macd'),
       fast: num('[data-ind-macd="fast"]', d.macd.fast),
