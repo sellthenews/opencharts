@@ -150,5 +150,5 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 - [ ] P1 Alerty cenowe
 - [ ] P1 Układ wielu wykresów
 - [x] P1 Motyw ciemny (domyślny)
-- [ ] P1 Motyw jasny
+- [x] P1 Motyw jasny
 - [ ] P1 Zapis układu (layout)

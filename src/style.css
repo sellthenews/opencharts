@@ -20,6 +20,32 @@
   --danger: #ef5350;
   --btn: #2a2e39;
   --btn-hover: #363a45;
+  --heading: #fff;
+  --row-active: #1e2a4a;
+  --chart-bg: #131722;
+  --chart-text: #d1d4dc;
+  --chart-grid: #1e222d;
+  --chart-border: #2a2e39;
+}
+
+html[data-theme="light"] {
+  --bg: #eef0f3;
+  --panel: #ffffff;
+  --bar: #ffffff;
+  --border: #d1d4dc;
+  --text: #131722;
+  --muted: #6a6d78;
+  --accent: #2962ff;
+  --accent-hover: #1e53e5;
+  --danger: #d32f2f;
+  --btn: #e8eaf0;
+  --btn-hover: #d7dae3;
+  --heading: #131722;
+  --row-active: #dbe4ff;
+  --chart-bg: #ffffff;
+  --chart-text: #131722;
+  --chart-grid: #e0e3eb;
+  --chart-border: #d1d4dc;
 }
 
 html,
@@ -61,7 +87,7 @@ body,
   font-weight: 700;
   letter-spacing: 0.02em;
   margin-right: 6px;
-  color: #fff;
+  color: var(--heading);
 }
 
 .field {
@@ -115,7 +141,7 @@ button.tool.is-active,
 button.interval.is-active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--heading);
 }
 
 button.tool.is-active:hover,
@@ -126,7 +152,7 @@ button.interval.is-active:hover {
 
 button.danger:hover {
   border-color: var(--danger);
-  color: #fff;
+  color: var(--heading);
   background: #5c2b2b;
 }
 
@@ -269,10 +295,10 @@ button.danger:hover {
 }
 
 .watch-row.is-active {
-  background: #1e2a4a;
+  background: var(--row-active);
 }
 
-.watch-sym { grid-area: sym; font-weight: 600; color: #fff; }
+.watch-sym { grid-area: sym; font-weight: 600; color: var(--heading); }
 .watch-ex { grid-area: ex; color: var(--muted); font-size: 11px; }
 .watch-last { grid-area: last; text-align: right; font-variant-numeric: tabular-nums; }
 .watch-chg {

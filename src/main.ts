@@ -23,6 +23,40 @@ import type { WatchState } from './watchlist';
 const DEFAULT_SOURCE = 'kraken';
 const DEFAULT_PAIR: PairId = 'XRPUSD';
 const DEFAULT_INTERVAL: IntervalId = '1D';
+const THEME_KEY = 'wykresy:theme';
+type ThemeName = 'dark' | 'light';
+
+function loadTheme(): ThemeName {
+  return localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark';
+}
+
+let theme: ThemeName = loadTheme();
+
+function chartThemeOptions(name: ThemeName) {
+  if (name === 'light') {
+    return {
+      layout: { background: { type: ColorType.Solid, color: '#ffffff' }, textColor: '#131722' },
+      grid: { vertLines: { color: '#e0e3eb' }, horzLines: { color: '#e0e3eb' } },
+      rightPriceScale: { borderColor: '#d1d4dc' },
+      timeScale: { borderColor: '#d1d4dc', timeVisible: true, secondsVisible: false },
+    };
+  }
+  return {
+    layout: { background: { type: ColorType.Solid, color: '#131722' }, textColor: '#d1d4dc' },
+    grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
+    rightPriceScale: { borderColor: '#2a2e39' },
+    timeScale: { borderColor: '#2a2e39', timeVisible: true, secondsVisible: false },
+  };
+}
+
+function applyTheme(name: ThemeName): void {
+  theme = name;
+  document.documentElement.dataset.theme = name;
+  localStorage.setItem(THEME_KEY, name);
+  const btn = document.querySelector<HTMLButtonElement>('#theme-btn');
+  if (btn) btn.textContent = name === 'light' ? 'Motyw ciemny' : 'Motyw jasny';
+}
+
 
 const appEl = document.querySelector<HTMLDivElement>('#app')!;
 const sourceEl = document.querySelector<HTMLSelectElement>('#source')!;
@@ -48,24 +82,16 @@ let lastCandles: Candle[] = [];
 let indicatorSettings = loadIndicatorSettings();
 let watchlist: WatchlistPanel;
 
+applyTheme(theme);
+
 const chart: IChartApi = createChart(chartEl, {
   autoSize: true,
+  ...chartThemeOptions(theme),
   layout: {
-    background: { type: ColorType.Solid, color: '#131722' },
-    textColor: '#d1d4dc',
+    ...chartThemeOptions(theme).layout,
     fontFamily: 'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
   },
-  grid: {
-    vertLines: { color: '#1e222d' },
-    horzLines: { color: '#1e222d' },
-  },
   crosshair: { mode: CrosshairMode.Normal },
-  rightPriceScale: { borderColor: '#2a2e39' },
-  timeScale: {
-    borderColor: '#2a2e39',
-    timeVisible: true,
-    secondsVisible: false,
-  },
   localization: { locale: 'pl-PL' },
 });
 
@@ -129,7 +155,19 @@ function setReady(ready: boolean): void {
 function applySelection(nextSource: string, nextPair: PairId, reload = true): void {
   sourceId = nextSource;
   pairId = nextPair;
-  fillSources();
+  
+document.querySelector<HTMLButtonElement>('#theme-btn')?.addEventListener('click', () => {
+  applyTheme(theme === 'light' ? 'dark' : 'light');
+  chart.applyOptions({
+    ...chartThemeOptions(theme),
+    layout: {
+      ...chartThemeOptions(theme).layout,
+      fontFamily: 'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    },
+  });
+});
+
+fillSources();
   fillPairs();
   sourceEl.value = sourceId;
   pairEl.value = pairId;
