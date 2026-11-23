@@ -76,7 +76,8 @@ export type IndicatorKind =
   | 'atr'
   | 'volume'
   | 'vwap'
-  | 'stochRsi';
+  | 'stochRsi'
+  | 'cci';
 
 export type IndicatorGroupId = 'trend' | 'momentum' | 'volatility' | 'volume';
 
@@ -199,6 +200,7 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     ],
     pane: 'osc',
   },
+  { kind: 'cci', name: 'CCI', short: 'CCI', aliases: ['cci', 'commodity'], group: 'momentum', defaults: { period: 20 }, fields: [periodField()], pane: 'osc' },
   { kind: 'atr', name: 'ATR', short: 'ATR', aliases: ['atr'], group: 'volatility', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   { kind: 'volume', name: 'Wolumen', short: 'Wolumen', aliases: ['volume', 'vol', 'wolumen'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
   { kind: 'vwap', name: 'VWAP', short: 'VWAP', aliases: ['vwap'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
@@ -234,6 +236,8 @@ export function formatIndicatorLabel(item: IndicatorInstance): string {
       return `Supertrend ${fmtNum(p.period, 10)} ${fmtNum(p.multiplier, 3)}`;
     case 'stochRsi':
       return `StochRSI ${fmtNum(p.period, 14)} ${fmtNum(p.kPeriod, 3)} ${fmtNum(p.dPeriod, 3)}`;
+    case 'cci':
+      return `CCI ${fmtNum(p.period, 20)}`;
     default:
       return meta.short;
   }

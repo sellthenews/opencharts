@@ -393,3 +393,21 @@ export function stochRsi(
   return out;
 }
 
+/** Commodity Channel Index of typical price. */
+export function cci(candles: Candle[], period = 20): LinePoint[] {
+  if (period < 1 || candles.length < period) return [];
+  const tp = candles.map((c) => (c.high + c.low + c.close) / 3);
+  const out: LinePoint[] = [];
+  for (let i = period - 1; i < candles.length; i++) {
+    let sum = 0;
+    for (let j = i - period + 1; j <= i; j++) sum += tp[j]!;
+    const mean = sum / period;
+    let dev = 0;
+    for (let j = i - period + 1; j <= i; j++) dev += Math.abs(tp[j]! - mean);
+    dev /= period;
+    const value = dev === 0 ? 0 : (tp[i]! - mean) / (0.015 * dev);
+    out.push({ time: candles[i]!.time, value });
+  }
+  return out;
+}
+

@@ -132,7 +132,7 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 - [x] P1 Pivot Points
 - [x] P1 ADX/DMI
 - [x] P2 StochRSI
-- [ ] P2 CCI
+- [x] P2 CCI
 - [ ] P2 SAR (Parabolic)
 - [ ] P2 Keltner Channels
 - [ ] P2 Donchian Channels
