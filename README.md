@@ -2,16 +2,17 @@
 
 Free, open-source candlestick charting app (TradingView-style). It is a static site: no backend, no API keys, no accounts. Stage 1 is ready to publish on GitHub Pages.
 
-## Features (Stage 1)
+## Features (Stage 1 and 2)
 
 - Candlestick chart with a dark theme and a Polish UI.
 - Exchange switcher: **Kraken** (default), **Binance**, **Coinbase**, **Bitstamp**. All four are public REST APIs that work from the browser (CORS checked with a real `fetch` in headless Chrome).
 - Pairs: XRP/USD (default), BTC/USD, ETH/USD. On Binance these map to the USDT symbols (`XRPUSDT`, `BTCUSDT`, `ETHUSDT`).
 - Intervals: 1h, 4h, 1D (default), 1W, 1M. Missing intervals are aggregated in `src/sources/aggregate.ts` (Coinbase has no native 4h / 1W / 1M; Bitstamp and Kraken have no native 1M; Bitstamp has no native 1W).
-- Drawing tools: trend line, horizontal line, rectangle, select and delete one drawing, clear all. Drawings are saved in `localStorage` per exchange + pair.
-- GitHub Pages-friendly build: Vite `base` is `./`, output goes to `site/`.
-
-Indicators (SMA, EMA, Bollinger Bands, RSI, MACD, volume) are **not** in Stage 1.
+- Watchlists (sidebar): several named lists, add/remove pairs from any exchange, last price and 24h change. Default list **Moje** is Kraken XRP/USD, BTC/USD and ETH/USD. Quotes refresh every 45s when the tab is visible; Kraken rows also update live over the public ticker WebSocket.
+- Indicators, calculated locally, with toggles and periods stored in `localStorage`: SMA, EMA and Bollinger Bands on the price chart; volume; RSI and MACD in panes under the chart.
+- Drawing tools: trend line, ray, horizontal line, rectangle, parallel channel, Fibonacci retracement, trend-based Fib extension (optional extend-right), 1:1 AB=CD correction (with 1.272/1.618 projections), and text. Select, drag handles and whole shapes, clear, export/import JSON. Drawings are saved in `localStorage` per exchange + pair.
+- Live updates for Kraken via the public WebSocket `wss://ws.kraken.com/v2` (OHLC + ticker), with automatic reconnect. Aggregated intervals (including 1M) update the last candle.
+- GitHub Pages-friendly build: Vite `base` is `./`, output goes to `site/`. A local workflow lives in `.github/workflows/pages.yml` (not pushed from this tree unless you do it yourself).
 
 ## Dependencies
 
@@ -61,8 +62,7 @@ Each exchange is one module under `src/sources/` with a shared `DataSource` inte
 
 ## Roadmap
 
-- **Stage 2** — local indicators: SMA, EMA, Bollinger Bands on the price chart; RSI and MACD in a separate pane; volume.
-- **Stage 3** — more drawing tools, optional live updates over public WebSockets, more pairs and timeframes, tighter GitHub Pages packaging.
+Stage 2 is implemented (indicators, watchlists, richer drawings, Kraken live data, local Pages workflow). A detailed tool-by-tool checklist, grouped like the TradingView menu and tagged P1/P2/P3, is in [STAN.md](STAN.md#roadmapa-narzędzia-jak-w-tradingview).
 
 ## License
 

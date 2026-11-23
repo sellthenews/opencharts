@@ -1,59 +1,154 @@
-# Stan prac — etap 1
+# Stan prac
 
-Aktualizacja: 23 listopada 2026, ok. 20:43 (Europe/Warsaw).
+Aktualizacja: 23 listopada 2026, ok. 21:00 (Europe/Warsaw).
+
+Etap 1 i etap 2 są ukończone lokalnie (bez remote i bez pusha). Licencja projektu: **AGPL-3.0-or-later**.
+
+## Commity
+
+| Hash | Opis |
+| --- | --- |
+| `e44626d` | Etap 1: szkielet, giełdy, rysowanie podstawowe, vendor LWC |
+| `e79a28e` | Etap 2.1: wskaźniki SMA/EMA/Bollinger, wolumen, RSI, MACD |
+| `059d6db` | Etap 2.1b: listy obserwowanych i publiczne tickery |
+| `e309ee3` | Etap 2.2: Fibo, kanał, promień, tekst, AB=CD, Fibo rozszerzenie, edycja, eksport/import |
+| `f6ce2ea` | Relicencja na AGPL-3.0-or-later (oficjalny tekst GNU, SPDX, dokumentacja) |
+| `c233361` | Etap 2.3: WebSocket Krakena v2 (OHLC + ticker), reconnect, agregacja 1M |
+| `cb6c4ff` | Etap 2.4: workflow GitHub Pages (tylko lokalnie) |
+
+Zrzut etapu 2: `/workspace/wykresy-strona/screenshots-test/etap2-rsi-fib.png` (Kraken XRP/USD 1D, RSI, zniesienie Fibo, panel obserwowanych).
+
+Podgląd: http://127.0.0.1:4173 (`npm run build && npm run preview`). Testy: `npm run test:e2e`.
 
 ## Co działa
 
-Statyczna aplikacja Vite + TypeScript w `/workspace/wykresy-strona`. Wykres: Lightweight Charts 5.3.0 (Apache 2.0), trzymany w `vendor/lightweight-charts@5.3.0/` (bez CDN, import przez alias Vite). Warstwa rysowania to własny overlay canvas (`src/drawings.ts`) — nie przepisana na pluginy LWC ani na KLineChart, bo już była w drzewie i przeszła test.
-
-Źródła danych (publiczne REST, bez kluczy), sprawdzone prawdziwym `fetch` w headless Chrome z `http://127.0.0.1`:
-
-| Giełda | CORS w przeglądarce | Uwagi |
-| --- | --- | --- |
-| Kraken (domyślna) | działa | — |
-| Binance | działa | pary USDT (`XRPUSDT` itd.) |
-| Coinbase | działa | — |
-| Bitstamp | działa | pierwsze podejście z `--virtual-time-budget` padło (`Failed to fetch` w 10 ms); ponowny test: HTTP 200 i ciało odpowiedzi. Zarejestrowana w UI. |
-
-Pary: XRP/USD (domyślna), BTC/USD, ETH/USD. Interwały: 1h, 4h, 1D, 1W, 1M (brakujące agregowane lokalnie). Rysunki: linia trendu, linia pozioma, prostokąt, usuwanie, `localStorage` per giełda+para. Ciemny motyw, interfejs po polsku.
-
-`npm run build` przechodzi. Podgląd: `npx vite preview --host 127.0.0.1 --port 4173` (zostawiony w tle). Test Playwright: XRP/USD 1D, linia trendu, zrzut i przeżycie przeładowania — **pass**.
-
-Zrzut: `/workspace/wykresy-strona/screenshots-test/xrp-1d.png`
-
-## Historia (XRP, stan na 23.11.2026)
-
-| Giełda | 1D | 1W | 1M |
-| --- | --- | --- | --- |
-| Kraken | 721 świec, ~24 mies. (od 2024-12-03); limit ~720 na request, bez wstecznej paginacji | 497 świec, ~114 mies. (od 2017-05-18) | brak natywnego; agregacja z 1W → ~114 mies. (~115 słupków) |
-| Binance | od 2018-05-04, ~103 mies., ok. 3126 świec (paginacja po 1000) | od 2018-04-30, 448 świec, ~103 mies. (natywne) | od 2018-05-01, 103 świece, ~102 mies. (natywne) |
-| Coinbase | 1234 świece, ~40 mies. (od 2023-07-13, relisting XRP); max 300/request | agregacja z 1D → ~176 tyg., te same ~40 mies. | agregacja z 1D → ~41 mies. |
-| Bitstamp | 3630 świec, ~119 mies. (od 2016-12-16), paginacja `end=` | brak natywnego `step`; agregacja z 1D → ~519 tyg., ~119 mies. | agregacja z 1D → ~120 mies. |
-
-Aplikacja ładuje do ok. 2500 świec na interwał (stała `MAX_CANDLES`).
+- Giełdy: Kraken (domyślna), Binance, Coinbase, Bitstamp — publiczne REST, CORS OK w przeglądarce.
+- Pary XRP/USD, BTC/USD, ETH/USD; interwały 1h, 4h, 1D, 1W, 1M (agregacja gdy trzeba).
+- Wskaźniki lokalne, włączanie/okres w UI, `localStorage`.
+- Obserwowane: wiele list (Moje, Krypto), dodawanie/usuwanie, cena i zmiana 24h, klik otwiera wykres; odświeżanie 45 s gdy karta widoczna; pozycje Krakena też z tickera WS.
+- Rysunki: linia trendu, promień, pozioma, prostokąt, kanał, Fibo, Fibo rozszerzenie, AB=CD (projekcje 1.272/1.618), tekst; uchwyty, przeciąganie, JSON, `localStorage` per giełda+para.
+- Live Kraken: `wss://ws.kraken.com/v2`, kanały `ohlc` i `ticker`, ponowne łączenie.
+- Workflow Pages zapisany lokalnie w `.github/workflows/pages.yml` — nie wypushowany.
+- Runtime w `vendor/lightweight-charts@5.3.0/` (Apache 2.0, bez CDN).
 
 ## Uruchomienie
 
 ```bash
 cd /workspace/wykresy-strona
-npm install          # tylko narzędzia build/test (Vite, TypeScript, Playwright)
+npm install
 npm run dev          # http://127.0.0.1:5173
 npm run build        # wynik w site/
 npm run preview      # http://127.0.0.1:4173
-npm run test:e2e     # wymaga działającego preview
+npm run test:e2e
 ```
 
-Repozytorium zainicjowane lokalnie, bez pushowania. Licencja MIT, dokumentacja po angielsku (README, CONTRIBUTING, THIRD_PARTY).
+## Roadmapa: narzędzia jak w TradingView
 
-## Świadoma decyzja o stosie
+Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w etapie 1–2, `[ ]` czeka na osobne zlecenie — **nie zaczynać w tym przebiegu**.
 
-Zostaje **Lightweight Charts + własny overlay**. Oficjalne `plugin-examples` (Apache 2.0) i KLineChart (Apache 2.0) były opcją, ale nie ma sensu przepisywać już napisanego i przetestowanego rysowania. Kod zamkniętej platformy TradingView i projekty GPL (np. DegenView) nie były kopiowane.
+### Linie
 
-## Brakuje / następne kroki
+- [x] P1 Linia trendu
+- [x] P1 Promień (ray)
+- [ ] P2 Linia rozszerzona (extended line)
+- [x] P1 Linia pozioma
+- [ ] P2 Linia pozioma-promień (horizontal ray)
+- [ ] P2 Linia pionowa
+- [x] P1 Kanał równoległy
+- [ ] P2 Kanał regresji
+- [ ] P3 Widły Andrewsa
 
-1. Etap 2: wskaźniki liczone lokalnie (SMA, EMA, Bollinger, RSI, MACD, wolumen).
-2. Więcej narzędzi rysowania (Fibonacci, równoległe, tekst), ewentualnie oficjalne pluginy LWC.
-3. Opcjonalny live WebSocket (publiczny, bez klucza).
-4. Więcej par i interwałów; dopracowanie historii (pełna paginacja vs. limit 2500).
-5. Publikacja na GitHub Pages (workflow: `npm ci && npm run build`, wrzucić `site/`) — dopiero po decyzji szefa; teraz bez pushy i bez logowania do GitHuba.
-6. Drobiazgi UX: zapis wybranej giełdy/interwału, wyraźniejsze zasady zaznaczania rysunków.
+### Fibonacci
+
+- [x] P1 Zniesienie (0, 0.236, 0.382, 0.5, 0.618, 0.786, 1)
+- [x] P1 Rozszerzenie wg trendu (Trend-Based Fib Extension)
+- [ ] P2 Kanał Fibonacciego
+- [ ] P2 Wachlarz Fibonacciego
+- [ ] P3 Strefy czasowe Fibonacciego
+- [ ] P3 Łuki Fibonacciego
+- [ ] P3 Spirala Fibonacciego
+
+### Gann
+
+- [ ] P3 Gann box
+- [ ] P3 Gann fan
+- [ ] P3 Gann square
+
+### Formacje
+
+- [x] P1 ABCD / korekta 1:1 (AB=CD), z projekcjami 1.272 i 1.618
+- [ ] P2 XABCD / formacje harmoniczne
+- [ ] P2 Głowa z ramionami
+- [ ] P2 Trójkąt
+- [ ] P3 Fale Elliotta (impuls)
+- [ ] P3 Fale Elliotta (korekta)
+
+### Prognozy i pomiary
+
+- [ ] P2 Long position
+- [ ] P2 Short position
+- [ ] P2 Zakres cen
+- [ ] P2 Zakres dat
+- [ ] P2 Zakres dat i cen
+- [ ] P3 Prognoza (forecast)
+
+### Kształty
+
+- [x] P1 Prostokąt
+- [ ] P2 Elipsa
+- [ ] P2 Trójkąt (kształt)
+- [ ] P2 Łuk
+- [ ] P2 Strzałki
+- [ ] P3 Ścieżka
+- [ ] P3 Pędzel
+
+### Tekst i notatki
+
+- [x] P1 Tekst
+- [ ] P2 Notatka
+- [ ] P2 Objaśnienie (callout / balloon)
+- [ ] P2 Etykieta ceny
+- [ ] P3 Flaga
+
+### Wskaźniki
+
+Zrobione w etapie 2 (lokalnie, z okresem i przełącznikiem):
+
+- [x] P1 SMA (MA)
+- [x] P1 EMA
+- [x] P1 Bollinger Bands
+- [x] P1 Wolumen
+- [x] P1 RSI
+- [x] P1 MACD
+
+Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
+
+- [ ] P1 WMA
+- [ ] P1 VWAP
+- [ ] P1 Ichimoku
+- [ ] P1 Stochastic
+- [ ] P1 ATR
+- [ ] P1 Supertrend
+- [ ] P1 Pivot Points
+- [ ] P1 ADX/DMI
+- [ ] P2 StochRSI
+- [ ] P2 CCI
+- [ ] P2 SAR (Parabolic)
+- [ ] P2 Keltner Channels
+- [ ] P2 Donchian Channels
+- [ ] P2 OBV
+- [ ] P2 MFI
+- [ ] P2 Williams %R
+- [ ] P2 ROC
+- [ ] P2 Momentum
+- [ ] P2 CMF
+- [ ] P2 Aroon
+- [ ] P3 pozostałe z typowej listy ~100 (np. Alligator, Awesome Oscillator, Chaikin Oscillator, Detrended Price, Elder Ray, Envelope, Force Index, Hull MA, KAMA, Mass Index, McGinley, PSAR wariantów, Trix, Ultimate Oscillator, Vortex, ZigZag, volume profile itd.)
+
+### Alerty i układ
+
+- [ ] P1 Alerty cenowe
+- [ ] P1 Układ wielu wykresów
+- [x] P1 Motyw ciemny (domyślny)
+- [ ] P1 Motyw jasny
+- [ ] P1 Zapis układu (layout)
