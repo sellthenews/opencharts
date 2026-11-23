@@ -62,8 +62,8 @@ Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w eta
 
 - [x] P1 Zniesienie (0, 0.236, 0.382, 0.5, 0.618, 0.786, 1)
 - [x] P1 Rozszerzenie wg trendu (Trend-Based Fib Extension)
-- [ ] P2 Kanał Fibonacciego
-- [ ] P2 Wachlarz Fibonacciego
+- [x] P2 Kanał Fibonacciego
+- [x] P2 Wachlarz Fibonacciego
 - [ ] P3 Strefy czasowe Fibonacciego
 - [ ] P3 Łuki Fibonacciego
 - [ ] P3 Spirala Fibonacciego
@@ -79,7 +79,7 @@ Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w eta
 - [x] P1 ABCD / korekta 1:1 (AB=CD), z projekcjami 1.272 i 1.618
 - [x] P2 XABCD / formacje harmoniczne
 - [x] P2 Głowa z ramionami
-- [ ] P2 Trójkąt
+- [x] P2 Trójkąt
 - [ ] P3 Fale Elliotta (impuls)
 - [ ] P3 Fale Elliotta (korekta)
 
@@ -97,7 +97,7 @@ Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w eta
 - [x] P1 Prostokąt
 - [x] P2 Elipsa
 - [x] P2 Trójkąt (kształt)
-- [ ] P2 Łuk
+- [x] P2 Łuk
 - [x] P2 Strzałki
 - [ ] P3 Ścieżka
 - [ ] P3 Pędzel
@@ -169,4 +169,6 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 
 ## Postęp P2 (23 XI 2026)
 
-Skończona pierwsza część: etykiety wskaźników w układzie wielu wykresów oraz wszystkie popularne wskaźniki P2 z listy (StochRSI … Aroon). Niezaimplementowane zostają narzędzia rysowania P2 (linie rozszerzone, kanały i wachlarz Fib, harmoniczne, pozycje, zakresy, kształty, notatki itd.).
+Skończona całość P2 z listy w tym pliku: etykiety wskaźników w układzie wielu wykresów, wszystkie popularne wskaźniki P2 (StochRSI … Aroon) oraz wszystkie narzędzia rysowania P2 (pozycje long/short, zakresy, linie, strzałka, etykieta ceny, notatka/objaśnienie, elipsa, trójkąt kształt i formacja, kanał regresji, XABCD, głowa z ramionami, kanał i wachlarz Fibonacciego, łuk). Każde z uchwytami, przesuwaniem, zapisem i eksportem jak istniejące narzędzia.
+
+Następne (poza tym przebiegiem): pozycje P3, m.in. łuki Fibonacciego.

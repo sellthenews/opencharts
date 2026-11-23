@@ -145,6 +145,14 @@ function isDrawing(value: unknown): value is Drawing {
       return isPoint(d.x) && isPoint(d.a) && isPoint(d.b) && isPoint(d.c) && isPoint(d.d);
     case 'hs':
       return isPoint(d.ls) && isPoint(d.n1) && isPoint(d.head) && isPoint(d.n2) && isPoint(d.rs);
+    case 'fibchan':
+      return isPoint(d.p1) && isPoint(d.p2) && isPoint(d.p3);
+    case 'fibfan':
+      return isPoint(d.p1) && isPoint(d.p2);
+    case 'arc':
+      return isPoint(d.p1) && isPoint(d.p2) && isPoint(d.p3);
+    case 'tripattern':
+      return isPoint(d.p1) && isPoint(d.p2) && isPoint(d.p3) && isPoint(d.p4);
     default:
       return false;
   }
@@ -188,6 +196,43 @@ function extendLine(
     a: extendRay(x2, y2, x1, y1, width, height),
     b: extendRay(x1, y1, x2, y2, width, height),
   };
+}
+
+function circleFrom3(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  cx: number,
+  cy: number,
+): { cx: number; cy: number; r: number } | null {
+  const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+  if (Math.abs(d) < 1e-8) return null;
+  const ux =
+    ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d;
+  const uy =
+    ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d;
+  return { cx: ux, cy: uy, r: Math.hypot(ax - ux, ay - uy) };
+}
+
+function angleContains(start: number, mid: number, end: number): boolean {
+  const tau = Math.PI * 2;
+  const n = (a: number) => ((a % tau) + tau) % tau;
+  const s = n(start);
+  const rel = (a: number) => (n(a) - s + tau) % tau;
+  return rel(mid) <= rel(end);
+}
+
+function lineIntersection(
+  a1: { x: number; y: number },
+  a2: { x: number; y: number },
+  b1: { x: number; y: number },
+  b2: { x: number; y: number },
+): { x: number; y: number } | null {
+  const d = (a2.x - a1.x) * (b2.y - b1.y) - (a2.y - a1.y) * (b2.x - b1.x);
+  if (Math.abs(d) < 1e-8) return null;
+  const t = ((b1.x - a1.x) * (b2.y - b1.y) - (b1.y - a1.y) * (b2.x - b1.x)) / d;
+  return { x: a1.x + t * (a2.x - a1.x), y: a1.y + t * (a2.y - a1.y) };
 }
 
 function extendRay(x1: number, y1: number, x2: number, y2: number, width: number, height: number): { x: number; y: number } {
@@ -615,6 +660,26 @@ export class DrawingLayer {
         if (handle === 'n2') d.n2 = p;
         if (handle === 'rs') d.rs = p;
         break;
+      case 'fibchan':
+        if (handle === 'p1') d.p1 = p;
+        if (handle === 'p2') d.p2 = p;
+        if (handle === 'p3') d.p3 = p;
+        break;
+      case 'fibfan':
+        if (handle === 'p1') d.p1 = p;
+        if (handle === 'p2') d.p2 = p;
+        break;
+      case 'arc':
+        if (handle === 'p1') d.p1 = p;
+        if (handle === 'p2') d.p2 = p;
+        if (handle === 'p3') d.p3 = p;
+        break;
+      case 'tripattern':
+        if (handle === 'p1') d.p1 = p;
+        if (handle === 'p2') d.p2 = p;
+        if (handle === 'p3') d.p3 = p;
+        if (handle === 'p4') d.p4 = p;
+        break;
     }
   }
 
@@ -730,6 +795,34 @@ export class DrawingLayer {
           current.head = shift(orig.head);
           current.n2 = shift(orig.n2);
           current.rs = shift(orig.rs);
+        }
+        break;
+      case 'fibchan':
+        if (orig.type === 'fibchan') {
+          current.p1 = shift(orig.p1);
+          current.p2 = shift(orig.p2);
+          current.p3 = shift(orig.p3);
+        }
+        break;
+      case 'fibfan':
+        if (orig.type === 'fibfan') {
+          current.p1 = shift(orig.p1);
+          current.p2 = shift(orig.p2);
+        }
+        break;
+      case 'arc':
+        if (orig.type === 'arc') {
+          current.p1 = shift(orig.p1);
+          current.p2 = shift(orig.p2);
+          current.p3 = shift(orig.p3);
+        }
+        break;
+      case 'tripattern':
+        if (orig.type === 'tripattern') {
+          current.p1 = shift(orig.p1);
+          current.p2 = shift(orig.p2);
+          current.p3 = shift(orig.p3);
+          current.p4 = shift(orig.p4);
         }
         break;
     }
@@ -869,6 +962,14 @@ export class DrawingLayer {
         return { id, type: 'xabcd', x: points[0]!, a: points[1]!, b: points[2]!, c: points[3]!, d: points[4]! };
       case 'hs':
         return { id, type: 'hs', ls: points[0]!, n1: points[1]!, head: points[2]!, n2: points[3]!, rs: points[4]! };
+      case 'fibchan':
+        return { id, type: 'fibchan', p1: points[0]!, p2: points[1]!, p3: points[2]! };
+      case 'fibfan':
+        return { id, type: 'fibfan', p1: points[0]!, p2: points[1]! };
+      case 'arc':
+        return { id, type: 'arc', p1: points[0]!, p2: points[1]!, p3: points[2]! };
+      case 'tripattern':
+        return { id, type: 'tripattern', p1: points[0]!, p2: points[1]!, p3: points[2]!, p4: points[3]! };
       default:
         return null;
     }
@@ -968,6 +1069,30 @@ export class DrawingLayer {
           { handle: 'head', point: d.head },
           { handle: 'n2', point: d.n2 },
           { handle: 'rs', point: d.rs },
+        ];
+      case 'fibchan':
+        return [
+          { handle: 'p1', point: d.p1 },
+          { handle: 'p2', point: d.p2 },
+          { handle: 'p3', point: d.p3 },
+        ];
+      case 'fibfan':
+        return [
+          { handle: 'p1', point: d.p1 },
+          { handle: 'p2', point: d.p2 },
+        ];
+      case 'arc':
+        return [
+          { handle: 'p1', point: d.p1 },
+          { handle: 'p2', point: d.p2 },
+          { handle: 'p3', point: d.p3 },
+        ];
+      case 'tripattern':
+        return [
+          { handle: 'p1', point: d.p1 },
+          { handle: 'p2', point: d.p2 },
+          { handle: 'p3', point: d.p3 },
+          { handle: 'p4', point: d.p4 },
         ];
     }
   }
@@ -1076,6 +1201,72 @@ export class DrawingLayer {
         best = Math.min(best, distPointToSegment(x, y, pts[i]!.x, pts[i]!.y, pts[i + 1]!.x, pts[i + 1]!.y));
       }
       return Number.isFinite(best) ? best : null;
+    }
+    if (d.type === 'fibchan') {
+      const levels = [...FIB_RETRACEMENT, 1.272, 1.618];
+      let best = Infinity;
+      for (const k of levels) {
+        const a = this.pointToXy({
+          time: d.p1.time + (d.p3.time - d.p1.time) * k,
+          price: d.p1.price + (d.p3.price - d.p1.price) * k,
+        });
+        const b = this.pointToXy({
+          time: d.p2.time + (d.p3.time - d.p1.time) * k,
+          price: d.p2.price + (d.p3.price - d.p1.price) * k,
+        });
+        if (!a || !b) continue;
+        const ext = extendLine(a.x, a.y, b.x, b.y, width, height);
+        best = Math.min(best, distPointToSegment(x, y, ext.a.x, ext.a.y, ext.b.x, ext.b.y));
+      }
+      return Number.isFinite(best) ? best : null;
+    }
+    if (d.type === 'fibfan') {
+      let best = Infinity;
+      const a = this.pointToXy(d.p1);
+      if (!a) return null;
+      for (const k of FIB_RETRACEMENT) {
+        const b = this.pointToXy({
+          time: d.p2.time,
+          price: d.p1.price + (d.p2.price - d.p1.price) * k,
+        });
+        if (!b) continue;
+        const end = extendRay(a.x, a.y, b.x, b.y, width, height);
+        best = Math.min(best, distPointToSegment(x, y, a.x, a.y, end.x, end.y));
+      }
+      return Number.isFinite(best) ? best : null;
+    }
+    if (d.type === 'arc') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      const c = this.pointToXy(d.p3);
+      if (!a || !b || !c) return null;
+      const circ = circleFrom3(a.x, a.y, b.x, b.y, c.x, c.y);
+      if (!circ) {
+        return Math.min(
+          distPointToSegment(x, y, a.x, a.y, b.x, b.y),
+          distPointToSegment(x, y, b.x, b.y, c.x, c.y),
+        );
+      }
+      const dist = Math.abs(Math.hypot(x - circ.cx, y - circ.cy) - circ.r);
+      const ang = Math.atan2(y - circ.cy, x - circ.cx);
+      const a1 = Math.atan2(a.y - circ.cy, a.x - circ.cx);
+      const a2 = Math.atan2(b.y - circ.cy, b.x - circ.cx);
+      const a3 = Math.atan2(c.y - circ.cy, c.x - circ.cx);
+      const on = angleContains(a1, a2, a3) ? angleContains(a1, ang, a3) : angleContains(a3, ang, a1);
+      return on ? dist : dist + 40;
+    }
+    if (d.type === 'tripattern') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      const c = this.pointToXy(d.p3);
+      const e = this.pointToXy(d.p4);
+      if (!a || !b || !c || !e) return null;
+      const l1 = extendLine(a.x, a.y, b.x, b.y, width, height);
+      const l2 = extendLine(c.x, c.y, e.x, e.y, width, height);
+      return Math.min(
+        distPointToSegment(x, y, l1.a.x, l1.a.y, l1.b.x, l1.b.y),
+        distPointToSegment(x, y, l2.a.x, l2.a.y, l2.b.x, l2.b.y),
+      );
     }
     if (d.type === 'hs') {
       const pts = [d.ls, d.n1, d.head, d.n2, d.rs].map((p) => this.pointToXy(p));
@@ -1742,6 +1933,94 @@ export class DrawingLayer {
           this.label(ctx, named[i]![0], xy[i]!.x + 4, xy[i]!.y - 6, selected ? SELECTED : '#e0e3ea');
         }
         this.label(ctx, 'Głowa z ramionami', xy[2]!.x + 4, xy[2]!.y - 18, selected ? SELECTED : '#e0e3ea');
+      }
+    } else if (d.type === 'fibchan') {
+      const levels = [...FIB_RETRACEMENT, 1.272, 1.618];
+      for (const k of levels) {
+        const a = this.pointToXy({
+          time: d.p1.time + (d.p3.time - d.p1.time) * k,
+          price: d.p1.price + (d.p3.price - d.p1.price) * k,
+        });
+        const b = this.pointToXy({
+          time: d.p2.time + (d.p3.time - d.p1.time) * k,
+          price: d.p2.price + (d.p3.price - d.p1.price) * k,
+        });
+        if (!a || !b) continue;
+        const ext = extendLine(a.x, a.y, b.x, b.y, width, height);
+        ctx.setLineDash(k === 0 || k === 1 ? [] : [5, 4]);
+        ctx.beginPath();
+        ctx.moveTo(ext.a.x, ext.a.y);
+        ctx.lineTo(ext.b.x, ext.b.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        this.label(ctx, `${k}`, a.x + 4, a.y - 4, selected ? SELECTED : '#e0e3ea');
+      }
+    } else if (d.type === 'fibfan') {
+      const origin = this.pointToXy(d.p1);
+      if (origin) {
+        for (const k of FIB_RETRACEMENT) {
+          const b = this.pointToXy({
+            time: d.p2.time,
+            price: d.p1.price + (d.p2.price - d.p1.price) * k,
+          });
+          if (!b) continue;
+          const end = extendRay(origin.x, origin.y, b.x, b.y, width, height);
+          ctx.setLineDash(k === 0 || k === 1 ? [] : [5, 4]);
+          ctx.beginPath();
+          ctx.moveTo(origin.x, origin.y);
+          ctx.lineTo(end.x, end.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          this.label(ctx, `${k}`, b.x + 4, b.y - 4, selected ? SELECTED : '#e0e3ea');
+        }
+      }
+    } else if (d.type === 'arc') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      const c = this.pointToXy(d.p3);
+      if (a && b && c) {
+        const circ = circleFrom3(a.x, a.y, b.x, b.y, c.x, c.y);
+        if (circ && circ.r > 1) {
+          const a1 = Math.atan2(a.y - circ.cy, a.x - circ.cx);
+          const a2 = Math.atan2(b.y - circ.cy, b.x - circ.cx);
+          const a3 = Math.atan2(c.y - circ.cy, c.x - circ.cx);
+          const ccw = angleContains(a1, a2, a3);
+          ctx.beginPath();
+          ctx.arc(circ.cx, circ.cy, circ.r, a1, a3, !ccw);
+          ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.lineTo(c.x, c.y);
+          ctx.stroke();
+        }
+      }
+    } else if (d.type === 'tripattern') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      const c = this.pointToXy(d.p3);
+      const e = this.pointToXy(d.p4);
+      if (a && b && c && e) {
+        const l1 = extendLine(a.x, a.y, b.x, b.y, width, height);
+        const l2 = extendLine(c.x, c.y, e.x, e.y, width, height);
+        ctx.beginPath();
+        ctx.moveTo(l1.a.x, l1.a.y);
+        ctx.lineTo(l1.b.x, l1.b.y);
+        ctx.moveTo(l2.a.x, l2.a.y);
+        ctx.lineTo(l2.b.x, l2.b.y);
+        ctx.stroke();
+        const meet = lineIntersection(a, b, c, e);
+        if (meet) {
+          ctx.fillStyle = selected ? 'rgba(255, 204, 102, 0.12)' : 'rgba(91, 156, 246, 0.12)';
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(meet.x, meet.y);
+          ctx.lineTo(c.x, c.y);
+          ctx.closePath();
+          ctx.fill();
+          this.label(ctx, 'Trójkąt', meet.x + 4, meet.y - 6, selected ? SELECTED : '#e0e3ea');
+        }
       }
     }
     ctx.restore();
