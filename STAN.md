@@ -123,7 +123,7 @@ Zrobione w etapie 2 (lokalnie, z okresem i przełącznikiem):
 
 Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 
-- [ ] P1 WMA
+- [x] P1 WMA
 - [ ] P1 VWAP
 - [ ] P1 Ichimoku
 - [ ] P1 Stochastic

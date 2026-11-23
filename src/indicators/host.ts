@@ -4,7 +4,7 @@
 import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../sources/types';
-import { bollinger, ema, macd, rsi, sma } from './math';
+import { bollinger, ema, macd, rsi, sma, wma } from './math';
 import type { IndicatorSettings, LinePoint } from './types';
 
 function lineBase(color: string) {
@@ -24,6 +24,7 @@ function asLine(points: LinePoint[]): { time: UTCTimestamp; value: number }[] {
 export class IndicatorHost {
   private smaSeries: ISeriesApi<'Line'> | null = null;
   private emaSeries: ISeriesApi<'Line'> | null = null;
+  private wmaSeries: ISeriesApi<'Line'> | null = null;
   private bbMid: ISeriesApi<'Line'> | null = null;
   private bbUpper: ISeriesApi<'Line'> | null = null;
   private bbLower: ISeriesApi<'Line'> | null = null;
@@ -61,6 +62,13 @@ export class IndicatorHost {
       this.emaSeries.setData(asLine(ema(data, settings.ema.period)));
     } else {
       this.emaSeries = this.drop(this.emaSeries);
+    }
+
+    if (settings.wma.on) {
+      if (!this.wmaSeries) this.wmaSeries = this.chart.addSeries(LineSeries, lineBase('#66bb6a'), 0);
+      this.wmaSeries.setData(asLine(wma(data, settings.wma.period)));
+    } else {
+      this.wmaSeries = this.drop(this.wmaSeries);
     }
 
     if (settings.bb.on) {

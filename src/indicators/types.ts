@@ -27,6 +27,7 @@ export interface MacdPoint {
 export interface IndicatorSettings {
   sma: { on: boolean; period: number };
   ema: { on: boolean; period: number };
+  wma: { on: boolean; period: number };
   bb: { on: boolean; period: number; std: number };
   volume: { on: boolean };
   rsi: { on: boolean; period: number };
@@ -36,6 +37,7 @@ export interface IndicatorSettings {
 export const DEFAULT_INDICATORS: IndicatorSettings = {
   sma: { on: false, period: 20 },
   ema: { on: false, period: 20 },
+  wma: { on: false, period: 20 },
   bb: { on: false, period: 20, std: 2 },
   volume: { on: true },
   rsi: { on: false, period: 14 },

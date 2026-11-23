@@ -20,6 +20,7 @@ export function normalizeSettings(raw: unknown): IndicatorSettings {
   return {
     sma: { on: Boolean(r.sma?.on), period: clamp(Number(r.sma?.period), 2, 400, d.sma.period) },
     ema: { on: Boolean(r.ema?.on), period: clamp(Number(r.ema?.period), 2, 400, d.ema.period) },
+    wma: { on: Boolean(r.wma?.on), period: clamp(Number(r.wma?.period), 2, 400, d.wma.period) },
     bb: {
       on: Boolean(r.bb?.on),
       period: clamp(Number(r.bb?.period), 2, 400, d.bb.period),

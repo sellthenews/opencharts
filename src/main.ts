@@ -279,12 +279,14 @@ function syncIndicatorUi(): void {
   };
   setOn('sma', s.sma.on);
   setOn('ema', s.ema.on);
+  setOn('wma', s.wma.on);
   setOn('bb', s.bb.on);
   setOn('volume', s.volume.on);
   setOn('rsi', s.rsi.on);
   setOn('macd', s.macd.on);
   numInput('[data-ind-period="sma"]', s.sma.period);
   numInput('[data-ind-period="ema"]', s.ema.period);
+  numInput('[data-ind-period="wma"]', s.wma.period);
   numInput('[data-ind-period="bb"]', s.bb.period);
   numInput('[data-ind-std="bb"]', s.bb.std);
   numInput('[data-ind-period="rsi"]', s.rsi.period);
@@ -305,6 +307,7 @@ function readIndicatorUi(): IndicatorSettings {
   return {
     sma: { on: on('sma'), period: num('[data-ind-period="sma"]', d.sma.period) },
     ema: { on: on('ema'), period: num('[data-ind-period="ema"]', d.ema.period) },
+    wma: { on: on('wma'), period: num('[data-ind-period="wma"]', d.wma.period) },
     bb: { on: on('bb'), period: num('[data-ind-period="bb"]', d.bb.period), std: num('[data-ind-std="bb"]', d.bb.std) },
     volume: { on: on('volume') },
     rsi: { on: on('rsi'), period: num('[data-ind-period="rsi"]', d.rsi.period) },

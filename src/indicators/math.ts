@@ -111,3 +111,15 @@ export function macd(candles: Candle[], fast = 12, slow = 26, signal = 9): MacdP
   }
   return out;
 }
+
+export function wma(candles: Candle[], period: number): LinePoint[] {
+  if (period < 1 || candles.length < period) return [];
+  const denom = (period * (period + 1)) / 2;
+  const out: LinePoint[] = [];
+  for (let i = period - 1; i < candles.length; i++) {
+    let sum = 0;
+    for (let j = 0; j < period; j++) sum += candles[i - period + 1 + j]!.close * (j + 1);
+    out.push({ time: candles[i]!.time, value: sum / denom });
+  }
+  return out;
+}
