@@ -151,4 +151,4 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 - [ ] P1 Układ wielu wykresów
 - [x] P1 Motyw ciemny (domyślny)
 - [x] P1 Motyw jasny
-- [ ] P1 Zapis układu (layout)
+- [x] P1 Zapis układu (layout) — automatyczny zapis giełdy, pary, interwału i motywu

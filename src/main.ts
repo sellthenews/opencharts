@@ -15,6 +15,7 @@ import { loadIndicatorSettings, saveIndicatorSettings } from './indicators/setti
 import type { IndicatorSettings } from './indicators/types';
 import { INTERVALS, getSource, sources } from './sources';
 import type { Candle, IntervalId, PairId } from './sources';
+import { loadLayout, saveLayout } from './layout';
 import { KrakenLive, type LiveStatus } from './live/kraken-ws';
 import { mergeLiveCandle } from './live/merge';
 import { WatchlistPanel } from './watchlist';
@@ -53,6 +54,7 @@ function applyTheme(name: ThemeName): void {
   theme = name;
   document.documentElement.dataset.theme = name;
   localStorage.setItem(THEME_KEY, name);
+  persistLayout();
   const btn = document.querySelector<HTMLButtonElement>('#theme-btn');
   if (btn) btn.textContent = name === 'light' ? 'Motyw ciemny' : 'Motyw jasny';
 }
@@ -77,6 +79,18 @@ const indicatorsBar = document.querySelector<HTMLDivElement>('#indicators-bar')!
 let sourceId = DEFAULT_SOURCE;
 let pairId: PairId = DEFAULT_PAIR;
 let intervalId: IntervalId = DEFAULT_INTERVAL;
+
+function persistLayout(): void {
+  saveLayout({ sourceId, pairId, intervalId, theme });
+}
+
+const savedLayout = loadLayout();
+if (savedLayout) {
+  sourceId = savedLayout.sourceId;
+  pairId = savedLayout.pairId;
+  intervalId = savedLayout.intervalId;
+  theme = savedLayout.theme;
+}
 let loadSeq = 0;
 let lastCandles: Candle[] = [];
 let indicatorSettings = loadIndicatorSettings();
@@ -342,12 +356,14 @@ async function loadChart(): Promise<void> {
 sourceEl.addEventListener('change', () => {
   sourceId = sourceEl.value;
   fillPairs();
+  persistLayout();
   watchlist?.highlight(sourceId, pairId);
   void loadChart();
 });
 
 pairEl.addEventListener('change', () => {
   pairId = pairEl.value as PairId;
+  persistLayout();
   watchlist?.highlight(sourceId, pairId);
   void loadChart();
 });
@@ -356,6 +372,7 @@ intervalsEl.addEventListener('click', (ev) => {
   const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-interval]');
   if (!btn) return;
   intervalId = btn.dataset.interval as IntervalId;
+  persistLayout();
   intervalsEl.querySelectorAll('.interval').forEach((el) => {
     el.classList.toggle('is-active', el === btn);
   });
