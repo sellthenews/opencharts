@@ -11,7 +11,9 @@ export type Tool =
   | 'fib'
   | 'fibext'
   | 'abcd'
-  | 'text';
+  | 'text'
+  | 'longpos'
+  | 'shortpos';
 
 export interface Point {
   time: number;
@@ -27,7 +29,9 @@ export type Drawing =
   | { id: string; type: 'fib'; p1: Point; p2: Point }
   | { id: string; type: 'fibext'; a: Point; b: Point; c: Point; extendRight: boolean }
   | { id: string; type: 'abcd'; a: Point; b: Point; c: Point }
-  | { id: string; type: 'text'; p: Point; text: string };
+  | { id: string; type: 'text'; p: Point; text: string }
+  | { id: string; type: 'longpos'; entry: Point; stop: Point; target: Point }
+  | { id: string; type: 'shortpos'; entry: Point; stop: Point; target: Point };
 
 export const TOOLS_POINTS: Record<Tool, number> = {
   cursor: 0,
@@ -40,4 +44,6 @@ export const TOOLS_POINTS: Record<Tool, number> = {
   channel: 3,
   fibext: 3,
   abcd: 3,
+  longpos: 3,
+  shortpos: 3,
 };

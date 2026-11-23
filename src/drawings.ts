@@ -55,6 +55,9 @@ function isDrawing(value: unknown): value is Drawing {
       return isPoint(d.a) && isPoint(d.b) && isPoint(d.c);
     case 'text':
       return isPoint(d.p) && typeof d.text === 'string';
+    case 'longpos':
+    case 'shortpos':
+      return isPoint(d.entry) && isPoint(d.stop) && isPoint(d.target);
     default:
       return false;
   }
@@ -444,6 +447,12 @@ export class DrawingLayer {
       case 'text':
         d.p = p;
         break;
+      case 'longpos':
+      case 'shortpos':
+        if (handle === 'entry') d.entry = p;
+        if (handle === 'stop') d.stop = p;
+        if (handle === 'target') d.target = p;
+        break;
     }
   }
 
@@ -479,6 +488,14 @@ export class DrawingLayer {
         break;
       case 'text':
         if (orig.type === 'text') current.p = shift(orig.p);
+        break;
+      case 'longpos':
+      case 'shortpos':
+        if (orig.type === current.type) {
+          current.entry = shift(orig.entry);
+          current.stop = shift(orig.stop);
+          current.target = shift(orig.target);
+        }
         break;
     }
   }
@@ -541,6 +558,10 @@ export class DrawingLayer {
         return { id, type: 'abcd', a: points[0]!, b: points[1]!, c: points[2]! };
       case 'fibext':
         return { id, type: 'fibext', a: points[0]!, b: points[1]!, c: points[2]!, extendRight: true };
+      case 'longpos':
+        return { id, type: 'longpos', entry: points[0]!, stop: points[1]!, target: points[2]! };
+      case 'shortpos':
+        return { id, type: 'shortpos', entry: points[0]!, stop: points[1]!, target: points[2]! };
       default:
         return null;
     }
@@ -573,6 +594,13 @@ export class DrawingLayer {
         ];
       case 'text':
         return [{ handle: 'p', point: d.p }];
+      case 'longpos':
+      case 'shortpos':
+        return [
+          { handle: 'entry', point: d.entry },
+          { handle: 'stop', point: d.stop },
+          { handle: 'target', point: d.target },
+        ];
     }
   }
 
@@ -664,6 +692,20 @@ export class DrawingLayer {
       if (a && b) best = Math.min(best, distPointToSegment(x, y, a.x, a.y, b.x, b.y));
       if (b && c) best = Math.min(best, distPointToSegment(x, y, b.x, b.y, c.x, c.y));
       return Number.isFinite(best) ? best : null;
+    }
+    if (d.type === 'longpos' || d.type === 'shortpos') {
+      const a = this.pointToXy(d.entry);
+      const b = this.pointToXy(d.target);
+      const c = this.pointToXy({ time: d.target.time, price: d.stop.price });
+      const e = this.pointToXy({ time: d.entry.time, price: d.stop.price });
+      if (!a || !b || !c || !e) return null;
+      const left = Math.min(a.x, b.x);
+      const right = Math.max(a.x, b.x);
+      const top = Math.min(a.y, b.y, c.y);
+      const bottom = Math.max(a.y, b.y, c.y);
+      const inside = x >= left && x <= right && y >= top && y <= bottom;
+      const toEdge = Math.min(Math.abs(x - left), Math.abs(x - right), Math.abs(y - top), Math.abs(y - bottom));
+      return inside ? Math.min(toEdge, HIT_PX) : toEdge;
     }
     if (d.type === 'abcd') {
       const a = this.pointToXy(d.a);
@@ -891,7 +933,42 @@ export class DrawingLayer {
         }
         ctx.setLineDash([]);
       }
+
+    } else if (d.type === 'longpos' || d.type === 'shortpos') {
+      const x1 = this.timeToX(d.entry.time);
+      const x2 = this.timeToX(d.target.time);
+      const yE = this.series.priceToCoordinate(d.entry.price);
+      const yT = this.series.priceToCoordinate(d.target.price);
+      const yS = this.series.priceToCoordinate(d.stop.price);
+      if (x1 !== null && x2 !== null && yE !== null && yT !== null && yS !== null) {
+        const left = Math.min(x1, x2);
+        const w = Math.abs(x2 - x1);
+        const isLong = d.type === 'longpos';
+        const profit = isLong ? d.target.price >= d.entry.price : d.target.price <= d.entry.price;
+        const riskOk = isLong ? d.stop.price <= d.entry.price : d.stop.price >= d.entry.price;
+        const win = profit ? 'rgba(38, 166, 154, 0.22)' : 'rgba(239, 83, 80, 0.22)';
+        const lose = riskOk ? 'rgba(239, 83, 80, 0.22)' : 'rgba(38, 166, 154, 0.22)';
+        ctx.fillStyle = win;
+        ctx.fillRect(left, Math.min(yE, yT), w, Math.abs(yT - yE));
+        ctx.fillStyle = lose;
+        ctx.fillRect(left, Math.min(yE, yS), w, Math.abs(yS - yE));
+        ctx.strokeStyle = selected ? SELECTED : COLOR;
+        ctx.strokeRect(left, Math.min(yE, yT, yS), w, Math.max(yE, yT, yS) - Math.min(yE, yT, yS));
+        ctx.beginPath();
+        ctx.moveTo(left, yE);
+        ctx.lineTo(left + w, yE);
+        ctx.stroke();
+        const risk = Math.abs(d.entry.price - d.stop.price);
+        const reward = Math.abs(d.target.price - d.entry.price);
+        const rr = risk > 0 ? reward / risk : 0;
+        const tag = isLong ? 'Long' : 'Short';
+        this.label(ctx, `${tag}  RR ${rr.toFixed(2)}`, left + 4, Math.min(yE, yT, yS) - 6, selected ? SELECTED : '#e0e3ea');
+        this.label(ctx, `E ${this.formatPrice(d.entry.price)}`, left + 4, yE - 4);
+        this.label(ctx, `TP ${this.formatPrice(d.target.price)}`, left + 4, yT - 4);
+        this.label(ctx, `SL ${this.formatPrice(d.stop.price)}`, left + 4, yS - 4);
+      }
     } else if (d.type === 'text') {
+
       const xy = this.pointToXy(d.p);
       if (xy) this.label(ctx, d.text, xy.x, xy.y, selected ? SELECTED : '#e0e3ea');
     }

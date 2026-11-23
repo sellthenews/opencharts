@@ -85,8 +85,8 @@ Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w eta
 
 ### Prognozy i pomiary
 
-- [ ] P2 Long position
-- [ ] P2 Short position
+- [x] P2 Long position
+- [x] P2 Short position
 - [ ] P2 Zakres cen
 - [ ] P2 Zakres dat
 - [ ] P2 Zakres dat i cen
