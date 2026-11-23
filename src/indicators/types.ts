@@ -81,7 +81,8 @@ export type IndicatorKind =
   | 'sar'
   | 'keltner'
   | 'donchian'
-  | 'obv';
+  | 'obv'
+  | 'mfi';
 
 export type IndicatorGroupId = 'trend' | 'momentum' | 'volatility' | 'volume';
 
@@ -238,6 +239,7 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
   { kind: 'donchian', name: 'Donchian Channels', short: 'Donchian', aliases: ['donchian', 'dc'], group: 'volatility', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
   { kind: 'atr', name: 'ATR', short: 'ATR', aliases: ['atr'], group: 'volatility', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   { kind: 'volume', name: 'Wolumen', short: 'Wolumen', aliases: ['volume', 'vol', 'wolumen'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
+  { kind: 'mfi', name: 'Money Flow Index', short: 'MFI', aliases: ['mfi', 'money flow'], group: 'volume', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   { kind: 'obv', name: 'On-Balance Volume', short: 'OBV', aliases: ['obv', 'on balance'], group: 'volume', defaults: {}, fields: [], pane: 'osc' },
   { kind: 'vwap', name: 'VWAP', short: 'VWAP', aliases: ['vwap'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
 ];
@@ -282,6 +284,8 @@ export function formatIndicatorLabel(item: IndicatorInstance): string {
       return `Donchian ${fmtNum(p.period, 20)}`;
     case 'obv':
       return 'OBV';
+    case 'mfi':
+      return `MFI ${fmtNum(p.period, 14)}`;
     default:
       return meta.short;
   }

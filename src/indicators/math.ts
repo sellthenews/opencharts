@@ -511,3 +511,34 @@ export function obv(candles: Candle[]): LinePoint[] {
   return out;
 }
 
+/** Money Flow Index (RSI-like, volume-weighted typical price). */
+export function mfi(candles: Candle[], period = 14): LinePoint[] {
+  if (period < 1 || candles.length < period + 1) return [];
+  const tp = candles.map((c) => (c.high + c.low + c.close) / 3);
+  const pos: number[] = [0];
+  const neg: number[] = [0];
+  for (let i = 1; i < candles.length; i++) {
+    const mf = tp[i]! * candles[i]!.volume;
+    const d = tp[i]! - tp[i - 1]!;
+    pos.push(d > 0 ? mf : 0);
+    neg.push(d < 0 ? mf : 0);
+  }
+  const out: LinePoint[] = [];
+  let psum = 0;
+  let nsum = 0;
+  for (let i = 1; i < candles.length; i++) {
+    psum += pos[i]!;
+    nsum += neg[i]!;
+    if (i > period) {
+      psum -= pos[i - period]!;
+      nsum -= neg[i - period]!;
+    }
+    if (i >= period) {
+      const ratio = nsum === 0 ? Infinity : psum / nsum;
+      const value = nsum === 0 && psum === 0 ? 50 : 100 - 100 / (1 + ratio);
+      out.push({ time: candles[i]!.time, value: Number.isFinite(value) ? value : 100 });
+    }
+  }
+  return out;
+}
+
