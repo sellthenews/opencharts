@@ -77,7 +77,8 @@ export type IndicatorKind =
   | 'volume'
   | 'vwap'
   | 'stochRsi'
-  | 'cci';
+  | 'cci'
+  | 'sar';
 
 export type IndicatorGroupId = 'trend' | 'momentum' | 'volatility' | 'volume';
 
@@ -90,6 +91,8 @@ export interface IndicatorParams {
   fast?: number;
   slow?: number;
   signal?: number;
+  start?: number;
+  max?: number;
 }
 
 export interface IndicatorInstance {
@@ -200,6 +203,20 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     ],
     pane: 'osc',
   },
+  {
+    kind: 'sar',
+    name: 'Parabolic SAR',
+    short: 'SAR',
+    aliases: ['psar', 'parabolic', 'sar'],
+    group: 'trend',
+    defaults: { start: 0.02, multiplier: 0.02, max: 0.2 },
+    fields: [
+      { key: 'start', label: 'Start', min: 0.001, max: 1, step: 0.01 },
+      { key: 'multiplier', label: 'Krok', min: 0.001, max: 1, step: 0.01 },
+      { key: 'max', label: 'Maks.', min: 0.01, max: 1, step: 0.01 },
+    ],
+    pane: 'price',
+  },
   { kind: 'cci', name: 'CCI', short: 'CCI', aliases: ['cci', 'commodity'], group: 'momentum', defaults: { period: 20 }, fields: [periodField()], pane: 'osc' },
   { kind: 'atr', name: 'ATR', short: 'ATR', aliases: ['atr'], group: 'volatility', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   { kind: 'volume', name: 'Wolumen', short: 'Wolumen', aliases: ['volume', 'vol', 'wolumen'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
@@ -238,6 +255,8 @@ export function formatIndicatorLabel(item: IndicatorInstance): string {
       return `StochRSI ${fmtNum(p.period, 14)} ${fmtNum(p.kPeriod, 3)} ${fmtNum(p.dPeriod, 3)}`;
     case 'cci':
       return `CCI ${fmtNum(p.period, 20)}`;
+    case 'sar':
+      return `SAR ${fmtNum(p.start, 0.02)} ${fmtNum(p.max, 0.2)}`;
     default:
       return meta.short;
   }

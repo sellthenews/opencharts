@@ -4,7 +4,7 @@
 import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, IPriceLine, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../sources/types';
-import { adx, atr, bollinger, cci, ema, ichimoku, macd, pivotPoints, rsi, sma, stochRsi, stochastic, supertrend, vwap, wma } from './math';
+import { adx, atr, bollinger, cci, ema, ichimoku, macd, parabolicSar, pivotPoints, rsi, sma, stochRsi, stochastic, supertrend, vwap, wma } from './math';
 import { CATALOG_BY_KIND, type IndicatorInstance, type LinePoint } from './types';
 
 function lineBase(color: string) {
@@ -36,6 +36,7 @@ const KIND_COLOR: Record<string, string> = {
   macd: '#26c6da',
   stochRsi: '#7e57c2',
   cci: '#29b6f6',
+  sar: '#26a69a',
   volume: '#26a69a',
   pivots: '#787b86',
 };
@@ -192,6 +193,22 @@ export class IndicatorHost {
       add(lv.s1, '#26a69a', 'S1');
       add(lv.s2, '#26a69a', 'S2');
       add(lv.s3, '#26a69a', 'S3');
+    } else if (item.kind === 'sar') {
+      const pts = parabolicSar(data, p.start ?? 0.02, p.multiplier ?? 0.02, p.max ?? 0.2);
+      const up = this.chart.addSeries(
+        LineSeries,
+        { ...lineBase('#26a69a'), lineVisible: false, pointMarkersVisible: true, lastValueVisible: false },
+        0,
+      );
+      const down = this.chart.addSeries(
+        LineSeries,
+        { ...lineBase('#ef5350'), lineVisible: false, pointMarkersVisible: true, lastValueVisible: false },
+        0,
+      );
+      up.setData(asLine(pts.filter((x) => x.dir === 1).map((x) => ({ time: x.time, value: x.value }))));
+      down.setData(asLine(pts.filter((x) => x.dir === -1).map((x) => ({ time: x.time, value: x.value }))));
+      this.keep(up);
+      this.keep(down);
     } else if (item.kind === 'volume') {
       const s = this.chart.addSeries(
         HistogramSeries,

@@ -411,3 +411,56 @@ export function cci(candles: Candle[], period = 20): LinePoint[] {
   return out;
 }
 
+/** Wilder Parabolic SAR. dir +1 below price (uptrend), -1 above (downtrend). */
+export function parabolicSar(
+  candles: Candle[],
+  start = 0.02,
+  increment = 0.02,
+  max = 0.2,
+): { time: number; value: number; dir: 1 | -1 }[] {
+  if (candles.length < 2) return [];
+  const out: { time: number; value: number; dir: 1 | -1 }[] = [];
+  let dir: 1 | -1 = candles[1]!.close >= candles[0]!.close ? 1 : -1;
+  let ep = dir === 1 ? Math.max(candles[0]!.high, candles[1]!.high) : Math.min(candles[0]!.low, candles[1]!.low);
+  let sar = dir === 1 ? candles[0]!.low : candles[0]!.high;
+  let af = start;
+  out.push({ time: candles[0]!.time, value: sar, dir });
+  for (let i = 1; i < candles.length; i++) {
+    const c = candles[i]!;
+    const prev = candles[i - 1]!;
+    let next = sar + af * (ep - sar);
+    if (dir === 1) {
+      const priorLow = i >= 2 ? Math.min(prev.low, candles[i - 2]!.low) : prev.low;
+      next = Math.min(next, priorLow);
+      if (c.low < next) {
+        dir = -1;
+        next = ep;
+        ep = c.low;
+        af = start;
+      } else {
+        if (c.high > ep) {
+          ep = c.high;
+          af = Math.min(max, af + increment);
+        }
+      }
+    } else {
+      const priorHigh = i >= 2 ? Math.max(prev.high, candles[i - 2]!.high) : prev.high;
+      next = Math.max(next, priorHigh);
+      if (c.high > next) {
+        dir = 1;
+        next = ep;
+        ep = c.high;
+        af = start;
+      } else {
+        if (c.low < ep) {
+          ep = c.low;
+          af = Math.min(max, af + increment);
+        }
+      }
+    }
+    sar = next;
+    out.push({ time: c.time, value: sar, dir });
+  }
+  return out;
+}
+
