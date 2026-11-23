@@ -29,6 +29,10 @@ const wrapEl = document.querySelector<HTMLDivElement>('#chart-wrap')!;
 const overlayEl = document.querySelector<HTMLCanvasElement>('#draw-overlay')!;
 const deleteBtn = document.querySelector<HTMLButtonElement>('#delete-btn')!;
 const clearBtn = document.querySelector<HTMLButtonElement>('#clear-btn')!;
+const exportBtn = document.querySelector<HTMLButtonElement>('#export-btn')!;
+const importBtn = document.querySelector<HTMLButtonElement>('#import-btn')!;
+const importFile = document.querySelector<HTMLInputElement>('#import-file')!;
+const extendRightBtn = document.querySelector<HTMLButtonElement>('#extend-right-btn')!;
 const indicatorsBar = document.querySelector<HTMLDivElement>('#indicators-bar')!;
 
 let sourceId = DEFAULT_SOURCE;
@@ -222,6 +226,8 @@ async function loadChart(): Promise<void> {
     );
     applyIndicators();
     chart.timeScale().fitContent();
+    const step = candles.length >= 2 ? candles[candles.length - 1]!.time - candles[candles.length - 2]!.time : 86400;
+    drawings.setTimeInfo(candles[candles.length - 1]!.time, step);
     drawings.setContext(src.id, pairId);
 
     const first = isoDate(candles[0]!.time);
@@ -287,6 +293,35 @@ clearBtn.addEventListener('click', () => {
   drawings.clearAll();
 });
 
+exportBtn.addEventListener('click', () => {
+  const blob = new Blob([drawings.exportJson()], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `wykresy-rysunki-${sourceId}-${pairId}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+importBtn.addEventListener('click', () => importFile.click());
+importFile.addEventListener('change', async () => {
+  const file = importFile.files?.[0];
+  importFile.value = '';
+  if (!file) return;
+  try {
+    drawings.importJson(await file.text());
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    setStatus(`Import rysunków nie powiódł się: ${message}`, true);
+  }
+});
+
+extendRightBtn.addEventListener('click', () => {
+  if (!drawings.toggleExtendRight()) {
+    setStatus('Zaznacz Fibo rozszerzenie, potem kliknij Przedłuż w prawo.');
+  }
+});
+
 indicatorsBar.addEventListener('change', () => persistIndicatorsFromUi());
 
 fillSources();
@@ -306,6 +341,9 @@ declare global {
     __wykresy: {
       getDrawings: () => ReturnType<DrawingLayer['getDrawings']>;
       getSelectedId: () => string | null;
+      getAbcdScreen: () => ReturnType<DrawingLayer['getAbcdScreen']>;
+      exportDrawings: () => string;
+      importDrawings: (raw: string) => void;
       getIndicatorSettings: () => IndicatorSettings;
       setIndicator: (patch: Partial<IndicatorSettings>) => void;
       getWatchState: () => WatchState;
@@ -317,6 +355,9 @@ declare global {
 window.__wykresy = {
   getDrawings: () => drawings.getDrawings(),
   getSelectedId: () => drawings.getSelectedId(),
+  getAbcdScreen: () => drawings.getAbcdScreen(),
+  exportDrawings: () => drawings.exportJson(),
+  importDrawings: (raw) => drawings.importJson(raw),
   getIndicatorSettings: () => indicatorSettings,
   setIndicator: (patch) => {
     indicatorSettings = { ...indicatorSettings, ...patch };

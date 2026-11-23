@@ -32,11 +32,21 @@
           <button type="button" class="tool" data-tool="trend" title="Linia trendu — dwa kliknięcia">Linia trendu</button>
           <button type="button" class="tool" data-tool="hline" title="Linia pozioma — jedno kliknięcie">Linia pozioma</button>
           <button type="button" class="tool" data-tool="rect" title="Prostokąt — dwa kliknięcia">Prostokąt</button>
+          <button type="button" class="tool" data-tool="ray" title="Promień — dwa kliknięcia, przedłużany">Promień</button>
+          <button type="button" class="tool" data-tool="channel" title="Kanał równoległy — trzy kliknięcia">Kanał</button>
+          <button type="button" class="tool" data-tool="fib" title="Zniesienie Fibonacciego — dwa kliknięcia">Fibo</button>
+          <button type="button" class="tool" data-tool="fibext" title="Fibo rozszerzenie wg trendu — trzy punkty A, B, C">Fibo rozszerzenie</button>
+          <button type="button" class="tool" data-tool="abcd" title="Korekta 1:1 (AB=CD) — trzy punkty A, B, C">AB=CD</button>
+          <button type="button" class="tool" data-tool="text" title="Tekst — kliknij i wpisz">Tekst</button>
         </div>
 
         <div class="group">
           <button type="button" id="delete-btn" title="Usuń zaznaczony rysunek (Delete)">Usuń</button>
           <button type="button" id="clear-btn" class="danger" title="Usuń wszystkie rysunki tej pary">Wyczyść wszystko</button>
+          <button type="button" id="export-btn" title="Eksport rysunków do JSON">Eksport</button>
+          <button type="button" id="import-btn" title="Import rysunków z JSON">Import</button>
+          <input type="file" id="import-file" accept="application/json,.json" hidden />
+          <button type="button" id="extend-right-btn" title="Przedłuż poziomy Fibo rozszerzenia w prawo">Przedłuż w prawo</button>
         </div>
 
         <div id="status" class="status" role="status">Ładowanie…</div>
