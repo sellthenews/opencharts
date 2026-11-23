@@ -182,3 +182,51 @@ export function atr(candles: Candle[], period = 14): LinePoint[] {
   }
   return out;
 }
+
+export function supertrend(
+  candles: Candle[],
+  period = 10,
+  multiplier = 3,
+): { time: number; value: number; dir: 1 | -1 }[] {
+  const a = atr(candles, period);
+  if (!a.length) return [];
+  const atrMap = new Map(a.map((p) => [p.time, p.value]));
+  const out: { time: number; value: number; dir: 1 | -1 }[] = [];
+  let prevUpper = 0;
+  let prevLower = 0;
+  let prevDir: 1 | -1 = 1;
+  let started = false;
+  for (let i = 0; i < candles.length; i++) {
+    const c = candles[i]!;
+    const atrVal = atrMap.get(c.time);
+    if (atrVal === undefined) continue;
+    const mid = (c.high + c.low) / 2;
+    let upper = mid + multiplier * atrVal;
+    let lower = mid - multiplier * atrVal;
+    const prev = candles[i - 1];
+    if (started && prev) {
+      if (!(upper < prevUpper || prev.close > prevUpper)) upper = prevUpper;
+      if (!(lower > prevLower || prev.close < prevLower)) lower = prevLower;
+    }
+    let dir: 1 | -1 = prevDir;
+    let st: number;
+    if (!started) {
+      dir = c.close >= mid ? 1 : -1;
+      st = dir === 1 ? lower : upper;
+      started = true;
+    } else if (prevDir === 1) {
+      if (c.close < lower) {
+        dir = -1;
+        st = upper;
+      } else st = lower;
+    } else if (c.close > upper) {
+      dir = 1;
+      st = lower;
+    } else st = upper;
+    out.push({ time: c.time, value: st, dir });
+    prevUpper = upper;
+    prevLower = lower;
+    prevDir = dir;
+  }
+  return out;
+}

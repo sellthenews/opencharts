@@ -128,7 +128,7 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 - [ ] P1 Ichimoku
 - [x] P1 Stochastic
 - [x] P1 ATR
-- [ ] P1 Supertrend
+- [x] P1 Supertrend
 - [ ] P1 Pivot Points
 - [ ] P1 ADX/DMI
 - [ ] P2 StochRSI

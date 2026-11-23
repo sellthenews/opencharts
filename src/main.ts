@@ -285,6 +285,7 @@ function syncIndicatorUi(): void {
   setOn('vwap', s.vwap.on);
   setOn('rsi', s.rsi.on);
   setOn('stoch', s.stoch.on);
+  setOn('supertrend', s.supertrend.on);
   setOn('atr', s.atr.on);
   setOn('macd', s.macd.on);
   numInput('[data-ind-period="sma"]', s.sma.period);
@@ -295,6 +296,8 @@ function syncIndicatorUi(): void {
   numInput('[data-ind-period="rsi"]', s.rsi.period);
   numInput('[data-ind-stoch="k"]', s.stoch.kPeriod);
   numInput('[data-ind-stoch="d"]', s.stoch.dPeriod);
+  numInput('[data-ind-st="period"]', s.supertrend.period);
+  numInput('[data-ind-st="mult"]', s.supertrend.multiplier);
   numInput('[data-ind-period="atr"]', s.atr.period);
   numInput('[data-ind-macd="fast"]', s.macd.fast);
   numInput('[data-ind-macd="slow"]', s.macd.slow);
@@ -319,6 +322,7 @@ function readIndicatorUi(): IndicatorSettings {
     vwap: { on: on('vwap') },
     rsi: { on: on('rsi'), period: num('[data-ind-period="rsi"]', d.rsi.period) },
     stoch: { on: on('stoch'), kPeriod: num('[data-ind-stoch="k"]', d.stoch.kPeriod), dPeriod: num('[data-ind-stoch="d"]', d.stoch.dPeriod) },
+    supertrend: { on: on('supertrend'), period: num('[data-ind-st="period"]', d.supertrend.period), multiplier: num('[data-ind-st="mult"]', d.supertrend.multiplier) },
     atr: { on: on('atr'), period: num('[data-ind-period="atr"]', d.atr.period) },
     macd: {
       on: on('macd'),

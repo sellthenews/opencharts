@@ -34,6 +34,7 @@ export interface IndicatorSettings {
   rsi: { on: boolean; period: number };
   stoch: { on: boolean; kPeriod: number; dPeriod: number };
   atr: { on: boolean; period: number };
+  supertrend: { on: boolean; period: number; multiplier: number };
   macd: { on: boolean; fast: number; slow: number; signal: number };
 }
 
@@ -47,6 +48,7 @@ export const DEFAULT_INDICATORS: IndicatorSettings = {
   rsi: { on: false, period: 14 },
   stoch: { on: false, kPeriod: 14, dPeriod: 3 },
   atr: { on: false, period: 14 },
+  supertrend: { on: false, period: 10, multiplier: 3 },
   macd: { on: false, fast: 12, slow: 26, signal: 9 },
 };
 

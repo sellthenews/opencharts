@@ -31,6 +31,7 @@ export function normalizeSettings(raw: unknown): IndicatorSettings {
     rsi: { on: Boolean(r.rsi?.on), period: clamp(Number(r.rsi?.period), 2, 400, d.rsi.period) },
     stoch: { on: Boolean(r.stoch?.on), kPeriod: clamp(Number(r.stoch?.kPeriod), 2, 400, d.stoch.kPeriod), dPeriod: clamp(Number(r.stoch?.dPeriod), 1, 100, d.stoch.dPeriod) },
     atr: { on: Boolean(r.atr?.on), period: clamp(Number(r.atr?.period), 2, 400, d.atr.period) },
+    supertrend: { on: Boolean(r.supertrend?.on), period: clamp(Number(r.supertrend?.period), 2, 400, d.supertrend.period), multiplier: clampFloat(Number(r.supertrend?.multiplier), 0.5, 10, d.supertrend.multiplier) },
     macd: {
       on: Boolean(r.macd?.on),
       fast: clamp(Number(r.macd?.fast), 2, 200, d.macd.fast),

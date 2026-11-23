@@ -4,7 +4,7 @@
 import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../sources/types';
-import { atr, bollinger, ema, macd, rsi, sma, stochastic, vwap, wma } from './math';
+import { atr, bollinger, ema, macd, rsi, sma, stochastic, supertrend, vwap, wma } from './math';
 import type { IndicatorSettings, LinePoint } from './types';
 
 function lineBase(color: string) {
@@ -26,6 +26,8 @@ export class IndicatorHost {
   private emaSeries: ISeriesApi<'Line'> | null = null;
   private wmaSeries: ISeriesApi<'Line'> | null = null;
   private vwapSeries: ISeriesApi<'Line'> | null = null;
+  private stUp: ISeriesApi<'Line'> | null = null;
+  private stDown: ISeriesApi<'Line'> | null = null;
   private bbMid: ISeriesApi<'Line'> | null = null;
   private bbUpper: ISeriesApi<'Line'> | null = null;
   private bbLower: ISeriesApi<'Line'> | null = null;
@@ -87,6 +89,17 @@ export class IndicatorHost {
       this.bbMid = this.drop(this.bbMid);
       this.bbUpper = this.drop(this.bbUpper);
       this.bbLower = this.drop(this.bbLower);
+    }
+
+    if (settings.supertrend.on) {
+      if (!this.stUp) this.stUp = this.chart.addSeries(LineSeries, lineBase('#26a69a'), 0);
+      if (!this.stDown) this.stDown = this.chart.addSeries(LineSeries, lineBase('#ef5350'), 0);
+      const pts = supertrend(data, settings.supertrend.period, settings.supertrend.multiplier);
+      this.stUp.setData(asLine(pts.filter((p) => p.dir === 1).map((p) => ({ time: p.time, value: p.value }))));
+      this.stDown.setData(asLine(pts.filter((p) => p.dir === -1).map((p) => ({ time: p.time, value: p.value }))));
+    } else {
+      this.stUp = this.drop(this.stUp);
+      this.stDown = this.drop(this.stDown);
     }
 
     if (settings.vwap.on) {
