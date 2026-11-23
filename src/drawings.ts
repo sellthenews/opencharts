@@ -89,6 +89,10 @@ function isDrawing(value: unknown): value is Drawing {
       return isPoint(d.p) && typeof d.text === 'string';
     case 'callout':
       return isPoint(d.p1) && isPoint(d.p2) && typeof d.text === 'string';
+    case 'ellipse':
+      return isPoint(d.p1) && isPoint(d.p2);
+    case 'triangle':
+      return isPoint(d.p1) && isPoint(d.p2) && isPoint(d.p3);
     default:
       return false;
   }
@@ -526,6 +530,15 @@ export class DrawingLayer {
         if (handle === 'p1') d.p1 = p;
         if (handle === 'p2') d.p2 = p;
         break;
+      case 'ellipse':
+        if (handle === 'p1') d.p1 = p;
+        if (handle === 'p2') d.p2 = p;
+        break;
+      case 'triangle':
+        if (handle === 'p1') d.p1 = p;
+        if (handle === 'p2') d.p2 = p;
+        if (handle === 'p3') d.p3 = p;
+        break;
     }
   }
 
@@ -604,6 +617,19 @@ export class DrawingLayer {
         if (orig.type === 'callout') {
           current.p1 = shift(orig.p1);
           current.p2 = shift(orig.p2);
+        }
+        break;
+      case 'ellipse':
+        if (orig.type === 'ellipse') {
+          current.p1 = shift(orig.p1);
+          current.p2 = shift(orig.p2);
+        }
+        break;
+      case 'triangle':
+        if (orig.type === 'triangle') {
+          current.p1 = shift(orig.p1);
+          current.p2 = shift(orig.p2);
+          current.p3 = shift(orig.p3);
         }
         break;
     }
@@ -733,6 +759,10 @@ export class DrawingLayer {
         return { id, type: 'note', p: points[0]!, text: '' };
       case 'callout':
         return { id, type: 'callout', p1: points[0]!, p2: points[1]!, text: '' };
+      case 'ellipse':
+        return { id, type: 'ellipse', p1: points[0]!, p2: points[1]! };
+      case 'triangle':
+        return { id, type: 'triangle', p1: points[0]!, p2: points[1]!, p3: points[2]! };
       default:
         return null;
     }
@@ -800,6 +830,17 @@ export class DrawingLayer {
         return [
           { handle: 'p1', point: d.p1 },
           { handle: 'p2', point: d.p2 },
+        ];
+      case 'ellipse':
+        return [
+          { handle: 'p1', point: d.p1 },
+          { handle: 'p2', point: d.p2 },
+        ];
+      case 'triangle':
+        return [
+          { handle: 'p1', point: d.p1 },
+          { handle: 'p2', point: d.p2 },
+          { handle: 'p3', point: d.p3 },
         ];
     }
   }
@@ -888,6 +929,36 @@ export class DrawingLayer {
       const onLine = distPointToSegment(x, y, a.x, a.y, b.x, b.y);
       const inBox = x >= b.x - 2 && x <= b.x + 130 && y >= b.y - 22 && y <= b.y + 8 ? 0 : 80;
       return Math.min(onLine, inBox);
+    }
+    if (d.type === 'ellipse') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      if (!a || !b) return null;
+      const cx = (a.x + b.x) / 2;
+      const cy = (a.y + b.y) / 2;
+      const rx = Math.max(1, Math.abs(b.x - a.x) / 2);
+      const ry = Math.max(1, Math.abs(b.y - a.y) / 2);
+      const v = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2;
+      return v <= 1 ? 0 : Math.sqrt(v) * Math.min(rx, ry) - Math.min(rx, ry);
+    }
+    if (d.type === 'triangle') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      const c = this.pointToXy(d.p3);
+      if (!a || !b || !c) return null;
+      const edges = Math.min(
+        distPointToSegment(x, y, a.x, a.y, b.x, b.y),
+        distPointToSegment(x, y, b.x, b.y, c.x, c.y),
+        distPointToSegment(x, y, c.x, c.y, a.x, a.y),
+      );
+      const sign = (p: { x: number; y: number }, q: { x: number; y: number }, r: { x: number; y: number }) =>
+        (p.x - r.x) * (q.y - r.y) - (q.x - r.x) * (p.y - r.y);
+      const pt = { x, y };
+      const b1 = sign(pt, a, b) < 0;
+      const b2 = sign(pt, b, c) < 0;
+      const b3 = sign(pt, c, a) < 0;
+      const inside = b1 === b2 && b2 === b3;
+      return inside ? Math.min(edges, HIT_PX) : edges;
     }
     if (d.type === 'trend' || d.type === 'ray') {
       const a = this.pointToXy(d.p1);
@@ -1379,6 +1450,32 @@ export class DrawingLayer {
         ctx.fillStyle = selected ? SELECTED : COLOR;
         ctx.fill();
         this.paintBadge(ctx, d.text || 'Objaśnienie', b.x, b.y, selected);
+      }
+    } else if (d.type === 'ellipse') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      if (a && b) {
+        const cx = (a.x + b.x) / 2;
+        const cy = (a.y + b.y) / 2;
+        const rx = Math.max(1, Math.abs(b.x - a.x) / 2);
+        const ry = Math.max(1, Math.abs(b.y - a.y) / 2);
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    } else if (d.type === 'triangle') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      const c = this.pointToXy(d.p3);
+      if (a && b && c) {
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.lineTo(c.x, c.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
       }
     }
     ctx.restore();

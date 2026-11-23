@@ -95,8 +95,8 @@ Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w eta
 ### Kształty
 
 - [x] P1 Prostokąt
-- [ ] P2 Elipsa
-- [ ] P2 Trójkąt (kształt)
+- [x] P2 Elipsa
+- [x] P2 Trójkąt (kształt)
 - [ ] P2 Łuk
 - [x] P2 Strzałki
 - [ ] P3 Ścieżka
