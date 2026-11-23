@@ -161,3 +161,24 @@ export function stochastic(candles: Candle[], kPeriod = 14, dPeriod = 3): { time
   }
   return out;
 }
+
+export function trueRange(candles: Candle[], i: number): number {
+  const c = candles[i]!;
+  if (i === 0) return c.high - c.low;
+  const prev = candles[i - 1]!.close;
+  return Math.max(c.high - c.low, Math.abs(c.high - prev), Math.abs(c.low - prev));
+}
+
+/** Wilder ATR. */
+export function atr(candles: Candle[], period = 14): LinePoint[] {
+  if (period < 1 || candles.length < period + 1) return [];
+  let val = 0;
+  for (let i = 1; i <= period; i++) val += trueRange(candles, i);
+  val /= period;
+  const out: LinePoint[] = [{ time: candles[period]!.time, value: val }];
+  for (let i = period + 1; i < candles.length; i++) {
+    val = (val * (period - 1) + trueRange(candles, i)) / period;
+    out.push({ time: candles[i]!.time, value: val });
+  }
+  return out;
+}

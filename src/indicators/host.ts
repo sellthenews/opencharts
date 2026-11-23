@@ -4,7 +4,7 @@
 import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../sources/types';
-import { bollinger, ema, macd, rsi, sma, stochastic, vwap, wma } from './math';
+import { atr, bollinger, ema, macd, rsi, sma, stochastic, vwap, wma } from './math';
 import type { IndicatorSettings, LinePoint } from './types';
 
 function lineBase(color: string) {
@@ -33,6 +33,7 @@ export class IndicatorHost {
   private rsiSeries: ISeriesApi<'Line'> | null = null;
   private stochK: ISeriesApi<'Line'> | null = null;
   private stochD: ISeriesApi<'Line'> | null = null;
+  private atrSeries: ISeriesApi<'Line'> | null = null;
   private macdLine: ISeriesApi<'Line'> | null = null;
   private macdSignal: ISeriesApi<'Line'> | null = null;
   private macdHist: ISeriesApi<'Histogram'> | null = null;
@@ -127,6 +128,7 @@ export class IndicatorHost {
     this.rsiSeries = this.drop(this.rsiSeries);
     this.stochK = this.drop(this.stochK);
     this.stochD = this.drop(this.stochD);
+    this.atrSeries = this.drop(this.atrSeries);
     this.macdLine = this.drop(this.macdLine);
     this.macdSignal = this.drop(this.macdSignal);
     this.macdHist = this.drop(this.macdHist);
@@ -158,6 +160,13 @@ export class IndicatorHost {
       const line = { lineWidth: 1 as const, lineStyle: LineStyle.Dotted, axisLabelVisible: false };
       this.stochK.createPriceLine({ price: 80, color: '#6d5a78', title: '', ...line });
       this.stochK.createPriceLine({ price: 20, color: '#6d5a78', title: '', ...line });
+    }
+
+    if (settings.atr.on) {
+      this.chart.addPane();
+      const idx = this.chart.panes().length - 1;
+      this.atrSeries = this.chart.addSeries(LineSeries, { ...lineBase('#ffa726'), lastValueVisible: true }, idx);
+      this.atrSeries.setData(asLine(atr(data, settings.atr.period)));
     }
 
     if (settings.macd.on) {

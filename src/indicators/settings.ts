@@ -30,6 +30,7 @@ export function normalizeSettings(raw: unknown): IndicatorSettings {
     vwap: { on: Boolean(r.vwap?.on) },
     rsi: { on: Boolean(r.rsi?.on), period: clamp(Number(r.rsi?.period), 2, 400, d.rsi.period) },
     stoch: { on: Boolean(r.stoch?.on), kPeriod: clamp(Number(r.stoch?.kPeriod), 2, 400, d.stoch.kPeriod), dPeriod: clamp(Number(r.stoch?.dPeriod), 1, 100, d.stoch.dPeriod) },
+    atr: { on: Boolean(r.atr?.on), period: clamp(Number(r.atr?.period), 2, 400, d.atr.period) },
     macd: {
       on: Boolean(r.macd?.on),
       fast: clamp(Number(r.macd?.fast), 2, 200, d.macd.fast),
