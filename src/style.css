@@ -112,6 +112,7 @@ button {
   padding: 5px 9px;
   font: inherit;
   cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
 }
 
 select:hover,
@@ -620,3 +621,75 @@ button.danger:hover {
 .extra-bar select { font-size: 12px; }
 .extra-status { font-size: 10px; color: var(--muted); padding: 0 6px; }
 .extra-plot { flex: 1; min-height: 0; }
+
+#chart-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#chart-loader[hidden] {
+  display: none;
+}
+
+#chart-wrap #chart,
+#chart-wrap #draw-overlay {
+  transition: opacity 180ms ease;
+}
+
+#chart-wrap[data-loading="full"] #chart,
+#chart-wrap[data-loading="full"] #draw-overlay {
+  opacity: 0.45;
+}
+
+#chart-wrap[data-loading="refresh"] #chart-loader .chart-skeleton {
+  display: none;
+}
+
+#chart-wrap[data-loading="refresh"] #chart-loader {
+  align-items: flex-start;
+  justify-content: stretch;
+}
+
+#chart-wrap[data-loading="refresh"] .chart-spinner {
+  display: none;
+}
+
+#chart-wrap[data-loading="refresh"] #chart-loader::before {
+  content: "";
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: chart-shimmer 1.1s ease-in-out infinite;
+}
+
+.chart-skeleton {
+  position: absolute;
+  inset: 12px 56px 28px 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--text) 6%, transparent) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: chart-shimmer 1.2s ease-in-out infinite;
+}
+
+.chart-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: chart-spin 0.7s linear infinite;
+}
+
+@keyframes chart-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@keyframes chart-spin {
+  to { transform: rotate(360deg); }
+}

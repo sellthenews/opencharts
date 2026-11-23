@@ -13,6 +13,7 @@ import {
 } from './drawings-math';
 import { TOOLS_POINTS } from './drawings-types';
 import type { Drawing, Point, Tool } from './drawings-types';
+import { interactionOptions } from './chart-options';
 
 export type { Drawing, Point, Tool };
 
@@ -241,7 +242,7 @@ export class DrawingLayer {
   private syncPointerEvents(): void {
     const drawing = this.tool !== 'cursor';
     this.canvas.classList.toggle('passthrough', !drawing);
-    this.chart.applyOptions({ handleScroll: !drawing, handleScale: !drawing });
+    this.chart.applyOptions(drawing ? { handleScroll: false, handleScale: false } : interactionOptions());
   }
 
   private persist(): void {

@@ -1,21 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Wykresy contributors
 
-import { CandlestickSeries, ColorType, createChart } from 'lightweight-charts';
+import { CandlestickSeries, createChart } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import { INTERVALS, getSource } from './sources';
+import { candleSeriesOptions, interactionOptions, themeChartOptions } from './chart-options';
+import { getCachedCandles, setCachedCandles } from './candle-cache';
 import type { IntervalId, PairId } from './sources';
 
 export interface MiniState {
   sourceId: string;
   pairId: PairId;
   intervalId: IntervalId;
-}
-
-function chartColors(light: boolean) {
-  return light
-    ? { bg: '#ffffff', text: '#131722', grid: '#e0e3eb', border: '#d1d4dc' }
-    : { bg: '#131722', text: '#d1d4dc', grid: '#1e222d', border: '#2a2e39' };
 }
 
 export class MiniChart {
@@ -47,22 +43,15 @@ export class MiniChart {
     this.intervalEl = root.querySelector('select[data-mini="interval"]')!;
     this.statusEl = root.querySelector('.extra-status')!;
     const plot = root.querySelector<HTMLElement>('.extra-plot')!;
-    const c = chartColors(document.documentElement.dataset.theme === 'light');
+    const light = document.documentElement.dataset.theme === 'light';
     this.chart = createChart(plot, {
       autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: c.bg }, textColor: c.text, fontSize: 10 },
-      grid: { vertLines: { color: c.grid }, horzLines: { color: c.grid } },
-      rightPriceScale: { borderColor: c.border },
-      timeScale: { borderColor: c.border, timeVisible: true, secondsVisible: false },
+      ...themeChartOptions(light),
+      ...interactionOptions(),
+      layout: { ...themeChartOptions(light).layout, fontSize: 10 },
       localization: { locale: 'pl-PL' },
     });
-    this.series = this.chart.addSeries(CandlestickSeries, {
-      upColor: '#26a69a',
-      downColor: '#ef5350',
-      borderVisible: false,
-      wickUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
-    });
+    this.series = this.chart.addSeries(CandlestickSeries, candleSeriesOptions());
     this.fill();
     this.sourceEl.addEventListener('change', () => {
       this.state.sourceId = this.sourceEl.value;
@@ -92,13 +81,7 @@ export class MiniChart {
   }
 
   setTheme(light: boolean): void {
-    const c = chartColors(light);
-    this.chart.applyOptions({
-      layout: { background: { type: ColorType.Solid, color: c.bg }, textColor: c.text },
-      grid: { vertLines: { color: c.grid }, horzLines: { color: c.grid } },
-      rightPriceScale: { borderColor: c.border },
-      timeScale: { borderColor: c.border },
-    });
+    this.chart.applyOptions(themeChartOptions(light));
   }
 
   private emit(): void {
@@ -118,28 +101,42 @@ export class MiniChart {
     this.pairEl.innerHTML = pairs.map((p) => `<option value="${p.id}"${p.id === this.state.pairId ? ' selected' : ''}>${p.label}</option>`).join('');
   }
 
+  private paint(candles: import('./sources').Candle[], fit: boolean): void {
+    const range = !fit ? this.chart.timeScale().getVisibleLogicalRange() : null;
+    this.series.setData(
+      candles.map((c) => ({
+        time: c.time as UTCTimestamp,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+      })),
+    );
+    if (fit) this.chart.timeScale().fitContent();
+    else if (range) this.chart.timeScale().setVisibleLogicalRange(range);
+  }
+
   private async reload(): Promise<void> {
     const seq = ++this.loadSeq;
     const src = getSource(this.state.sourceId);
-    this.statusEl.textContent = '…';
+    const cached = getCachedCandles(this.state.sourceId, this.state.pairId, this.state.intervalId);
+    const had = this.series.dataByIndex(0) !== null;
+    if (cached?.length) {
+      this.paint(cached, !had);
+      this.statusEl.textContent = `${src?.name ?? this.state.sourceId} · ${this.state.pairId} · ${cached.length}`;
+    } else {
+      this.statusEl.textContent = '…';
+    }
     try {
       if (!src) throw new Error('Brak źródła');
       const candles = await src.fetchCandles(this.state.pairId, this.state.intervalId);
       if (seq !== this.loadSeq) return;
-      this.series.setData(
-        candles.map((c) => ({
-          time: c.time as UTCTimestamp,
-          open: c.open,
-          high: c.high,
-          low: c.low,
-          close: c.close,
-        })),
-      );
-      this.chart.timeScale().fitContent();
+      setCachedCandles(this.state.sourceId, this.state.pairId, this.state.intervalId, candles);
+      this.paint(candles, !(cached?.length || had));
       this.statusEl.textContent = `${src.name} · ${this.state.pairId} · ${candles.length}`;
     } catch (err) {
       if (seq !== this.loadSeq) return;
-      this.series.setData([]);
+      if (!cached?.length) this.series.setData([]);
       this.statusEl.textContent = err instanceof Error ? err.message : 'Błąd';
     }
   }

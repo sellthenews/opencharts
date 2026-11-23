@@ -3,11 +3,11 @@
 
 import {
   CandlestickSeries,
-  ColorType,
-  CrosshairMode,
   createChart,
 } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
+import { candleSeriesOptions, interactionOptions, themeChartOptions } from './chart-options';
+import { getCachedCandles, setCachedCandles } from './candle-cache';
 import { DrawingLayer } from './drawings';
 import type { Tool } from './drawings';
 import { IndicatorHost } from './indicators/host';
@@ -39,23 +39,6 @@ function loadTheme(): ThemeName {
 }
 
 let theme: ThemeName = loadTheme();
-
-function chartThemeOptions(name: ThemeName) {
-  if (name === 'light') {
-    return {
-      layout: { background: { type: ColorType.Solid, color: '#ffffff' }, textColor: '#131722' },
-      grid: { vertLines: { color: '#e0e3eb' }, horzLines: { color: '#e0e3eb' } },
-      rightPriceScale: { borderColor: '#d1d4dc' },
-      timeScale: { borderColor: '#d1d4dc', timeVisible: true, secondsVisible: false },
-    };
-  }
-  return {
-    layout: { background: { type: ColorType.Solid, color: '#131722' }, textColor: '#d1d4dc' },
-    grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
-    rightPriceScale: { borderColor: '#2a2e39' },
-    timeScale: { borderColor: '#2a2e39', timeVisible: true, secondsVisible: false },
-  };
-}
 
 function applyTheme(name: ThemeName): void {
   theme = name;
@@ -173,22 +156,12 @@ applyTheme(theme);
 
 const chart: IChartApi = createChart(chartEl, {
   autoSize: true,
-  ...chartThemeOptions(theme),
-  layout: {
-    ...chartThemeOptions(theme).layout,
-    fontFamily: 'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-  },
-  crosshair: { mode: CrosshairMode.Normal },
+  ...themeChartOptions(theme === 'light'),
+  ...interactionOptions(),
   localization: { locale: 'pl-PL' },
 });
 
-const series: ISeriesApi<'Candlestick'> = chart.addSeries(CandlestickSeries, {
-  upColor: '#26a69a',
-  downColor: '#ef5350',
-  borderVisible: false,
-  wickUpColor: '#26a69a',
-  wickDownColor: '#ef5350',
-});
+const series: ISeriesApi<'Candlestick'> = chart.addSeries(CandlestickSeries, candleSeriesOptions());
 
 const drawings = new DrawingLayer(chart, series, overlayEl, wrapEl);
 const indicators = new IndicatorHost(chart, series);
@@ -245,15 +218,10 @@ function applySelection(nextSource: string, nextPair: PairId, reload = true): vo
   
 document.querySelector<HTMLButtonElement>('#theme-btn')?.addEventListener('click', () => {
   applyTheme(theme === 'light' ? 'dark' : 'light');
-  chart.applyOptions({
-    ...chartThemeOptions(theme),
-    layout: {
-      ...chartThemeOptions(theme).layout,
-      fontFamily: 'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-    },
-  });
-  miniCharts.forEach((m) => m.setTheme(theme === 'light'));
+  chart.applyOptions(themeChartOptions(theme === 'light'));
+  miniCharts.forEach((m) => m?.setTheme(theme === 'light'));
 });
+
 
 
 alertForm?.addEventListener('submit', (ev) => {
@@ -317,14 +285,14 @@ function persistIndicators(items: IndicatorInstance[]): void {
 function resizeCharts(): void {
   const r = wrapEl.getBoundingClientRect();
   if (r.width > 0 && r.height > 0) chart.resize(r.width, r.height);
-  for (const mini of miniCharts) mini.resize();
+  for (const mini of miniCharts) mini?.resize();
   indicatorHud?.setPaneMap(paneMap);
   requestAnimationFrame(() => {
     drawings.syncSize();
     indicatorHud?.relayout();
     const again = wrapEl.getBoundingClientRect();
     if (again.width > 0 && again.height > 0) chart.resize(again.width, again.height);
-    for (const mini of miniCharts) mini.resize();
+    for (const mini of miniCharts) mini?.resize();
     requestAnimationFrame(() => indicatorHud?.relayout());
   });
 }
@@ -345,6 +313,7 @@ function setSidebar(on: boolean): void {
 }
 
 function applyPriceData(candles: Candle[], fit: boolean): void {
+  const range = !fit ? chart.timeScale().getVisibleLogicalRange() : null;
   lastCandles = candles;
   if (!candles.length) {
     series.setData([]);
@@ -366,7 +335,16 @@ function applyPriceData(candles: Candle[], fit: boolean): void {
   const step = candles.length >= 2 ? candles[candles.length - 1]!.time - candles[candles.length - 2]!.time : 86400;
   drawings.setTimeInfo(candles[candles.length - 1]!.time, step);
   if (fit) chart.timeScale().fitContent();
+  else if (range) chart.timeScale().setVisibleLogicalRange(range);
   evaluateAlerts(sourceId, pairId, candles[candles.length - 1]!.close);
+}
+
+type LoaderMode = 'off' | 'full' | 'refresh';
+
+function setChartLoading(mode: LoaderMode): void {
+  wrapEl.dataset.loading = mode;
+  const loader = document.querySelector<HTMLElement>('#chart-loader');
+  if (loader) loader.hidden = mode === 'off';
 }
 
 function setLiveStatus(status: LiveStatus): void {
@@ -408,37 +386,57 @@ function syncLiveChart(): void {
   else live.setChart(null, null);
 }
 
+function describeCandles(srcName: string, pairLabel: string, candles: Candle[], aggregated: boolean): string {
+  const first = isoDate(candles[0]!.time);
+  const last = isoDate(candles[candles.length - 1]!.time);
+  return `${srcName} · ${pairLabel} · ${intervalId}${aggregated ? ' · agregacja' : ''} · ${candles.length} świec · ${first} – ${last}`;
+}
+
 async function loadChart(): Promise<void> {
   const seq = ++loadSeq;
   const src = currentSource();
   const pair = src.pairs.find((p) => p.id === pairId);
-  setReady(false);
-  setStatus(`Ładowanie ${src.name} · ${pair?.label ?? pairId} · ${intervalId}…`);
+  const pairLabel = pair?.native ?? pair?.label ?? pairId;
+  const aggregated = !src.nativeIntervals.includes(intervalId);
+  const hadData = lastCandles.length > 0;
+  const cached = getCachedCandles(sourceId, pairId, intervalId);
+
+  if (cached?.length) {
+    applyPriceData(cached, !hadData);
+    drawings.setContext(src.id, pairId);
+    setStatus(describeCandles(src.name, pairLabel, cached, aggregated));
+    setReady(true);
+    setChartLoading('refresh');
+  } else {
+    setChartLoading('full');
+    if (!hadData) setReady(false);
+    setStatus(`Ładowanie ${src.name} · ${pair?.label ?? pairId} · ${intervalId}…`);
+  }
 
   try {
     const candles = await src.fetchCandles(pairId, intervalId);
     if (seq !== loadSeq) return;
     if (!candles.length) throw new Error('Brak świec w odpowiedzi API');
-    applyPriceData(candles, true);
+    setCachedCandles(sourceId, pairId, intervalId, candles);
+    applyPriceData(candles, !(cached?.length || hadData));
     drawings.setContext(src.id, pairId);
     syncLiveChart();
-
-    const first = isoDate(candles[0]!.time);
-    const last = isoDate(candles[candles.length - 1]!.time);
-    const native = pair?.native ?? pairId;
-    const aggregated = src.nativeIntervals.includes(intervalId) ? '' : ' · agregacja';
-    setStatus(`${src.name} · ${native} · ${intervalId}${aggregated} · ${candles.length} świec · ${first} – ${last}`);
+    setStatus(describeCandles(src.name, pairLabel, candles, aggregated));
     setReady(true);
+    setChartLoading('off');
     watchlist?.highlight(sourceId, pairId);
     requestAnimationFrame(() => drawings.syncSize());
   } catch (err) {
     if (seq !== loadSeq) return;
-    applyPriceData([], false);
-    drawings.setContext(src.id, pairId);
+    if (!cached?.length) {
+      applyPriceData([], false);
+      drawings.setContext(src.id, pairId);
+      setReady(false);
+    }
     syncLiveChart();
     const message = err instanceof Error ? err.message : String(err);
     setStatus(`Nie udało się pobrać danych z ${src.name}: ${message}`, true);
-    setReady(false);
+    setChartLoading('off');
   }
 }
 
@@ -542,6 +540,7 @@ function setPaneCount(count: 1 | 2 | 4): void {
     btn.classList.toggle('is-active', btn.getAttribute('data-panes') === String(count));
   });
   persistLayout();
+  ensureMiniCharts();
   resizeCharts();
 }
 
@@ -552,17 +551,23 @@ document.querySelector('#layout-btns')?.addEventListener('click', (ev) => {
   if (n === 1 || n === 2 || n === 4) setPaneCount(n);
 });
 
-document.querySelectorAll<HTMLElement>('.extra-cell').forEach((cell, i) => {
-  miniCharts[i] = new MiniChart(
-    cell,
-    extras[i] ?? defaultExtras[i]!,
-    sources.map((s) => ({ id: s.id, name: s.name })),
-    (state) => {
-      extras[i] = state;
-      persistLayout();
-    },
-  );
-});
+function ensureMiniCharts(): void {
+  const needed = paneCount === 4 ? 3 : paneCount === 2 ? 1 : 0;
+  document.querySelectorAll<HTMLElement>('.extra-cell').forEach((cell, i) => {
+    if (i >= needed) return;
+    if (miniCharts[i]) return;
+    miniCharts[i] = new MiniChart(
+      cell,
+      extras[i] ?? defaultExtras[i]!,
+      sources.map((s) => ({ id: s.id, name: s.name })),
+      (state) => {
+        extras[i] = state;
+        persistLayout();
+      },
+    );
+  });
+}
+
 setPaneCount(paneCount);
 
 indicatorHud = new IndicatorHud(
