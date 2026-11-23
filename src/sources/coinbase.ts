@@ -1,6 +1,6 @@
 import { aggregateCandles, sortDedup } from './aggregate';
-import { fetchJson } from './http';
-import type { Candle, DataSource, IntervalId, PairId } from './types';
+import { changePct, fetchJson } from './http';
+import type { Candle, DataSource, IntervalId, PairId, Ticker } from './types';
 import { MAX_CANDLES, nativeOf, pairsFromNative } from './types';
 
 /** Coinbase Exchange public candles: granularity in seconds. No native 4h / 1W / 1M. */
@@ -73,5 +73,12 @@ export const coinbase: DataSource = {
     const gran = NATIVE_GRANULARITY[interval];
     if (!gran) throw new Error(`Coinbase: brak interwału ${interval}`);
     return fetchGranularity(product, gran);
+  },
+  async fetchTicker(pairId: PairId): Promise<Ticker> {
+    const product = nativeOf(this, pairId);
+    const url = `https://api.exchange.coinbase.com/products/${encodeURIComponent(product)}/stats`;
+    const data = await fetchJson<{ last: string; open: string }>(url);
+    const last = Number(data.last);
+    return { last, change24hPct: changePct(last, Number(data.open)) };
   },
 };

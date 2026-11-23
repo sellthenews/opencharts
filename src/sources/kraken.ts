@@ -1,6 +1,6 @@
 import { aggregateCandles, sortDedup } from './aggregate';
-import { fetchJson } from './http';
-import type { Candle, DataSource, IntervalId, PairId } from './types';
+import { changePct, fetchJson } from './http';
+import type { Candle, DataSource, IntervalId, PairId, Ticker } from './types';
 import { nativeOf, pairsFromNative } from './types';
 
 const NATIVE: Record<Exclude<IntervalId, '1M'>, number> = {
@@ -54,5 +54,19 @@ export const kraken: DataSource = {
       return aggregateCandles(weekly, '1M');
     }
     return fetchInterval(symbol, NATIVE[interval]);
+  },
+  async fetchTicker(pairId: PairId): Promise<Ticker> {
+    const symbol = nativeOf(this, pairId);
+    const url = `https://api.kraken.com/0/public/Ticker?pair=${encodeURIComponent(symbol)}`;
+    const data = await fetchJson<{ error: string[]; result?: Record<string, Record<string, unknown>> }>(url);
+    if (data.error?.length) throw new Error(`Kraken: ${data.error.join(', ')}`);
+    const result = data.result ?? {};
+    const key = Object.keys(result).find((k) => k !== 'last') ?? Object.keys(result)[0];
+    const row = key ? result[key] : undefined;
+    if (!row) throw new Error('Kraken: pusty ticker');
+    const lastRaw = Array.isArray(row.c) ? row.c[0] : row.c;
+    const last = Number(lastRaw);
+    const open = Number(row.o);
+    return { last, change24hPct: changePct(last, open) };
   },
 };

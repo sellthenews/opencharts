@@ -11,3 +11,8 @@ export async function fetchJson<T>(url: string): Promise<T> {
   }
   return (await res.json()) as T;
 }
+
+export function changePct(last: number, open: number): number | null {
+  if (!Number.isFinite(last) || !Number.isFinite(open) || open === 0) return null;
+  return ((last - open) / open) * 100;
+}

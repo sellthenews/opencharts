@@ -14,5 +14,5 @@ export function getSource(id: string): DataSource | undefined {
   return sources.find((s) => s.id === id);
 }
 
-export type { Candle, DataSource, IntervalId, PairDef, PairId } from './types';
+export type { Candle, DataSource, IntervalId, PairDef, PairId, Ticker } from './types';
 export { INTERVALS, PAIR_IDS, PAIR_LABELS } from './types';

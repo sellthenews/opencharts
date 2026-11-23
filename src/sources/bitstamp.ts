@@ -1,6 +1,6 @@
 import { aggregateCandles, sortDedup } from './aggregate';
-import { fetchJson } from './http';
-import type { Candle, DataSource, IntervalId, PairId } from './types';
+import { changePct, fetchJson } from './http';
+import type { Candle, DataSource, IntervalId, PairId, Ticker } from './types';
 import { MAX_CANDLES, nativeOf, pairsFromNative } from './types';
 
 const STEP: Record<Exclude<IntervalId, '1W' | '1M'>, number> = {
@@ -71,5 +71,15 @@ export const bitstamp: DataSource = {
       return aggregateCandles(daily, interval);
     }
     return fetchStep(pair, STEP[interval]);
+  },
+  async fetchTicker(pairId: PairId): Promise<Ticker> {
+    const pair = nativeOf(this, pairId);
+    const url = `https://www.bitstamp.net/api/v2/ticker/${encodeURIComponent(pair)}/`;
+    const data = await fetchJson<{ last: string; percent_change_24?: string; open_24?: string; open?: string }>(url);
+    const last = Number(data.last);
+    const pct = Number(data.percent_change_24);
+    if (Number.isFinite(pct)) return { last, change24hPct: pct };
+    const open = Number(data.open_24 ?? data.open);
+    return { last, change24hPct: changePct(last, open) };
   },
 };

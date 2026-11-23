@@ -26,6 +26,11 @@ export interface Candle {
   volume: number;
 }
 
+export interface Ticker {
+  last: number;
+  change24hPct: number | null;
+}
+
 export interface PairDef {
   id: PairId;
   label: string;
@@ -39,6 +44,7 @@ export interface DataSource {
   /** Intervals the exchange serves natively. Others are aggregated in fetchCandles. */
   nativeIntervals: readonly IntervalId[];
   fetchCandles(pairId: PairId, interval: IntervalId): Promise<Candle[]>;
+  fetchTicker(pairId: PairId): Promise<Ticker>;
 }
 
 export const MAX_CANDLES = 2500;

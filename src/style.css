@@ -30,7 +30,15 @@ body,
 
 #app {
   display: flex;
+  flex-direction: row;
+  min-height: 100%;
+}
+
+#workspace {
+  display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0;
   min-height: 100%;
 }
 
@@ -187,4 +195,110 @@ button.danger:hover {
 
 .ind input[type="checkbox"] {
   accent-color: var(--accent);
+}
+
+#watchlist {
+  width: 268px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bar);
+  border-right: 1px solid var(--border);
+}
+
+.watch-head {
+  padding: 10px 10px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.watch-head h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.watch-lists {
+  display: flex;
+  gap: 4px;
+}
+
+.watch-lists select {
+  flex: 1;
+  min-width: 0;
+}
+
+.watch-lists button {
+  width: 28px;
+  padding: 5px 0;
+}
+
+.watch-body {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 0;
+}
+
+.watch-empty {
+  margin: 12px 10px;
+  color: var(--muted);
+}
+
+.watch-row {
+  display: grid;
+  grid-template-columns: 1fr auto 16px;
+  grid-template-areas:
+    "sym last del"
+    "ex chg del";
+  gap: 0 8px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.watch-row:hover {
+  background: var(--btn-hover);
+}
+
+.watch-row.is-active {
+  background: #1e2a4a;
+}
+
+.watch-sym { grid-area: sym; font-weight: 600; color: #fff; }
+.watch-ex { grid-area: ex; color: var(--muted); font-size: 11px; }
+.watch-last { grid-area: last; text-align: right; font-variant-numeric: tabular-nums; }
+.watch-chg {
+  grid-area: chg;
+  text-align: right;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.watch-chg.up { color: #26a69a; }
+.watch-chg.down { color: #ef5350; }
+.watch-del {
+  grid-area: del;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1;
+  font-size: 16px;
+  align-self: center;
+}
+.watch-del:hover { color: var(--danger); }
+
+.watch-add {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 4px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.watch-add select,
+.watch-add button {
+  min-width: 0;
 }

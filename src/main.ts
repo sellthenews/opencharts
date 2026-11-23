@@ -12,6 +12,8 @@ import { loadIndicatorSettings, saveIndicatorSettings } from './indicators/setti
 import type { IndicatorSettings } from './indicators/types';
 import { INTERVALS, getSource, sources } from './sources';
 import type { Candle, IntervalId, PairId } from './sources';
+import { WatchlistPanel } from './watchlist';
+import type { WatchState } from './watchlist';
 
 const DEFAULT_SOURCE = 'kraken';
 const DEFAULT_PAIR: PairId = 'XRPUSD';
@@ -35,6 +37,7 @@ let intervalId: IntervalId = DEFAULT_INTERVAL;
 let loadSeq = 0;
 let lastCandles: Candle[] = [];
 let indicatorSettings = loadIndicatorSettings();
+let watchlist: WatchlistPanel;
 
 const chart: IChartApi = createChart(chartEl, {
   autoSize: true,
@@ -112,6 +115,17 @@ function fillIntervals(): void {
 
 function setReady(ready: boolean): void {
   appEl.dataset.ready = ready ? 'true' : 'false';
+}
+
+function applySelection(nextSource: string, nextPair: PairId, reload = true): void {
+  sourceId = nextSource;
+  pairId = nextPair;
+  fillSources();
+  fillPairs();
+  sourceEl.value = sourceId;
+  pairEl.value = pairId;
+  watchlist.highlight(sourceId, pairId);
+  if (reload) void loadChart();
 }
 
 function numInput(selector: string, value: number): void {
@@ -216,6 +230,7 @@ async function loadChart(): Promise<void> {
     const aggregated = src.nativeIntervals.includes(intervalId) ? '' : ' · agregacja';
     setStatus(`${src.name} · ${native} · ${intervalId}${aggregated} · ${candles.length} świec · ${first} – ${last}`);
     setReady(true);
+    watchlist?.highlight(sourceId, pairId);
     requestAnimationFrame(() => drawings.syncSize());
   } catch (err) {
     if (seq !== loadSeq) return;
@@ -232,11 +247,13 @@ async function loadChart(): Promise<void> {
 sourceEl.addEventListener('change', () => {
   sourceId = sourceEl.value;
   fillPairs();
+  watchlist?.highlight(sourceId, pairId);
   void loadChart();
 });
 
 pairEl.addEventListener('change', () => {
   pairId = pairEl.value as PairId;
+  watchlist?.highlight(sourceId, pairId);
   void loadChart();
 });
 
@@ -278,6 +295,12 @@ fillIntervals();
 syncIndicatorUi();
 drawings.setContext(sourceId, pairId);
 
+const watchRoot = document.querySelector<HTMLElement>('#watchlist')!;
+watchlist = new WatchlistPanel(watchRoot, (src, pair) => {
+  applySelection(src, pair, true);
+});
+watchlist.highlight(sourceId, pairId);
+
 declare global {
   interface Window {
     __wykresy: {
@@ -285,6 +308,8 @@ declare global {
       getSelectedId: () => string | null;
       getIndicatorSettings: () => IndicatorSettings;
       setIndicator: (patch: Partial<IndicatorSettings>) => void;
+      getWatchState: () => WatchState;
+      applySelection: (sourceId: string, pairId: PairId) => void;
     };
   }
 }
@@ -299,6 +324,8 @@ window.__wykresy = {
     syncIndicatorUi();
     applyIndicators();
   },
+  getWatchState: () => watchlist.getState(),
+  applySelection: (src, pair) => applySelection(src, pair, true),
 };
 
 void loadChart();

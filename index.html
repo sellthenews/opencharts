@@ -8,6 +8,8 @@
   </head>
   <body>
     <div id="app">
+      <aside id="watchlist" aria-label="Listy obserwowanych"></aside>
+      <div id="workspace">
       <header class="toolbar">
         <div class="brand" title="Wykresy">Wykresy</div>
 
@@ -57,6 +59,7 @@
       <div id="chart-wrap">
         <div id="chart"></div>
         <canvas id="draw-overlay" class="passthrough"></canvas>
+      </div>
       </div>
     </div>
     <script type="module" src="./src/main.ts"></script>
