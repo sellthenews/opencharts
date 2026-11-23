@@ -605,3 +605,31 @@ export function cmf(candles: Candle[], period = 20): LinePoint[] {
   return out;
 }
 
+/** Aroon Up / Aroon Down over the lookback period. */
+export function aroon(candles: Candle[], period = 25): { time: number; up: number; down: number }[] {
+  if (period < 1 || candles.length < period + 1) return [];
+  const out: { time: number; up: number; down: number }[] = [];
+  for (let i = period; i < candles.length; i++) {
+    let hh = -Infinity;
+    let ll = Infinity;
+    let hi = i;
+    let lo = i;
+    for (let j = i - period; j <= i; j++) {
+      if (candles[j]!.high >= hh) {
+        hh = candles[j]!.high;
+        hi = j;
+      }
+      if (candles[j]!.low <= ll) {
+        ll = candles[j]!.low;
+        lo = j;
+      }
+    }
+    out.push({
+      time: candles[i]!.time,
+      up: (100 * (period - (i - hi))) / period,
+      down: (100 * (period - (i - lo))) / period,
+    });
+  }
+  return out;
+}
+

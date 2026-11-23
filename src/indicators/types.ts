@@ -86,7 +86,8 @@ export type IndicatorKind =
   | 'willr'
   | 'roc'
   | 'momentum'
-  | 'cmf';
+  | 'cmf'
+  | 'aroon';
 
 export type IndicatorGroupId = 'trend' | 'momentum' | 'volatility' | 'volume';
 
@@ -158,6 +159,7 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     pane: 'price',
   },
   { kind: 'pivots', name: 'Pivot Points', short: 'Pivot Points', aliases: ['pivot', 'pp', 'pivots'], group: 'trend', defaults: {}, fields: [], pane: 'price' },
+  { kind: 'aroon', name: 'Aroon', short: 'Aroon', aliases: ['aroon'], group: 'trend', defaults: { period: 25 }, fields: [periodField()], pane: 'osc' },
   { kind: 'adx', name: 'ADX/DMI', short: 'ADX', aliases: ['dmi', 'adx'], group: 'trend', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   { kind: 'rsi', name: 'RSI', short: 'RSI', aliases: ['rsi'], group: 'momentum', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   {
@@ -302,6 +304,8 @@ export function formatIndicatorLabel(item: IndicatorInstance): string {
       return `Momentum ${fmtNum(p.period, 10)}`;
     case 'cmf':
       return `CMF ${fmtNum(p.period, 20)}`;
+    case 'aroon':
+      return `Aroon ${fmtNum(p.period, 25)}`;
     default:
       return meta.short;
   }

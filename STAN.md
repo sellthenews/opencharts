@@ -142,7 +142,7 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 - [x] P2 ROC
 - [x] P2 Momentum
 - [x] P2 CMF
-- [ ] P2 Aroon
+- [x] P2 Aroon
 - [ ] P3 pozostałe z typowej listy ~100 (np. Alligator, Awesome Oscillator, Chaikin Oscillator, Detrended Price, Elder Ray, Envelope, Force Index, Hull MA, KAMA, Mass Index, McGinley, PSAR wariantów, Trix, Ultimate Oscillator, Vortex, ZigZag, volume profile itd.)
 
 ### Alerty i układ
@@ -167,3 +167,6 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 - Overlay rysowania: `requestAnimationFrame`, bez zbędnych przerysowań przy ruchu wskaźnika, `devicePixelRatio`.
 - Ciemny motyw: subtelna siatka, czytelny crosshair z etykietami, legenda OHLC (O H L C i zmiana %) przy kursorze, podświetlenie ostatniej ceny, lewy pionowy pasek narzędzi rysowania (ikony z tooltipami), uporządkowany górny pasek, przejścia hover 160 ms. Etykiety wskaźników także na dodatkowych panelach układu.
 
+## Postęp P2 (23 XI 2026)
+
+Skończona pierwsza część: etykiety wskaźników w układzie wielu wykresów oraz wszystkie popularne wskaźniki P2 z listy (StochRSI … Aroon). Niezaimplementowane zostają narzędzia rysowania P2 (linie rozszerzone, kanały i wachlarz Fib, harmoniczne, pozycje, zakresy, kształty, notatki itd.).
