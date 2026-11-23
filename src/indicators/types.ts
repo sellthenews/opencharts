@@ -82,7 +82,8 @@ export type IndicatorKind =
   | 'keltner'
   | 'donchian'
   | 'obv'
-  | 'mfi';
+  | 'mfi'
+  | 'willr';
 
 export type IndicatorGroupId = 'trend' | 'momentum' | 'volatility' | 'volume';
 
@@ -221,6 +222,7 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     ],
     pane: 'price',
   },
+  { kind: 'willr', name: 'Williams %R', short: '%R', aliases: ['williams', '%r', 'willr', 'wpr'], group: 'momentum', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   { kind: 'cci', name: 'CCI', short: 'CCI', aliases: ['cci', 'commodity'], group: 'momentum', defaults: { period: 20 }, fields: [periodField()], pane: 'osc' },
   {
     kind: 'keltner',
@@ -286,6 +288,8 @@ export function formatIndicatorLabel(item: IndicatorInstance): string {
       return 'OBV';
     case 'mfi':
       return `MFI ${fmtNum(p.period, 14)}`;
+    case 'willr':
+      return `%R ${fmtNum(p.period, 14)}`;
     default:
       return meta.short;
   }

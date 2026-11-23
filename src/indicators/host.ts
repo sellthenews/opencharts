@@ -4,7 +4,7 @@
 import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, IPriceLine, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../sources/types';
-import { adx, atr, bollinger, cci, donchian, ema, ichimoku, keltner, macd, mfi, obv, parabolicSar, pivotPoints, rsi, sma, stochRsi, stochastic, supertrend, vwap, wma } from './math';
+import { adx, atr, bollinger, cci, donchian, ema, ichimoku, keltner, macd, mfi, obv, parabolicSar, pivotPoints, rsi, sma, stochRsi, stochastic, supertrend, vwap, williamsR, wma } from './math';
 import { CATALOG_BY_KIND, type IndicatorInstance, type LinePoint } from './types';
 
 function lineBase(color: string) {
@@ -41,6 +41,7 @@ const KIND_COLOR: Record<string, string> = {
   donchian: '#8d6e63',
   obv: '#5c6bc0',
   mfi: '#26a69a',
+  willr: '#ec407a',
   volume: '#26a69a',
   pivots: '#787b86',
 };
@@ -300,6 +301,12 @@ export class IndicatorHost {
       k.createPriceLine({ price: 20, color: '#6d5a78', title: '', ...dotted });
       this.keep(k);
       this.keep(d);
+    } else if (item.kind === 'willr') {
+      const s = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
+      s.setData(asLine(williamsR(data, p.period ?? 14)));
+      s.createPriceLine({ price: -20, color: '#6d5a78', title: '', ...dotted });
+      s.createPriceLine({ price: -80, color: '#6d5a78', title: '', ...dotted });
+      this.keep(s);
     } else if (item.kind === 'cci') {
       const s = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
       s.setData(asLine(cci(data, p.period ?? 20)));

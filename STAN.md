@@ -138,7 +138,7 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 - [x] P2 Donchian Channels
 - [x] P2 OBV
 - [x] P2 MFI
-- [ ] P2 Williams %R
+- [x] P2 Williams %R
 - [ ] P2 ROC
 - [ ] P2 Momentum
 - [ ] P2 CMF

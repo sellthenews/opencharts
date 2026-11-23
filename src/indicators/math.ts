@@ -542,3 +542,20 @@ export function mfi(candles: Candle[], period = 14): LinePoint[] {
   return out;
 }
 
+/** Williams %R, range typically −100..0. */
+export function williamsR(candles: Candle[], period = 14): LinePoint[] {
+  if (period < 1 || candles.length < period) return [];
+  const out: LinePoint[] = [];
+  for (let i = period - 1; i < candles.length; i++) {
+    let hh = -Infinity;
+    let ll = Infinity;
+    for (let j = i - period + 1; j <= i; j++) {
+      hh = Math.max(hh, candles[j]!.high);
+      ll = Math.min(ll, candles[j]!.low);
+    }
+    const den = hh - ll;
+    out.push({ time: candles[i]!.time, value: den === 0 ? -50 : ((hh - candles[i]!.close) / den) * -100 });
+  }
+  return out;
+}
+
