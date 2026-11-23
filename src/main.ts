@@ -286,6 +286,7 @@ function syncIndicatorUi(): void {
   setOn('rsi', s.rsi.on);
   setOn('stoch', s.stoch.on);
   setOn('pivots', s.pivots.on);
+  setOn('ichimoku', s.ichimoku.on);
   setOn('supertrend', s.supertrend.on);
   setOn('atr', s.atr.on);
   setOn('macd', s.macd.on);
@@ -324,6 +325,7 @@ function readIndicatorUi(): IndicatorSettings {
     rsi: { on: on('rsi'), period: num('[data-ind-period="rsi"]', d.rsi.period) },
     stoch: { on: on('stoch'), kPeriod: num('[data-ind-stoch="k"]', d.stoch.kPeriod), dPeriod: num('[data-ind-stoch="d"]', d.stoch.dPeriod) },
     pivots: { on: on('pivots') },
+    ichimoku: { on: on('ichimoku') },
     supertrend: { on: on('supertrend'), period: num('[data-ind-st="period"]', d.supertrend.period), multiplier: num('[data-ind-st="mult"]', d.supertrend.multiplier) },
     atr: { on: on('atr'), period: num('[data-ind-period="atr"]', d.atr.period) },
     macd: {

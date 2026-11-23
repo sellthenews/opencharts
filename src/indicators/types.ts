@@ -36,6 +36,7 @@ export interface IndicatorSettings {
   atr: { on: boolean; period: number };
   supertrend: { on: boolean; period: number; multiplier: number };
   pivots: { on: boolean };
+  ichimoku: { on: boolean };
   macd: { on: boolean; fast: number; slow: number; signal: number };
 }
 
@@ -51,6 +52,7 @@ export const DEFAULT_INDICATORS: IndicatorSettings = {
   atr: { on: false, period: 14 },
   supertrend: { on: false, period: 10, multiplier: 3 },
   pivots: { on: false },
+  ichimoku: { on: false },
   macd: { on: false, fast: 12, slow: 26, signal: 9 },
 };
 

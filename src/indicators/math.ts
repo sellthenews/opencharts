@@ -257,3 +257,46 @@ export function pivotPoints(candles: Candle[]): PivotLevels | null {
     s3: src.low - 2 * (src.high - p),
   };
 }
+
+function midHL(candles: Candle[], end: number, period: number): number | null {
+  if (end < period - 1) return null;
+  let hh = -Infinity;
+  let ll = Infinity;
+  for (let i = end - period + 1; i <= end; i++) {
+    hh = Math.max(hh, candles[i]!.high);
+    ll = Math.min(ll, candles[i]!.low);
+  }
+  return (hh + ll) / 2;
+}
+
+export function ichimoku(
+  candles: Candle[],
+  tenkanPeriod = 9,
+  kijunPeriod = 26,
+  senkouPeriod = 52,
+  shift = 26,
+): { tenkan: LinePoint[]; kijun: LinePoint[]; spanA: LinePoint[]; spanB: LinePoint[]; chikou: LinePoint[] } {
+  const tenkan: LinePoint[] = [];
+  const kijun: LinePoint[] = [];
+  const spanA: LinePoint[] = [];
+  const spanB: LinePoint[] = [];
+  const chikou: LinePoint[] = [];
+  if (candles.length < 2) return { tenkan, kijun, spanA, spanB, chikou };
+  const step = candles[candles.length - 1]!.time - candles[candles.length - 2]!.time;
+  const lastI = candles.length - 1;
+  const timeAt = (i: number): number =>
+    i <= lastI ? candles[i]!.time : candles[lastI]!.time + (i - lastI) * step;
+
+  for (let i = 0; i < candles.length; i++) {
+    const t = midHL(candles, i, tenkanPeriod);
+    const k = midHL(candles, i, kijunPeriod);
+    if (t !== null) tenkan.push({ time: candles[i]!.time, value: t });
+    if (k !== null) kijun.push({ time: candles[i]!.time, value: k });
+    if (t !== null && k !== null) spanA.push({ time: timeAt(i + shift), value: (t + k) / 2 });
+    const s = midHL(candles, i, senkouPeriod);
+    if (s !== null) spanB.push({ time: timeAt(i + shift), value: s });
+    const back = i - shift;
+    if (back >= 0) chikou.push({ time: candles[back]!.time, value: candles[i]!.close });
+  }
+  return { tenkan, kijun, spanA, spanB, chikou };
+}

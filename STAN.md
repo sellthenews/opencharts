@@ -125,7 +125,7 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 
 - [x] P1 WMA
 - [x] P1 VWAP
-- [ ] P1 Ichimoku
+- [x] P1 Ichimoku
 - [x] P1 Stochastic
 - [x] P1 ATR
 - [x] P1 Supertrend

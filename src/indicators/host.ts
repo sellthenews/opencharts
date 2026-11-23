@@ -4,7 +4,7 @@
 import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, IPriceLine, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../sources/types';
-import { atr, bollinger, ema, macd, pivotPoints, rsi, sma, stochastic, supertrend, vwap, wma } from './math';
+import { atr, bollinger, ema, ichimoku, macd, pivotPoints, rsi, sma, stochastic, supertrend, vwap, wma } from './math';
 import type { IndicatorSettings, LinePoint } from './types';
 
 function lineBase(color: string) {
@@ -29,6 +29,11 @@ export class IndicatorHost {
   private stUp: ISeriesApi<'Line'> | null = null;
   private stDown: ISeriesApi<'Line'> | null = null;
   private pivotLines: IPriceLine[] = [];
+  private tenkan: ISeriesApi<'Line'> | null = null;
+  private kijun: ISeriesApi<'Line'> | null = null;
+  private spanA: ISeriesApi<'Line'> | null = null;
+  private spanB: ISeriesApi<'Line'> | null = null;
+  private chikou: ISeriesApi<'Line'> | null = null;
   private bbMid: ISeriesApi<'Line'> | null = null;
   private bbUpper: ISeriesApi<'Line'> | null = null;
   private bbLower: ISeriesApi<'Line'> | null = null;
@@ -95,6 +100,26 @@ export class IndicatorHost {
       this.bbMid = this.drop(this.bbMid);
       this.bbUpper = this.drop(this.bbUpper);
       this.bbLower = this.drop(this.bbLower);
+    }
+
+    if (settings.ichimoku.on) {
+      if (!this.tenkan) this.tenkan = this.chart.addSeries(LineSeries, lineBase('#f44336'), 0);
+      if (!this.kijun) this.kijun = this.chart.addSeries(LineSeries, lineBase('#2196f3'), 0);
+      if (!this.spanA) this.spanA = this.chart.addSeries(LineSeries, lineBase('#26a69a'), 0);
+      if (!this.spanB) this.spanB = this.chart.addSeries(LineSeries, lineBase('#ef5350'), 0);
+      if (!this.chikou) this.chikou = this.chart.addSeries(LineSeries, lineBase('#9c27b0'), 0);
+      const cloud = ichimoku(data);
+      this.tenkan.setData(asLine(cloud.tenkan));
+      this.kijun.setData(asLine(cloud.kijun));
+      this.spanA.setData(asLine(cloud.spanA));
+      this.spanB.setData(asLine(cloud.spanB));
+      this.chikou.setData(asLine(cloud.chikou));
+    } else {
+      this.tenkan = this.drop(this.tenkan);
+      this.kijun = this.drop(this.kijun);
+      this.spanA = this.drop(this.spanA);
+      this.spanB = this.drop(this.spanB);
+      this.chikou = this.drop(this.chikou);
     }
 
     this.clearPivots();
