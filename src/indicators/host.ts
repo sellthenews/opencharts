@@ -4,7 +4,7 @@
 import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, IPriceLine, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../sources/types';
-import { adx, atr, bollinger, ema, ichimoku, macd, pivotPoints, rsi, sma, stochastic, supertrend, vwap, wma } from './math';
+import { adx, atr, bollinger, ema, ichimoku, macd, pivotPoints, rsi, sma, stochRsi, stochastic, supertrend, vwap, wma } from './math';
 import { CATALOG_BY_KIND, type IndicatorInstance, type LinePoint } from './types';
 
 function lineBase(color: string) {
@@ -34,6 +34,7 @@ const KIND_COLOR: Record<string, string> = {
   atr: '#ffa726',
   adx: '#9c27b0',
   macd: '#26c6da',
+  stochRsi: '#7e57c2',
   volume: '#26a69a',
   pivots: '#787b86',
 };
@@ -245,6 +246,16 @@ export class IndicatorHost {
       this.keep(line);
       this.keep(plus);
       this.keep(minus);
+    } else if (item.kind === 'stochRsi') {
+      const pts = stochRsi(data, p.period ?? 14, p.period ?? 14, p.kPeriod ?? 3, p.dPeriod ?? 3);
+      const k = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
+      const d = this.chart.addSeries(LineSeries, lineBase('#ef5350'), idx);
+      k.setData(asLine(pts.map((x) => ({ time: x.time, value: x.k }))));
+      d.setData(asLine(pts.map((x) => ({ time: x.time, value: x.d }))));
+      k.createPriceLine({ price: 80, color: '#6d5a78', title: '', ...dotted });
+      k.createPriceLine({ price: 20, color: '#6d5a78', title: '', ...dotted });
+      this.keep(k);
+      this.keep(d);
     } else if (item.kind === 'macd') {
       const pts = macd(data, p.fast ?? 12, p.slow ?? 26, p.signal ?? 9);
       const hist = this.chart.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: false }, idx);

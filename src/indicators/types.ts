@@ -75,7 +75,8 @@ export type IndicatorKind =
   | 'bb'
   | 'atr'
   | 'volume'
-  | 'vwap';
+  | 'vwap'
+  | 'stochRsi';
 
 export type IndicatorGroupId = 'trend' | 'momentum' | 'volatility' | 'volume';
 
@@ -184,6 +185,20 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     fields: [periodField(), { key: 'std', label: 'Odch. std.', min: 0.5, max: 6, step: 0.1 }],
     pane: 'price',
   },
+  {
+    kind: 'stochRsi',
+    name: 'Stochastic RSI',
+    short: 'StochRSI',
+    aliases: ['stochrsi', 'stoch rsi', 'srsi'],
+    group: 'momentum',
+    defaults: { period: 14, kPeriod: 3, dPeriod: 3 },
+    fields: [
+      periodField('Okres RSI'),
+      { key: 'kPeriod', label: '%K', min: 1, max: 100, step: 1 },
+      { key: 'dPeriod', label: '%D', min: 1, max: 100, step: 1 },
+    ],
+    pane: 'osc',
+  },
   { kind: 'atr', name: 'ATR', short: 'ATR', aliases: ['atr'], group: 'volatility', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   { kind: 'volume', name: 'Wolumen', short: 'Wolumen', aliases: ['volume', 'vol', 'wolumen'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
   { kind: 'vwap', name: 'VWAP', short: 'VWAP', aliases: ['vwap'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
@@ -217,6 +232,8 @@ export function formatIndicatorLabel(item: IndicatorInstance): string {
       return `MACD ${fmtNum(p.fast, 12)} ${fmtNum(p.slow, 26)} ${fmtNum(p.signal, 9)}`;
     case 'supertrend':
       return `Supertrend ${fmtNum(p.period, 10)} ${fmtNum(p.multiplier, 3)}`;
+    case 'stochRsi':
+      return `StochRSI ${fmtNum(p.period, 14)} ${fmtNum(p.kPeriod, 3)} ${fmtNum(p.dPeriod, 3)}`;
     default:
       return meta.short;
   }

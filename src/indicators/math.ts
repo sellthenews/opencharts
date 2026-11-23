@@ -352,3 +352,44 @@ export function adx(
   }
   return out;
 }
+
+/** Stochastic RSI: stochastic of RSI values, then SMA of %K and %D. */
+export function stochRsi(
+  candles: Candle[],
+  rsiPeriod = 14,
+  stochPeriod = 14,
+  kSmooth = 3,
+  dPeriod = 3,
+): { time: number; k: number; d: number }[] {
+  const rsiLine = rsi(candles, rsiPeriod);
+  if (stochPeriod < 1 || kSmooth < 1 || dPeriod < 1 || rsiLine.length < stochPeriod) return [];
+  const raw: LinePoint[] = [];
+  for (let i = stochPeriod - 1; i < rsiLine.length; i++) {
+    let hh = -Infinity;
+    let ll = Infinity;
+    for (let j = i - stochPeriod + 1; j <= i; j++) {
+      hh = Math.max(hh, rsiLine[j]!.value);
+      ll = Math.min(ll, rsiLine[j]!.value);
+    }
+    const den = hh - ll;
+    raw.push({ time: rsiLine[i]!.time, value: den === 0 ? 50 : (100 * (rsiLine[i]!.value - ll)) / den });
+  }
+  const ks: LinePoint[] = [];
+  if (raw.length < kSmooth) return [];
+  let ksum = 0;
+  for (let i = 0; i < raw.length; i++) {
+    ksum += raw[i]!.value;
+    if (i >= kSmooth) ksum -= raw[i - kSmooth]!.value;
+    if (i >= kSmooth - 1) ks.push({ time: raw[i]!.time, value: ksum / kSmooth });
+  }
+  if (ks.length < dPeriod) return [];
+  const out: { time: number; k: number; d: number }[] = [];
+  let dsum = 0;
+  for (let i = 0; i < ks.length; i++) {
+    dsum += ks[i]!.value;
+    if (i >= dPeriod) dsum -= ks[i - dPeriod]!.value;
+    if (i >= dPeriod - 1) out.push({ time: ks[i]!.time, k: ks[i]!.value, d: dsum / dPeriod });
+  }
+  return out;
+}
+
