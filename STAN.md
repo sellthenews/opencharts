@@ -139,7 +139,7 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 - [x] P2 OBV
 - [x] P2 MFI
 - [x] P2 Williams %R
-- [ ] P2 ROC
+- [x] P2 ROC
 - [ ] P2 Momentum
 - [ ] P2 CMF
 - [ ] P2 Aroon

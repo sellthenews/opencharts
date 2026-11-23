@@ -83,7 +83,8 @@ export type IndicatorKind =
   | 'donchian'
   | 'obv'
   | 'mfi'
-  | 'willr';
+  | 'willr'
+  | 'roc';
 
 export type IndicatorGroupId = 'trend' | 'momentum' | 'volatility' | 'volume';
 
@@ -222,6 +223,7 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     ],
     pane: 'price',
   },
+  { kind: 'roc', name: 'Rate of Change', short: 'ROC', aliases: ['roc', 'rate of change'], group: 'momentum', defaults: { period: 12 }, fields: [periodField()], pane: 'osc' },
   { kind: 'willr', name: 'Williams %R', short: '%R', aliases: ['williams', '%r', 'willr', 'wpr'], group: 'momentum', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   { kind: 'cci', name: 'CCI', short: 'CCI', aliases: ['cci', 'commodity'], group: 'momentum', defaults: { period: 20 }, fields: [periodField()], pane: 'osc' },
   {
@@ -290,6 +292,8 @@ export function formatIndicatorLabel(item: IndicatorInstance): string {
       return `MFI ${fmtNum(p.period, 14)}`;
     case 'willr':
       return `%R ${fmtNum(p.period, 14)}`;
+    case 'roc':
+      return `ROC ${fmtNum(p.period, 12)}`;
     default:
       return meta.short;
   }

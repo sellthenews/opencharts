@@ -559,3 +559,14 @@ export function williamsR(candles: Candle[], period = 14): LinePoint[] {
   return out;
 }
 
+/** Rate of Change as a percent of the close n bars ago. */
+export function roc(candles: Candle[], period = 12): LinePoint[] {
+  if (period < 1 || candles.length < period + 1) return [];
+  const out: LinePoint[] = [];
+  for (let i = period; i < candles.length; i++) {
+    const prev = candles[i - period]!.close;
+    out.push({ time: candles[i]!.time, value: prev === 0 ? 0 : ((candles[i]!.close - prev) / prev) * 100 });
+  }
+  return out;
+}
+
