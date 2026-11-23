@@ -4,7 +4,7 @@
 import { ColorType, CrosshairMode, LineStyle } from 'lightweight-charts';
 import type { CandlestickSeriesPartialOptions, DeepPartial, ChartOptions } from 'lightweight-charts';
 
-export const CHART_FONT = 'system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+export const CHART_FONT = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
 export function interactionOptions(): DeepPartial<ChartOptions> {
   return {

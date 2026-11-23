@@ -9,12 +9,12 @@
 }
 
 :root {
-  --bg: #0e1116;
-  --panel: #131722;
-  --bar: #1a1d27;
-  --border: #2a2e39;
-  --text: #d1d4dc;
-  --muted: #848e9c;
+  --bg: #0b0e14;
+  --panel: #10131a;
+  --bar: #12151c;
+  --border: #22262f;
+  --text: #d7dae0;
+  --muted: #8b909b;
   --accent: #2962ff;
   --accent-hover: #1e53e5;
   --danger: #ef5350;
@@ -22,10 +22,12 @@
   --btn-hover: #363a45;
   --heading: #fff;
   --row-active: #1e2a4a;
-  --chart-bg: #131722;
-  --chart-text: #d1d4dc;
-  --chart-grid: #1e222d;
-  --chart-border: #2a2e39;
+  --chart-bg: #0e1116;
+  --chart-text: #b2b5be;
+  --chart-grid: rgba(255, 255, 255, 0.04);
+  --chart-border: #22262f;
+  --up: #26a69a;
+  --down: #ef5350;
 }
 
 html[data-theme="light"] {
@@ -55,7 +57,8 @@ body,
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font: 13px/1.4 system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-feature-settings: "tnum" 1;
 }
 
 #app {
@@ -692,4 +695,114 @@ button.danger:hover {
 
 @keyframes chart-spin {
   to { transform: rotate(360deg); }
+}
+
+.workspace-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+#tool-rail {
+  width: 44px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 6px;
+  background: var(--bar);
+  border-right: 1px solid var(--border);
+}
+
+#tool-rail .group {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 2px;
+}
+
+#tool-rail button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--muted);
+}
+
+#tool-rail button svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+#tool-rail .tool-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+#tool-rail button:hover {
+  color: var(--text);
+}
+
+#tool-rail .tool.is-active,
+#tool-rail button.is-active {
+  color: var(--heading);
+  background: var(--btn-hover);
+  border-color: var(--accent);
+}
+
+#ohlc-legend {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  pointer-events: none;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+#ohlc-legend[hidden] {
+  display: none;
+}
+
+.ohlc-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.ohlc-item em {
+  font-style: normal;
+  color: var(--muted);
+  font-weight: 600;
+  margin-right: 3px;
+}
+
+.ohlc-row[data-dir="up"] .ohlc-c,
+.ohlc-row[data-dir="up"] .ohlc-chg {
+  color: var(--up, #26a69a);
+}
+
+.ohlc-row[data-dir="down"] .ohlc-c,
+.ohlc-row[data-dir="down"] .ohlc-chg {
+  color: var(--down, #ef5350);
+}
+
+.toolbar button,
+.toolbar .interval,
+#tool-rail button {
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease, opacity 160ms ease;
 }

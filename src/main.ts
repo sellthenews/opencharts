@@ -8,6 +8,7 @@ import {
 import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import { candleSeriesOptions, interactionOptions, themeChartOptions } from './chart-options';
 import { getCachedCandles, setCachedCandles } from './candle-cache';
+import { ohlcLegendHtml } from './ohlc-legend';
 import { DrawingLayer } from './drawings';
 import type { Tool } from './drawings';
 import { IndicatorHost } from './indicators/host';
@@ -163,6 +164,21 @@ const chart: IChartApi = createChart(chartEl, {
 
 const series: ISeriesApi<'Candlestick'> = chart.addSeries(CandlestickSeries, candleSeriesOptions());
 
+chart.subscribeCrosshairMove((param) => {
+  if (!param.point || param.time === undefined) {
+    showLastOhlc();
+    return;
+  }
+  const raw = param.seriesData.get(series);
+  if (raw && 'open' in raw && 'close' in raw) {
+    const bar = raw as { open: number; high: number; low: number; close: number };
+    const found = barAtTime(param.time);
+    showOhlc(bar, found?.index ?? null);
+    return;
+  }
+  showLastOhlc();
+});
+
 const drawings = new DrawingLayer(chart, series, overlayEl, wrapEl);
 const indicators = new IndicatorHost(chart, series);
 
@@ -312,6 +328,39 @@ function setSidebar(on: boolean): void {
   resizeCharts();
 }
 
+
+function barAtTime(time: unknown): { open: number; high: number; low: number; close: number; index: number } | null {
+  let ts: number | null = null;
+  if (typeof time === 'number') ts = time;
+  else if (time && typeof time === 'object' && 'year' in (time as object)) {
+    const d = time as { year: number; month: number; day: number };
+    ts = Date.UTC(d.year, d.month - 1, d.day) / 1000;
+  }
+  if (ts === null) return null;
+  const index = lastCandles.findIndex((c) => c.time === ts);
+  if (index < 0) return null;
+  const c = lastCandles[index]!;
+  return { open: c.open, high: c.high, low: c.low, close: c.close, index };
+}
+
+function showOhlc(bar: { open: number; high: number; low: number; close: number }, index: number | null): void {
+  const el = document.querySelector<HTMLElement>('#ohlc-legend');
+  if (!el) return;
+  const prev = index !== null && index > 0 ? lastCandles[index - 1]!.close : lastCandles.length > 1 ? lastCandles[lastCandles.length - 2]!.close : null;
+  el.innerHTML = ohlcLegendHtml(bar, prev);
+  el.hidden = false;
+}
+
+function showLastOhlc(): void {
+  const last = lastCandles[lastCandles.length - 1];
+  if (!last) {
+    const el = document.querySelector<HTMLElement>('#ohlc-legend');
+    if (el) el.hidden = true;
+    return;
+  }
+  showOhlc(last, lastCandles.length - 1);
+}
+
 function applyPriceData(candles: Candle[], fit: boolean): void {
   const range = !fit ? chart.timeScale().getVisibleLogicalRange() : null;
   lastCandles = candles;
@@ -337,6 +386,7 @@ function applyPriceData(candles: Candle[], fit: boolean): void {
   if (fit) chart.timeScale().fitContent();
   else if (range) chart.timeScale().setVisibleLogicalRange(range);
   evaluateAlerts(sourceId, pairId, candles[candles.length - 1]!.close);
+  showLastOhlc();
 }
 
 type LoaderMode = 'off' | 'full' | 'refresh';

@@ -24,31 +24,6 @@
         </label>
 
         <div class="group" role="group" aria-label="Interwał" id="intervals"></div>
-
-        <div class="sep"></div>
-
-        <div class="group" role="group" aria-label="Narzędzia rysowania">
-          <button type="button" class="tool is-active" data-tool="cursor" title="Kursor (przesuwanie wykresu)">Kursor</button>
-          <button type="button" class="tool" data-tool="trend" title="Linia trendu — dwa kliknięcia">Linia trendu</button>
-          <button type="button" class="tool" data-tool="hline" title="Linia pozioma — jedno kliknięcie">Linia pozioma</button>
-          <button type="button" class="tool" data-tool="rect" title="Prostokąt — dwa kliknięcia">Prostokąt</button>
-          <button type="button" class="tool" data-tool="ray" title="Promień — dwa kliknięcia, przedłużany">Promień</button>
-          <button type="button" class="tool" data-tool="channel" title="Kanał równoległy — trzy kliknięcia">Kanał</button>
-          <button type="button" class="tool" data-tool="fib" title="Zniesienie Fibonacciego — dwa kliknięcia">Fibo</button>
-          <button type="button" class="tool" data-tool="fibext" title="Fibo rozszerzenie wg trendu — trzy punkty A, B, C">Fibo rozszerzenie</button>
-          <button type="button" class="tool" data-tool="abcd" title="Korekta 1:1 (AB=CD) — trzy punkty A, B, C">AB=CD</button>
-          <button type="button" class="tool" data-tool="text" title="Tekst — kliknij i wpisz">Tekst</button>
-        </div>
-
-        <div class="group">
-          <button type="button" id="delete-btn" title="Usuń zaznaczony rysunek (Delete)">Usuń</button>
-          <button type="button" id="clear-btn" class="danger" title="Usuń wszystkie rysunki tej pary">Wyczyść wszystko</button>
-          <button type="button" id="export-btn" title="Eksport rysunków do JSON">Eksport</button>
-          <button type="button" id="import-btn" title="Import rysunków z JSON">Import</button>
-          <input type="file" id="import-file" accept="application/json,.json" hidden />
-          <button type="button" id="extend-right-btn" title="Przedłuż poziomy Fibo rozszerzenia w prawo">Przedłuż w prawo</button>
-        </div>
-
         <div class="group" id="layout-btns" role="group" aria-label="Układ wykresów">
           <button type="button" data-panes="1" class="is-active" title="Jeden wykres">1</button>
           <button type="button" data-panes="2" title="Dwa wykresy">2</button>
@@ -61,10 +36,49 @@
         <div id="status" class="status" role="status">Ładowanie…</div>
       </header>
 
+        <div class="workspace-body">
+        <nav id="tool-rail" aria-label="Narzędzia rysowania">
+          <div class="group" role="group" aria-label="Narzędzia rysowania">
+          <button type="button" class="tool is-active" data-tool="cursor" title="Kursor (przesuwanie wykresu)" aria-label="Kursor (przesuwanie wykresu)"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M3.5 2.5 6 13l2-4.5 4.5-1.5z"/></svg><span class="tool-name">Kursor</span></button>
+          <button type="button" class="tool" data-tool="trend" title="Linia trendu — dwa kliknięcia" aria-label="Linia trendu — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2.5 12.5 13.5 3.5"/><circle cx="2.5" cy="12.5" r="1" fill="currentColor"/><circle cx="13.5" cy="3.5" r="1" fill="currentColor"/></svg><span class="tool-name">Linia trendu</span></button>
+          <button type="button" class="tool" data-tool="hline" title="Linia pozioma — jedno kliknięcie" aria-label="Linia pozioma — jedno kliknięcie"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M1.5 8h13"/></svg><span class="tool-name">Linia pozioma</span></button>
+          <button type="button" class="tool" data-tool="rect" title="Prostokąt — dwa kliknięcia" aria-label="Prostokąt — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><rect fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" x="3" y="4" width="10" height="8"/></svg><span class="tool-name">Prostokąt</span></button>
+          <button type="button" class="tool" data-tool="ray" title="Promień — dwa kliknięcia, przedłużany" aria-label="Promień — dwa kliknięcia, przedłużany"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2.5 12.5 9 6l5-3"/><circle cx="2.5" cy="12.5" r="1" fill="currentColor"/></svg><span class="tool-name">Promień</span></button>
+          <button type="button" class="tool" data-tool="channel" title="Kanał równoległy — trzy kliknięcia" aria-label="Kanał równoległy — trzy kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2 11.5 14 6M2 14.5 14 9"/></svg><span class="tool-name">Kanał</span></button>
+          <button type="button" class="tool" data-tool="fib" title="Zniesienie Fibonacciego — dwa kliknięcia" aria-label="Zniesienie Fibonacciego — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2.5 13V3M2.5 13h11M2.5 10h9M2.5 7.5h7M2.5 5h5"/></svg><span class="tool-name">Fibo</span></button>
+          <button type="button" class="tool" data-tool="fibext" title="Fibo rozszerzenie wg trendu — trzy punkty A, B, C" aria-label="Fibo rozszerzenie wg trendu — trzy punkty A, B, C"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2 13h12M2 10h9M2 7h6M12 3v10"/></svg><span class="tool-name">Fibo rozszerzenie</span></button>
+          <button type="button" class="tool" data-tool="abcd" title="Korekta 1:1 (AB=CD) — trzy punkty A, B, C" aria-label="Korekta 1:1 (AB=CD) — trzy punkty A, B, C"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M3 12 6.5 4 10 12 13 5"/></svg><span class="tool-name">AB=CD</span></button>
+          <button type="button" class="tool" data-tool="text" title="Tekst — kliknij i wpisz" aria-label="Tekst — kliknij i wpisz"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M3 4h10M8 4v9"/></svg><span class="tool-name">Tekst</span></button>
+          </div>
+          <div class="group rail-actions">
+          <button type="button" id="delete-btn" title="Usuń zaznaczony rysunek (Delete)" aria-label="Usuń">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M4 4.5h8M6 4.5V3.5h4v1M5 6.5l.5 6h5l.5-6"/></svg>
+            <span class="tool-name">Usuń</span>
+          </button>
+          <button type="button" id="clear-btn" class="danger" title="Usuń wszystkie rysunki tej pary" aria-label="Wyczyść wszystko">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M3 5h10M5.5 5V3.5h5V5M6 7v5M8 7v5M10 7v5M4.5 5l.6 8h6l.6-8"/></svg>
+            <span class="tool-name">Wyczyść</span>
+          </button>
+          <button type="button" id="export-btn" title="Eksport rysunków do JSON" aria-label="Eksport">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M8 3v7M5.5 6 8 3.5 10.5 6M3.5 9.5V13h9V9.5"/></svg>
+            <span class="tool-name">Eksport</span>
+          </button>
+          <button type="button" id="import-btn" title="Import rysunków z JSON" aria-label="Import">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M8 10V3M5.5 7.5 8 10.5 10.5 7.5M3.5 12.5h9"/></svg>
+            <span class="tool-name">Import</span>
+          </button>
+          <input type="file" id="import-file" accept="application/json,.json" hidden />
+          <button type="button" id="extend-right-btn" title="Przedłuż poziomy Fibo rozszerzenia w prawo" aria-label="Przedłuż w prawo">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M2 8h12M10.5 5 14 8l-3.5 3"/></svg>
+            <span class="tool-name">Przedłuż</span>
+          </button>
+          </div>
+        </nav>
       <div id="charts" data-panes="1">
         <div id="chart-wrap">
           <div id="chart"></div>
           <canvas id="draw-overlay" class="passthrough"></canvas>
+          <div id="ohlc-legend" hidden></div>
           <div id="ind-labels"></div>
           <div id="chart-loader" hidden>
             <div class="chart-skeleton" aria-hidden="true"></div>
@@ -75,6 +89,7 @@
         <div class="chart-cell extra-cell" data-extra="1"></div>
         <div class="chart-cell extra-cell" data-extra="2"></div>
       </div>
+        </div>
       </div>
       <div id="sidebar">
         <aside id="watchlist" aria-label="Listy obserwowanych"></aside>
