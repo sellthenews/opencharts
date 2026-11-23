@@ -14,7 +14,7 @@ import type { Tool } from './drawings';
 import { IndicatorHost } from './indicators/host';
 import type { PaneMap } from './indicators/host';
 import { loadIndicatorSettings, saveIndicatorSettings } from './indicators/settings';
-import { IndicatorHud } from './indicators/ui';
+import { IndicatorHud, initIndicatorModal } from './indicators/ui';
 import type { IndicatorInstance } from './indicators/types';
 import { INTERVALS, getSource, sources } from './sources';
 import type { Candle, IntervalId, PairId } from './sources';
@@ -620,6 +620,12 @@ function ensureMiniCharts(): void {
 
 setPaneCount(paneCount);
 
+initIndicatorModal({
+  modal: document.querySelector('#ind-modal')!,
+  search: document.querySelector('#ind-search')!,
+  catalog: document.querySelector('#ind-catalog')!,
+  closeBtn: document.querySelector('#ind-modal-close')!,
+});
 indicatorHud = new IndicatorHud(
   indicatorItems,
   {
@@ -627,11 +633,7 @@ indicatorHud = new IndicatorHud(
     paneOffset: (index) => indicators.paneOffset(index),
   },
   document.querySelector('#ind-labels')!,
-  document.querySelector('#ind-modal')!,
-  document.querySelector('#ind-search')!,
-  document.querySelector('#ind-catalog')!,
   document.querySelector('#ind-btn')!,
-  document.querySelector('#ind-modal-close')!,
 );
 
 setSidebar(sidebarIsOn());

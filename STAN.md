@@ -149,6 +149,7 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 
 - [x] P1 Alerty cenowe
 - [x] P1 Układ wielu wykresów
+- [x] P2 Etykiety wskaźników w dodatkowych panelach układu wielu wykresów
 - [x] P1 Motyw ciemny (domyślny)
 - [x] P1 Motyw jasny
 - [x] P1 Zapis układu (layout) — automatyczny zapis giełdy, pary, interwału i motywu
@@ -156,7 +157,7 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 ## UI wskaźników i panel (23 XI 2026)
 
 - Pasek checkboxów zastąpiony przyciskiem „fx Wskaźniki”: okno z wyszukiwarką i grupami (Trend, Momentum, Zmienność, Wolumen), wiele instancji tego samego wskaźnika, etykiety na wykresie (ustawienia / ukryj / usuń). Zapis `wykresy:indicators` v2 z migracją ze starych ustawień.
-- Etykiety tylko na głównym wykresie — dodatkowe panele układu wielu wykresów nie mają własnych wskaźników.
+- Etykiety wskaźników (fx, ustawienia / ukryj / usuń) są też na dodatkowych panelach układu wielu wykresów; lista zapisywana w układzie.
 - Panel obserwowanych i alertów cenowych po prawej stronie. Przycisk „Panel” w górnym pasku chowa/pokazuje panel; wykresy zajmują wtedy całą szerokość. Stan w `wykresy:sidebar`.
 
 ## Płynność i wygląd (23 XI 2026)
@@ -164,5 +165,5 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 - Płynne przewijanie i zoom: kinetic scroll (mysz i dotyk), ograniczone `barSpacing`, `rightOffset`, osie bez ciężkiej ramki. Przy zmianie pary/interwału zachowywany jest logiczny zakres; zamiast pustego ekranu szkielet lub pasek odświeżania; płynne przyciemnienie (ok. 180 ms).
 - Cache świec w pamięci i `sessionStorage` (klucz giełda+para+interwał, max 8 wpisów). Dodatkowe panele układu wielu wykresów inicjowane leniwie.
 - Overlay rysowania: `requestAnimationFrame`, bez zbędnych przerysowań przy ruchu wskaźnika, `devicePixelRatio`.
-- Ciemny motyw: subtelna siatka, czytelny crosshair z etykietami, legenda OHLC (O H L C i zmiana %) przy kursorze, podświetlenie ostatniej ceny, lewy pionowy pasek narzędzi rysowania (ikony z tooltipami), uporządkowany górny pasek, przejścia hover 160 ms. Etykiety wskaźników nadal tylko na głównym wykresie.
+- Ciemny motyw: subtelna siatka, czytelny crosshair z etykietami, legenda OHLC (O H L C i zmiana %) przy kursorze, podświetlenie ostatniej ceny, lewy pionowy pasek narzędzi rysowania (ikony z tooltipami), uporządkowany górny pasek, przejścia hover 160 ms. Etykiety wskaźników także na dodatkowych panelach układu.
 

@@ -12,6 +12,67 @@ import {
 import type { IndicatorInstance, IndicatorKind, IndicatorParams } from './types';
 import type { PaneMap } from './host';
 
+export function renderIndicatorCatalog(catalogEl: HTMLElement, query: string): void {
+  const parts: string[] = [];
+  for (const group of INDICATOR_GROUPS) {
+    const rows = INDICATOR_CATALOG.filter((m) => m.group === group.id && matchesIndicatorQuery(m, query));
+    if (!rows.length) continue;
+    parts.push(
+      `<div class="ind-group"><h3>${group.label}</h3>${rows
+        .map((m) => `<button type="button" class="ind-add" data-ind-add="${m.kind}"><span class="ind-add-short">${m.short}</span><span class="ind-add-name">${m.name}</span></button>`)
+        .join('')}</div>`,
+    );
+  }
+  catalogEl.innerHTML = parts.join('') || '<p class="ind-empty">Brak wyników</p>';
+}
+
+interface IndicatorModalEls {
+  modal: HTMLElement;
+  search: HTMLInputElement;
+  catalog: HTMLElement;
+  closeBtn: HTMLButtonElement;
+}
+
+let modalEls: IndicatorModalEls | null = null;
+let modalAdd: ((kind: IndicatorKind) => void) | null = null;
+let modalBound = false;
+
+export function initIndicatorModal(els: IndicatorModalEls): void {
+  modalEls = els;
+  if (modalBound) return;
+  modalBound = true;
+  els.closeBtn.addEventListener('click', closeIndicatorModal);
+  els.modal.querySelector('.ind-modal-backdrop')?.addEventListener('click', closeIndicatorModal);
+  els.search.addEventListener('input', () => {
+    if (modalEls) renderIndicatorCatalog(modalEls.catalog, modalEls.search.value);
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && modalEls && !modalEls.modal.hidden) {
+      ev.preventDefault();
+      closeIndicatorModal();
+    }
+  });
+  els.catalog.addEventListener('click', (ev) => {
+    const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-ind-add]');
+    if (!btn) return;
+    modalAdd?.(btn.dataset.indAdd as IndicatorKind);
+  });
+}
+
+export function closeIndicatorModal(): void {
+  if (!modalEls) return;
+  modalEls.modal.hidden = true;
+}
+
+export function openIndicatorModal(onAdd: (kind: IndicatorKind) => void): void {
+  if (!modalEls) return;
+  modalAdd = onAdd;
+  modalEls.modal.hidden = false;
+  modalEls.search.value = '';
+  renderIndicatorCatalog(modalEls.catalog, '');
+  modalEls.search.focus();
+}
+
 export class IndicatorHud {
   private paneMap: PaneMap = {};
   private openSettingsId: string | null = null;
@@ -23,30 +84,15 @@ export class IndicatorHud {
       paneOffset: (index: number) => number;
     },
     private readonly labelsRoot: HTMLElement,
-    private readonly modal: HTMLElement,
-    private readonly search: HTMLInputElement,
-    private readonly catalogEl: HTMLElement,
     openBtn: HTMLButtonElement,
-    closeBtn: HTMLButtonElement,
   ) {
-    openBtn.addEventListener('click', () => this.open());
-    closeBtn.addEventListener('click', () => this.close());
-    this.modal.querySelector('.ind-modal-backdrop')?.addEventListener('click', () => this.close());
-    this.search.addEventListener('input', () => this.renderCatalog());
-    document.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Escape' && !this.modal.hidden) {
-        ev.preventDefault();
-        this.close();
-      }
-    });
-    this.catalogEl.addEventListener('click', (ev) => {
-      const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-ind-add]');
-      if (!btn) return;
-      this.add(btn.dataset.indAdd as IndicatorKind);
-    });
+    openBtn.addEventListener('click', () => openIndicatorModal((kind) => this.add(kind)));
     this.labelsRoot.addEventListener('click', (ev) => this.onLabelClick(ev));
-    this.renderCatalog();
     this.renderLabels();
+  }
+
+  add(kind: IndicatorKind): void {
+    this.commit([...this.items, createInstance(kind)]);
   }
 
   setItems(items: IndicatorInstance[]): void {
@@ -70,39 +116,9 @@ export class IndicatorHud {
     this.renderLabels();
   }
 
-  open(): void {
-    this.modal.hidden = false;
-    this.search.value = '';
-    this.renderCatalog();
-    this.search.focus();
-  }
-
-  close(): void {
-    this.modal.hidden = true;
-  }
-
   private commit(items: IndicatorInstance[]): void {
     this.items = items;
     this.hooks.onChange(items);
-  }
-
-  private add(kind: IndicatorKind): void {
-    this.commit([...this.items, createInstance(kind)]);
-  }
-
-  private renderCatalog(): void {
-    const q = this.search.value;
-    const parts: string[] = [];
-    for (const group of INDICATOR_GROUPS) {
-      const rows = INDICATOR_CATALOG.filter((m) => m.group === group.id && matchesIndicatorQuery(m, q));
-      if (!rows.length) continue;
-      parts.push(
-        `<div class="ind-group"><h3>${group.label}</h3>${rows
-          .map((m) => `<button type="button" class="ind-add" data-ind-add="${m.kind}"><span class="ind-add-short">${m.short}</span><span class="ind-add-name">${m.name}</span></button>`)
-          .join('')}</div>`,
-      );
-    }
-    this.catalogEl.innerHTML = parts.join('') || '<p class="ind-empty">Brak wyników</p>';
   }
 
   renderLabels(): void {
