@@ -1768,10 +1768,22 @@ export class DrawingLayer {
         const reward = Math.abs(d.target.price - d.entry.price);
         const rr = risk > 0 ? reward / risk : 0;
         const tag = isLong ? 'Long' : 'Short';
-        this.label(ctx, `${tag}  RR ${rr.toFixed(2)}`, left + 4, Math.min(yE, yT, yS) - 6, selected ? SELECTED : '#e0e3ea');
-        this.label(ctx, `E ${this.formatPrice(d.entry.price)}`, left + 4, yE - 4);
-        this.label(ctx, `TP ${this.formatPrice(d.target.price)}`, left + 4, yT - 4);
-        this.label(ctx, `SL ${this.formatPrice(d.stop.price)}`, left + 4, yS - 4);
+        const header = `${tag}  TP ${this.formatPrice(d.target.price)}  RR ${rr.toFixed(2)}`;
+        const top = Math.min(yE, yT, yS);
+        const used: number[] = [];
+        const place = (text: string, anchor: number): void => {
+          const gap = 20;
+          let y = anchor;
+          for (let i = 0; i < 8; i++) {
+            if (!used.some((u) => Math.abs(y - u) < gap)) break;
+            y += gap;
+          }
+          used.push(y);
+          this.paintBadge(ctx, text, left + 4, y, selected);
+        };
+        place(header, top + 16);
+        place(`E ${this.formatPrice(d.entry.price)}`, yE);
+        place(`SL ${this.formatPrice(d.stop.price)}`, yS);
       }
     } else if (d.type === 'text') {
       const xy = this.pointToXy(d.p);
