@@ -227,13 +227,77 @@ button.danger:hover {
   accent-color: var(--accent);
 }
 
-#watchlist {
+#sidebar {
   width: 268px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   background: var(--bar);
   border-right: 1px solid var(--border);
+}
+
+#watchlist {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#alerts-panel {
+  border-top: 1px solid var(--border);
+  padding: 10px;
+  flex-shrink: 0;
+  max-height: 34%;
+  overflow: auto;
+}
+
+#alerts-panel h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.alert-form {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.alert-form input {
+  width: 100%;
+  background: var(--btn);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 6px;
+  font: inherit;
+}
+
+.alert-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.alert-item.is-fired {
+  color: var(--danger);
+}
+
+.alert-toast {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 20;
+  background: var(--bar);
+  color: var(--heading);
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  padding: 10px 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
 .watch-head {

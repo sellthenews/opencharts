@@ -8,7 +8,22 @@
   </head>
   <body>
     <div id="app">
+      <div id="sidebar">
       <aside id="watchlist" aria-label="Listy obserwowanych"></aside>
+      <aside id="alerts-panel" aria-label="Alerty cenowe">
+        <h2>Alerty cenowe</h2>
+        <form id="alert-form" class="alert-form">
+          <select id="alert-dir" aria-label="Kierunek">
+            <option value="above">Cena ≥</option>
+            <option value="below">Cena ≤</option>
+          </select>
+          <input type="number" id="alert-price" step="any" min="0" required placeholder="Poziom" />
+          <button type="submit">Dodaj</button>
+        </form>
+        <div id="alert-list" class="alert-list"></div>
+      </aside>
+      </div>
+      <div id="alert-toast" class="alert-toast" hidden role="status"></div>
       <div id="workspace">
       <header class="toolbar">
         <div class="brand" title="Wykresy">Wykresy</div>

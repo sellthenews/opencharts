@@ -16,6 +16,8 @@ import type { IndicatorSettings } from './indicators/types';
 import { INTERVALS, getSource, sources } from './sources';
 import type { Candle, IntervalId, PairId } from './sources';
 import { loadLayout, saveLayout } from './layout';
+import { alertLabel, checkAlert, createAlert, loadAlerts, saveAlerts } from './alerts';
+import type { PriceAlert } from './alerts';
 import { KrakenLive, type LiveStatus } from './live/kraken-ws';
 import { mergeLiveCandle } from './live/merge';
 import { WatchlistPanel } from './watchlist';
@@ -93,6 +95,57 @@ if (savedLayout) {
 }
 let loadSeq = 0;
 let lastCandles: Candle[] = [];
+
+let alerts: PriceAlert[] = loadAlerts();
+const alertListEl = document.querySelector<HTMLDivElement>('#alert-list');
+const alertForm = document.querySelector<HTMLFormElement>('#alert-form');
+const alertToast = document.querySelector<HTMLDivElement>('#alert-toast');
+let toastTimer: number | null = null;
+
+function renderAlerts(): void {
+  if (!alertListEl) return;
+  if (!alerts.length) {
+    alertListEl.innerHTML = '<p class="watch-empty">Brak alertów.</p>';
+    return;
+  }
+  alertListEl.innerHTML = alerts
+    .map((a) => {
+      const src = getSource(a.sourceId);
+      const fired = a.enabled ? '' : ' is-fired';
+      return `<div class="alert-item${fired}" data-alert-id="${a.id}">
+        <span>${alertLabel(a, src?.name ?? a.sourceId)}</span>
+        <button type="button" data-alert-del="${a.id}" title="Usuń alert">×</button>
+      </div>`;
+    })
+    .join('');
+}
+
+function showAlertToast(text: string): void {
+  if (!alertToast) return;
+  alertToast.hidden = false;
+  alertToast.textContent = text;
+  if (toastTimer !== null) window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => {
+    alertToast.hidden = true;
+  }, 8000);
+}
+
+function evaluateAlerts(source: string, pair: PairId, last: number): void {
+  let changed = false;
+  for (const a of alerts) {
+    if (a.sourceId !== source || a.pairId !== pair || !a.enabled) continue;
+    if (!checkAlert(a, last)) continue;
+    a.enabled = false;
+    changed = true;
+    const src = getSource(a.sourceId);
+    showAlertToast(`Alert: ${alertLabel(a, src?.name ?? a.sourceId)}`);
+    setStatus(`Alert: ${alertLabel(a, src?.name ?? a.sourceId)}`);
+  }
+  if (changed) {
+    saveAlerts(alerts);
+    renderAlerts();
+  }
+}
 let indicatorSettings = loadIndicatorSettings();
 let watchlist: WatchlistPanel;
 
@@ -181,7 +234,31 @@ document.querySelector<HTMLButtonElement>('#theme-btn')?.addEventListener('click
   });
 });
 
+
+alertForm?.addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const price = Number(document.querySelector<HTMLInputElement>('#alert-price')?.value);
+  const direction = document.querySelector<HTMLSelectElement>('#alert-dir')?.value === 'below' ? 'below' : 'above';
+  if (!Number.isFinite(price) || price <= 0) return;
+  alerts.push(createAlert(sourceId, pairId, price, direction));
+  saveAlerts(alerts);
+  renderAlerts();
+  const input = document.querySelector<HTMLInputElement>('#alert-price');
+  if (input) input.value = '';
+});
+
+alertListEl?.addEventListener('click', (ev) => {
+  const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-alert-del]');
+  if (!btn) return;
+  const id = btn.getAttribute('data-alert-del');
+  alerts = alerts.filter((a) => a.id !== id);
+  saveAlerts(alerts);
+  renderAlerts();
+});
+
 fillSources();
+renderAlerts();
+
   fillPairs();
   sourceEl.value = sourceId;
   pairEl.value = pairId;
@@ -280,6 +357,7 @@ function applyPriceData(candles: Candle[], fit: boolean): void {
   const step = candles.length >= 2 ? candles[candles.length - 1]!.time - candles[candles.length - 2]!.time : 86400;
   drawings.setTimeInfo(candles[candles.length - 1]!.time, step);
   if (fit) chart.timeScale().fitContent();
+  evaluateAlerts(sourceId, pairId, candles[candles.length - 1]!.close);
 }
 
 function setLiveStatus(status: LiveStatus): void {
@@ -306,10 +384,12 @@ const live = new KrakenLive(
         close: last.close,
       });
       applyIndicators();
+      evaluateAlerts('kraken', pair, last.close);
     }
   },
   (pair, ticker) => {
     watchlist?.updateQuote('kraken', pair, ticker);
+    evaluateAlerts('kraken', pair, ticker.last);
   },
   (status) => setLiveStatus(status),
 );
