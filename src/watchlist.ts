@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Wykresy contributors
+
 import { getSource, sources } from './sources';
 import type { PairId, Ticker } from './sources';
 import { PAIR_IDS, PAIR_LABELS } from './sources';

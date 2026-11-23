@@ -66,4 +66,8 @@ Each exchange is one module under `src/sources/` with a shared `DataSource` inte
 
 ## License
 
-[MIT](LICENSE). Third-party licenses are listed in [THIRD_PARTY.md](THIRD_PARTY.md).
+This project is licensed under the [GNU Affero General Public License v3.0 or later](LICENSE) (AGPL-3.0-or-later).
+
+If you run a modified version of this software and make it available over a network (for example a public website), you must also make the complete corresponding source code of that modified version available to its users under the same license.
+
+Third-party libraries kept in `vendor/` remain under their own licenses; see [THIRD_PARTY.md](THIRD_PARTY.md).

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Wykresy contributors
+
 import { expect, test } from '@playwright/test';
 
 test('lista obserwowanych: domyślne pary Krakena i otwieranie wykresu', async ({ page }) => {

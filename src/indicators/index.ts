@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Wykresy contributors
+
 export { bollinger, ema, macd, rsi, sma } from './math';
 export { loadIndicatorSettings, normalizeSettings, saveIndicatorSettings } from './settings';
 export { DEFAULT_INDICATORS, INDICATOR_STORAGE_KEY } from './types';

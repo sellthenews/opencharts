@@ -1,6 +1,17 @@
 # Contributing
 
-Thanks for helping with Wykresy. This is a Stage 1, MIT-licensed, static charting app.
+Thanks for helping with Wykresy. This is a static charting app licensed under **AGPL-3.0-or-later**.
+
+## License of contributions
+
+Contributions are accepted under the same license: **inbound = outbound**. By opening a pull request or otherwise submitting a contribution, you agree to license your work under AGPL-3.0-or-later. Add this header at the top of every new file under `src/` and `tests/`:
+
+```
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Wykresy contributors
+```
+
+Do not add GPL-licensed third-party code unless a later project decision says otherwise. Vendored runtime libraries must stay MIT or Apache 2.0, with their `LICENSE` (and `NOTICE`, if any) in `vendor/`.
 
 ## Development
 
@@ -50,3 +61,4 @@ Do not load libraries from a CDN. Runtime code lives in `vendor/<name>@<version>
 - Do not commit `node_modules/`, `site/`, or `screenshots-test/`.
 - Do commit `vendor/`.
 - Run `npm run build` and, when you touch the chart or drawings, `npm run test:e2e`.
+- New files in `src/` and `tests/` must include the SPDX and copyright header above.

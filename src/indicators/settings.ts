@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Wykresy contributors
+
 import { DEFAULT_INDICATORS, INDICATOR_STORAGE_KEY } from './types';
 import type { IndicatorSettings } from './types';
 

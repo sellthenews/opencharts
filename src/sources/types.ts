@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Wykresy contributors
+
 export type IntervalId = '1h' | '4h' | '1D' | '1W' | '1M';
 
 export const INTERVALS: { id: IntervalId; label: string }[] = [

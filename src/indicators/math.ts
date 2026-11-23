@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Wykresy contributors
+
 import type { BandPoint, Candle, LinePoint, MacdPoint } from './types';
 
 export function sma(candles: Candle[], period: number): LinePoint[] {

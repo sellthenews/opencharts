@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Wykresy contributors
+
 import { aggregateCandles, sortDedup } from './aggregate';
 import { changePct, fetchJson } from './http';
 import type { Candle, DataSource, IntervalId, PairId, Ticker } from './types';

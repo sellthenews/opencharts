@@ -1,7 +1,8 @@
 # Third-party notices
 
-This project vendors every library used at runtime under `vendor/<name>@<version>/`.
-Nothing is loaded from a CDN. Build-time tools (Vite, TypeScript, Playwright) stay in `devDependencies` and are not required to view a built copy of the site.
+Wykresy itself is licensed under AGPL-3.0-or-later. Libraries vendored under `vendor/<name>@<version>/` keep their **own** licenses. The Apache-2.0 code in `vendor/` is not relicensed: Apache-2.0 is compatible with GPLv3/AGPLv3, and each vendor folder still includes the upstream `LICENSE` (and `NOTICE` when the upstream project ships one).
+
+This project vendors every library used at runtime. Nothing is loaded from a CDN. Build-time tools (Vite, TypeScript, Playwright) stay in `devDependencies` and are not required to view a built copy of the site. New third-party runtime code should still be MIT or Apache 2.0 until a later project decision says otherwise; do not copy GPL-licensed projects into this tree for now.
 
 The drawing overlay in `src/drawings.ts` is original code written against the public Lightweight Charts API. It is **not** a copy of the closed-source TradingView terminal, and it does not vendor the official `plugin-examples` (trend-line, rectangle-drawing-tool, and similar) from the Lightweight Charts repository. Those Apache-2.0 examples were reviewed only as a possible alternative; the existing overlay was already in the tree, so it was kept to finish Stage 1 faster. KLineChart (Apache 2.0) was also considered and not adopted, for the same reason.
 

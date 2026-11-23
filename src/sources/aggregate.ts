@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Wykresy contributors
+
 import type { Candle, IntervalId } from './types';
 
 const STEP_SECONDS: Record<Exclude<IntervalId, '1M'>, number> = {
