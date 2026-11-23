@@ -65,6 +65,29 @@ function linearChannel(samples: PriceSample[], t1: number, t2: number): {
   };
 }
 
+const PHI = 1.618033988749895;
+const FIB_TIME = [0, 0.382, 0.618, 1, 1.618, 2.618, 4.236, 6.854] as const;
+const GANN_FAN: ReadonlyArray<readonly [string, number, number]> = [
+  ['1x8', 1, 8],
+  ['1x4', 1, 4],
+  ['1x3', 1, 3],
+  ['1x2', 1, 2],
+  ['1x1', 1, 1],
+  ['2x1', 2, 1],
+  ['3x1', 3, 1],
+  ['4x1', 4, 1],
+  ['8x1', 8, 1],
+];
+const GANN_GRID = [0, 0.125, 0.25, 1 / 3, 0.375, 0.5, 0.625, 2 / 3, 0.75, 0.875, 1] as const;
+
+function isPointList(value: unknown, min = 2): value is Point[] {
+  return Array.isArray(value) && value.length >= min && value.every(isPoint);
+}
+
+function isOpenEnded(tool: Tool): boolean {
+  return tool === 'path' || tool === 'brush';
+}
+
 function formatSpan(sec: number): string {
   const abs = Math.abs(sec);
   if (abs >= 86_400) {
@@ -153,6 +176,25 @@ function isDrawing(value: unknown): value is Drawing {
       return isPoint(d.p1) && isPoint(d.p2) && isPoint(d.p3);
     case 'tripattern':
       return isPoint(d.p1) && isPoint(d.p2) && isPoint(d.p3) && isPoint(d.p4);
+    case 'elliottimp':
+      return isPointList(d.points, 6) && d.points.length === 6;
+    case 'elliottabc':
+      return isPointList(d.points, 3) && d.points.length === 3;
+    case 'path':
+    case 'brush':
+      return isPointList(d.points, 2);
+    case 'flag':
+      return isPoint(d.p1) && isPoint(d.p2) && isPoint(d.p3) && isPoint(d.p4);
+    case 'forecast':
+    case 'fibarcs':
+    case 'fibspiral':
+    case 'fibtz':
+    case 'gannbox':
+    case 'gannfan':
+    case 'gannsq':
+      return isPoint(d.p1) && isPoint(d.p2);
+    case 'pitchfork':
+      return isPoint(d.p1) && isPoint(d.p2) && isPoint(d.p3);
     default:
       return false;
   }
@@ -281,6 +323,7 @@ export class DrawingLayer {
 
     this.canvas.addEventListener('mousedown', (ev) => this.onPointer(ev, 'down'));
     this.canvas.addEventListener('mousemove', (ev) => this.onPointer(ev, 'move'));
+    this.canvas.addEventListener('dblclick', (ev) => this.onDblClick(ev));
     window.addEventListener('mouseup', (ev) => this.onPointer(ev, 'up'));
     this.wrap.addEventListener('mousemove', (ev) => this.onHoverPassthrough(ev));
     window.addEventListener('keydown', this.onKey);
@@ -408,6 +451,9 @@ export class DrawingLayer {
       this.draft = null;
       this.drag = null;
       this.redraw();
+    } else if (ev.key === 'Enter' && this.draft && isOpenEnded(this.draft.type)) {
+      ev.preventDefault();
+      this.finishOpenDraft();
     } else if (ev.key === 'Delete' || ev.key === 'Backspace') {
       const target = ev.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')) return;
@@ -507,6 +553,10 @@ export class DrawingLayer {
 
   private onPointer(ev: MouseEvent, phase: 'down' | 'move' | 'up'): void {
     const hit = this.eventPoint(ev);
+    if (this.tool === 'brush') {
+      this.onBrushPointer(ev, hit, phase);
+      return;
+    }
     if (phase === 'up') {
       if (this.drag) {
         this.drag = null;
@@ -680,6 +730,35 @@ export class DrawingLayer {
         if (handle === 'p3') d.p3 = p;
         if (handle === 'p4') d.p4 = p;
         break;
+      case 'elliottimp':
+      case 'elliottabc':
+      case 'path':
+      case 'brush': {
+        const i = Number(handle);
+        if (Number.isInteger(i) && i >= 0 && i < d.points.length) d.points[i] = p;
+        break;
+      }
+      case 'flag':
+        if (handle === 'p1') d.p1 = p;
+        if (handle === 'p2') d.p2 = p;
+        if (handle === 'p3') d.p3 = p;
+        if (handle === 'p4') d.p4 = p;
+        break;
+      case 'forecast':
+      case 'fibarcs':
+      case 'fibspiral':
+      case 'fibtz':
+      case 'gannbox':
+      case 'gannfan':
+      case 'gannsq':
+        if (handle === 'p1') d.p1 = p;
+        if (handle === 'p2') d.p2 = p;
+        break;
+      case 'pitchfork':
+        if (handle === 'p1') d.p1 = p;
+        if (handle === 'p2') d.p2 = p;
+        if (handle === 'p3') d.p3 = p;
+        break;
     }
   }
 
@@ -825,12 +904,97 @@ export class DrawingLayer {
           current.p4 = shift(orig.p4);
         }
         break;
+      case 'elliottimp':
+      case 'elliottabc':
+      case 'path':
+      case 'brush':
+        if (orig.type === current.type) current.points = orig.points.map(shift);
+        break;
+      case 'flag':
+        if (orig.type === 'flag') {
+          current.p1 = shift(orig.p1);
+          current.p2 = shift(orig.p2);
+          current.p3 = shift(orig.p3);
+          current.p4 = shift(orig.p4);
+        }
+        break;
+      case 'forecast':
+      case 'fibarcs':
+      case 'fibspiral':
+      case 'fibtz':
+      case 'gannbox':
+      case 'gannfan':
+      case 'gannsq':
+        if (orig.type === current.type) {
+          current.p1 = shift(orig.p1);
+          current.p2 = shift(orig.p2);
+        }
+        break;
+      case 'pitchfork':
+        if (orig.type === 'pitchfork') {
+          current.p1 = shift(orig.p1);
+          current.p2 = shift(orig.p2);
+          current.p3 = shift(orig.p3);
+        }
+        break;
     }
   }
 
+  private onDblClick(ev: MouseEvent): void {
+    ev.preventDefault();
+    if (this.draft && isOpenEnded(this.draft.type) && this.draft.type !== 'brush') this.finishOpenDraft();
+  }
+
+  private onBrushPointer(ev: MouseEvent, hit: { x: number; y: number; logical: Point } | null, phase: 'down' | 'move' | 'up'): void {
+    if (phase === 'down' && hit) {
+      this.draft = { type: 'brush', points: [hit.logical], current: hit.logical };
+      this.redraw();
+      return;
+    }
+    if (phase === 'move' && this.draft?.type === 'brush' && ev.buttons !== 0 && hit) {
+      const last = this.draft.points[this.draft.points.length - 1]!;
+      const a = this.pointToXy(last);
+      const b = this.pointToXy(hit.logical);
+      if (a && b && Math.hypot(b.x - a.x, b.y - a.y) >= 4) this.draft.points.push(hit.logical);
+      this.draft.current = hit.logical;
+      this.redraw();
+      return;
+    }
+    if (phase === 'up' && this.draft?.type === 'brush') this.finishOpenDraft();
+  }
+
+  private finishOpenDraft(): void {
+    const draft = this.draft;
+    if (!draft) return;
+    const raw = [...draft.points];
+    const last = raw[raw.length - 1];
+    if (!last || last.time !== draft.current.time || last.price !== draft.current.price) raw.push(draft.current);
+    const pts: Point[] = [];
+    for (const p of raw) {
+      const prev = pts[pts.length - 1];
+      if (!prev || prev.time !== p.time || prev.price !== p.price) pts.push(p);
+    }
+    if (pts.length >= 2) {
+      const created = this.commitPoints(draft.type, pts);
+      if (created) {
+        this.drawings.push(created);
+        this.selectedId = created.id;
+        this.persist();
+      }
+    }
+    this.draft = null;
+    this.redraw();
+  }
+
   private addDraftPoint(point: Point): void {
+    if (this.tool === 'path') {
+      if (!this.draft || this.draft.type !== 'path') this.draft = { type: 'path', points: [point], current: point };
+      else this.draft = { type: 'path', points: [...this.draft.points, point], current: point };
+      this.redraw();
+      return;
+    }
     const needed = TOOLS_POINTS[this.tool];
-    if (needed <= 0) return;
+    if (!Number.isFinite(needed) || needed <= 0) return;
     if (this.tool === 'hline') {
       this.drawings.push({ id: newId(), type: 'hline', price: point.price });
       this.selectedId = this.drawings[this.drawings.length - 1]!.id;
@@ -970,6 +1134,32 @@ export class DrawingLayer {
         return { id, type: 'arc', p1: points[0]!, p2: points[1]!, p3: points[2]! };
       case 'tripattern':
         return { id, type: 'tripattern', p1: points[0]!, p2: points[1]!, p3: points[2]!, p4: points[3]! };
+      case 'elliottimp':
+        return { id, type: 'elliottimp', points: points.slice(0, 6) };
+      case 'elliottabc':
+        return { id, type: 'elliottabc', points: points.slice(0, 3) };
+      case 'path':
+        return { id, type: 'path', points: [...points] };
+      case 'brush':
+        return { id, type: 'brush', points: [...points] };
+      case 'flag':
+        return { id, type: 'flag', p1: points[0]!, p2: points[1]!, p3: points[2]!, p4: points[3]! };
+      case 'forecast':
+        return { id, type: 'forecast', p1: points[0]!, p2: points[1]! };
+      case 'fibarcs':
+        return { id, type: 'fibarcs', p1: points[0]!, p2: points[1]! };
+      case 'fibspiral':
+        return { id, type: 'fibspiral', p1: points[0]!, p2: points[1]! };
+      case 'fibtz':
+        return { id, type: 'fibtz', p1: points[0]!, p2: points[1]! };
+      case 'gannbox':
+        return { id, type: 'gannbox', p1: points[0]!, p2: points[1]! };
+      case 'gannfan':
+        return { id, type: 'gannfan', p1: points[0]!, p2: points[1]! };
+      case 'gannsq':
+        return { id, type: 'gannsq', p1: points[0]!, p2: points[1]! };
+      case 'pitchfork':
+        return { id, type: 'pitchfork', p1: points[0]!, p2: points[1]!, p3: points[2]! };
       default:
         return null;
     }
@@ -1093,6 +1283,35 @@ export class DrawingLayer {
           { handle: 'p2', point: d.p2 },
           { handle: 'p3', point: d.p3 },
           { handle: 'p4', point: d.p4 },
+        ];
+      case 'elliottimp':
+      case 'elliottabc':
+      case 'path':
+      case 'brush':
+        return d.points.map((point, i) => ({ handle: String(i), point }));
+      case 'flag':
+        return [
+          { handle: 'p1', point: d.p1 },
+          { handle: 'p2', point: d.p2 },
+          { handle: 'p3', point: d.p3 },
+          { handle: 'p4', point: d.p4 },
+        ];
+      case 'forecast':
+      case 'fibarcs':
+      case 'fibspiral':
+      case 'fibtz':
+      case 'gannbox':
+      case 'gannfan':
+      case 'gannsq':
+        return [
+          { handle: 'p1', point: d.p1 },
+          { handle: 'p2', point: d.p2 },
+        ];
+      case 'pitchfork':
+        return [
+          { handle: 'p1', point: d.p1 },
+          { handle: 'p2', point: d.p2 },
+          { handle: 'p3', point: d.p3 },
         ];
     }
   }
@@ -1266,6 +1485,92 @@ export class DrawingLayer {
       return Math.min(
         distPointToSegment(x, y, l1.a.x, l1.a.y, l1.b.x, l1.b.y),
         distPointToSegment(x, y, l2.a.x, l2.a.y, l2.b.x, l2.b.y),
+      );
+    }
+    if (d.type === 'elliottimp' || d.type === 'elliottabc' || d.type === 'path' || d.type === 'brush') {
+      return this.hitPolyline(d.points, x, y);
+    }
+    if (d.type === 'flag') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      const c = this.pointToXy(d.p3);
+      const e = this.pointToXy(d.p4);
+      if (!a || !b || !c || !e) return null;
+      const p = { x: c.x + e.x - b.x, y: c.y + e.y - b.y };
+      return Math.min(
+        distPointToSegment(x, y, a.x, a.y, b.x, b.y),
+        distPointToSegment(x, y, b.x, b.y, c.x, c.y),
+        distPointToSegment(x, y, c.x, c.y, p.x, p.y),
+        distPointToSegment(x, y, p.x, p.y, e.x, e.y),
+        distPointToSegment(x, y, e.x, e.y, b.x, b.y),
+      );
+    }
+    if (d.type === 'forecast') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      if (!a || !b) return null;
+      const end = extendRay(a.x, a.y, b.x, b.y, width, height);
+      return distPointToSegment(x, y, a.x, a.y, end.x, end.y);
+    }
+    if (d.type === 'fibarcs') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      if (!a || !b) return null;
+      const dist = Math.hypot(b.x - a.x, b.y - a.y);
+      if (dist < 1) return null;
+      const toCenter = Math.hypot(x - a.x, y - a.y);
+      let best = Infinity;
+      for (const k of FIB_RETRACEMENT) {
+        if (k <= 0) continue;
+        best = Math.min(best, Math.abs(toCenter - dist * k));
+      }
+      return Number.isFinite(best) ? best : null;
+    }
+    if (d.type === 'fibspiral') {
+      return this.hitPolyline(this.spiralPoints(d.p1, d.p2), x, y);
+    }
+    if (d.type === 'fibtz') {
+      let best = Infinity;
+      for (const k of FIB_TIME) {
+        const xx = this.timeToX(d.p1.time + (d.p2.time - d.p1.time) * k);
+        if (xx !== null) best = Math.min(best, Math.abs(x - xx));
+      }
+      return Number.isFinite(best) ? best : null;
+    }
+    if (d.type === 'gannbox' || d.type === 'gannsq') {
+      const box = this.gannRect(d);
+      if (!box) return null;
+      return this.hitGannGrid(box, x, y);
+    }
+    if (d.type === 'gannfan') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      if (!a || !b) return null;
+      let best = Infinity;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      for (const [, pr, tm] of GANN_FAN) {
+        const end = extendRay(a.x, a.y, a.x + dx, a.y + dy * (pr / tm), width, height);
+        best = Math.min(best, distPointToSegment(x, y, a.x, a.y, end.x, end.y));
+      }
+      return Number.isFinite(best) ? best : null;
+    }
+    if (d.type === 'pitchfork') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      const c = this.pointToXy(d.p3);
+      if (!a || !b || !c) return null;
+      const mid = { x: (b.x + c.x) / 2, y: (b.y + c.y) / 2 };
+      const shaft = extendLine(a.x, a.y, mid.x, mid.y, width, height);
+      const tines = [
+        extendLine(b.x, b.y, b.x + (shaft.b.x - shaft.a.x), b.y + (shaft.b.y - shaft.a.y), width, height),
+        extendLine(c.x, c.y, c.x + (shaft.b.x - shaft.a.x), c.y + (shaft.b.y - shaft.a.y), width, height),
+      ];
+      return Math.min(
+        distPointToSegment(x, y, shaft.a.x, shaft.a.y, shaft.b.x, shaft.b.y),
+        distPointToSegment(x, y, tines[0]!.a.x, tines[0]!.a.y, tines[0]!.b.x, tines[0]!.b.y),
+        distPointToSegment(x, y, tines[1]!.a.x, tines[1]!.a.y, tines[1]!.b.x, tines[1]!.b.y),
+        Math.hypot(x - a.x, y - a.y),
       );
     }
     if (d.type === 'hs') {
@@ -2034,8 +2339,243 @@ export class DrawingLayer {
           this.label(ctx, 'Trójkąt', meet.x + 4, meet.y - 6, selected ? SELECTED : '#e0e3ea');
         }
       }
+    } else if (d.type === 'elliottimp' || d.type === 'elliottabc' || d.type === 'path' || d.type === 'brush') {
+      const xy = d.points.map((p) => this.pointToXy(p)).filter((p): p is { x: number; y: number } => !!p);
+      if (xy.length >= 2) {
+        ctx.beginPath();
+        ctx.moveTo(xy[0]!.x, xy[0]!.y);
+        for (let i = 1; i < xy.length; i++) ctx.lineTo(xy[i]!.x, xy[i]!.y);
+        ctx.stroke();
+        if (d.type === 'elliottimp' || d.type === 'elliottabc') {
+          const tags = d.type === 'elliottimp' ? ['0', '1', '2', '3', '4', '5'] : ['A', 'B', 'C'];
+          for (let i = 0; i < xy.length && i < tags.length; i++) {
+            this.paintBadge(ctx, tags[i]!, xy[i]!.x + 4, xy[i]!.y - 2, selected);
+          }
+        }
+      }
+    } else if (d.type === 'flag') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      const c = this.pointToXy(d.p3);
+      const e = this.pointToXy(d.p4);
+      if (a && b && c && e) {
+        const p = { x: c.x + e.x - b.x, y: c.y + e.y - b.y };
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(b.x, b.y);
+        ctx.lineTo(c.x, c.y);
+        ctx.lineTo(p.x, p.y);
+        ctx.lineTo(e.x, e.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        this.label(ctx, 'Flaga', b.x + 4, b.y - 6, selected ? SELECTED : '#e0e3ea');
+      }
+    } else if (d.type === 'forecast') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      if (a && b) {
+        const end = extendRay(a.x, a.y, b.x, b.y, width, height);
+        ctx.setLineDash([7, 5]);
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        this.label(ctx, `Prognoza  ${this.formatPrice(d.p2.price)}`, b.x + 6, b.y - 6, selected ? SELECTED : '#e0e3ea');
+      }
+    } else if (d.type === 'fibarcs') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      if (a && b) {
+        const dist = Math.hypot(b.x - a.x, b.y - a.y);
+        const ang = Math.atan2(b.y - a.y, b.x - a.x);
+        for (const k of FIB_RETRACEMENT) {
+          if (k <= 0) continue;
+          ctx.setLineDash(k === 0.5 || k === 1 ? [] : [5, 4]);
+          ctx.beginPath();
+          ctx.arc(a.x, a.y, dist * k, ang - Math.PI / 2, ang + Math.PI / 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          const lx = a.x + Math.cos(ang) * dist * k;
+          const ly = a.y + Math.sin(ang) * dist * k;
+          this.label(ctx, `${k}`, lx + 4, ly - 2, selected ? SELECTED : '#e0e3ea');
+        }
+      }
+    } else if (d.type === 'fibspiral') {
+      const xy = this.spiralPoints(d.p1, d.p2);
+      const screen = xy.map((p) => this.pointToXy(p)).filter((p): p is { x: number; y: number } => !!p);
+      if (screen.length >= 2) {
+        ctx.beginPath();
+        ctx.moveTo(screen[0]!.x, screen[0]!.y);
+        for (let i = 1; i < screen.length; i++) ctx.lineTo(screen[i]!.x, screen[i]!.y);
+        ctx.stroke();
+        this.label(ctx, 'Spirala Fib', screen[0]!.x + 4, screen[0]!.y - 6, selected ? SELECTED : '#e0e3ea');
+      }
+    } else if (d.type === 'fibtz') {
+      for (const k of FIB_TIME) {
+        const xx = this.timeToX(d.p1.time + (d.p2.time - d.p1.time) * k);
+        if (xx === null) continue;
+        ctx.setLineDash(k === 0 || k === 1 ? [] : [5, 4]);
+        ctx.beginPath();
+        ctx.moveTo(xx, 0);
+        ctx.lineTo(xx, height);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        this.label(ctx, `${k}`, xx + 4, 16, selected ? SELECTED : '#e0e3ea');
+      }
+    } else if (d.type === 'gannbox' || d.type === 'gannsq') {
+      const box = this.gannRect(d);
+      if (box) this.paintGannGrid(ctx, box, d.type === 'gannsq' ? 'Gann square' : 'Gann box', selected);
+    } else if (d.type === 'gannfan') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      if (a && b) {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        for (const [name, pr, tm] of GANN_FAN) {
+          const end = extendRay(a.x, a.y, a.x + dx, a.y + dy * (pr / tm), width, height);
+          ctx.setLineDash(name === '1x1' ? [] : [5, 4]);
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(end.x, end.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          this.label(ctx, name, end.x - 28, end.y - 4, selected ? SELECTED : '#e0e3ea');
+        }
+      }
+    } else if (d.type === 'pitchfork') {
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
+      const c = this.pointToXy(d.p3);
+      if (a && b && c) {
+        const mid = { x: (b.x + c.x) / 2, y: (b.y + c.y) / 2 };
+        const shaft = extendLine(a.x, a.y, mid.x, mid.y, width, height);
+        ctx.beginPath();
+        ctx.moveTo(shaft.a.x, shaft.a.y);
+        ctx.lineTo(shaft.b.x, shaft.b.y);
+        ctx.moveTo(b.x, b.y);
+        ctx.lineTo(c.x, c.y);
+        const t1 = extendLine(b.x, b.y, b.x + (shaft.b.x - shaft.a.x), b.y + (shaft.b.y - shaft.a.y), width, height);
+        const t2 = extendLine(c.x, c.y, c.x + (shaft.b.x - shaft.a.x), c.y + (shaft.b.y - shaft.a.y), width, height);
+        ctx.moveTo(t1.a.x, t1.a.y);
+        ctx.lineTo(t1.b.x, t1.b.y);
+        ctx.moveTo(t2.a.x, t2.a.y);
+        ctx.lineTo(t2.b.x, t2.b.y);
+        ctx.stroke();
+        this.label(ctx, 'Widły', a.x + 4, a.y - 6, selected ? SELECTED : '#e0e3ea');
+      }
     }
     ctx.restore();
+  }
+
+  private hitPolyline(points: Point[], x: number, y: number): number | null {
+    const xy = points.map((p) => this.pointToXy(p));
+    let best = Infinity;
+    for (let i = 0; i < xy.length - 1; i++) {
+      const a = xy[i];
+      const b = xy[i + 1];
+      if (!a || !b) continue;
+      best = Math.min(best, distPointToSegment(x, y, a.x, a.y, b.x, b.y));
+    }
+    return Number.isFinite(best) ? best : null;
+  }
+
+  private spiralPoints(p1: Point, p2: Point): Point[] {
+    const a = this.pointToXy(p1);
+    const b = this.pointToXy(p2);
+    if (!a || !b) return [p1, p2];
+    const dist = Math.hypot(b.x - a.x, b.y - a.y);
+    if (dist < 2) return [p1, p2];
+    const ang = Math.atan2(b.y - a.y, b.x - a.x);
+    const growth = Math.log(PHI) / (Math.PI / 2);
+    const out: Point[] = [];
+    const turns = 3.25;
+    const steps = 96;
+    for (let i = 0; i <= steps; i++) {
+      const theta = (i / steps) * turns * Math.PI * 2;
+      const r = dist * Math.exp(growth * theta);
+      const sx = a.x + Math.cos(ang + theta) * r;
+      const sy = a.y + Math.sin(ang + theta) * r;
+      const logical = this.xyToPoint(sx, sy);
+      if (logical) out.push(logical);
+    }
+    return out.length >= 2 ? out : [p1, p2];
+  }
+
+  private xyToPoint(x: number, y: number): Point | null {
+    const time = this.xToTime(x);
+    const price = this.series.coordinateToPrice(y);
+    if (time === null || price === null) return null;
+    return { time, price };
+  }
+
+  private gannRect(
+    d: { type: 'gannbox' | 'gannsq'; p1: Point; p2: Point },
+  ): { x1: number; y1: number; x2: number; y2: number } | null {
+    const a = this.pointToXy(d.p1);
+    const b = this.pointToXy(d.p2);
+    if (!a || !b) return null;
+    if (d.type === 'gannbox') return { x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+    const side = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y), 8);
+    const sx = Math.sign(b.x - a.x) || 1;
+    const sy = Math.sign(b.y - a.y) || 1;
+    return { x1: a.x, y1: a.y, x2: a.x + sx * side, y2: a.y + sy * side };
+  }
+
+  private hitGannGrid(box: { x1: number; y1: number; x2: number; y2: number }, x: number, y: number): number {
+    const left = Math.min(box.x1, box.x2);
+    const right = Math.max(box.x1, box.x2);
+    const top = Math.min(box.y1, box.y2);
+    const bottom = Math.max(box.y1, box.y2);
+    let best = Infinity;
+    for (const k of GANN_GRID) {
+      const xx = left + (right - left) * k;
+      const yy = top + (bottom - top) * k;
+      best = Math.min(best, Math.abs(x - xx), Math.abs(y - yy));
+    }
+    best = Math.min(
+      best,
+      distPointToSegment(x, y, box.x1, box.y1, box.x2, box.y2),
+      distPointToSegment(x, y, box.x2, box.y1, box.x1, box.y2),
+    );
+    return best;
+  }
+
+  private paintGannGrid(
+    ctx: CanvasRenderingContext2D,
+    box: { x1: number; y1: number; x2: number; y2: number },
+    title: string,
+    selected: boolean,
+  ): void {
+    const left = Math.min(box.x1, box.x2);
+    const right = Math.max(box.x1, box.x2);
+    const top = Math.min(box.y1, box.y2);
+    const bottom = Math.max(box.y1, box.y2);
+    ctx.strokeRect(left, top, right - left, bottom - top);
+    for (const k of GANN_GRID) {
+      if (k === 0 || k === 1) continue;
+      ctx.setLineDash(k === 0.5 ? [] : [4, 3]);
+      const xx = left + (right - left) * k;
+      const yy = top + (bottom - top) * k;
+      ctx.beginPath();
+      ctx.moveTo(xx, top);
+      ctx.lineTo(xx, bottom);
+      ctx.moveTo(left, yy);
+      ctx.lineTo(right, yy);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(box.x1, box.y1);
+    ctx.lineTo(box.x2, box.y2);
+    ctx.moveTo(box.x2, box.y1);
+    ctx.lineTo(box.x1, box.y2);
+    ctx.stroke();
+    this.label(ctx, title, left + 4, top + 14, selected ? SELECTED : '#e0e3ea');
   }
 
   private paintBadge(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, selected: boolean): void {

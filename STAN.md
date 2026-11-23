@@ -56,7 +56,7 @@ Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w eta
 - [x] P2 Linia pionowa
 - [x] P1 Kanał równoległy
 - [x] P2 Kanał regresji
-- [ ] P3 Widły Andrewsa
+- [x] P3 Widły Andrewsa
 
 ### Fibonacci
 
@@ -64,15 +64,15 @@ Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w eta
 - [x] P1 Rozszerzenie wg trendu (Trend-Based Fib Extension)
 - [x] P2 Kanał Fibonacciego
 - [x] P2 Wachlarz Fibonacciego
-- [ ] P3 Strefy czasowe Fibonacciego
-- [ ] P3 Łuki Fibonacciego
-- [ ] P3 Spirala Fibonacciego
+- [x] P3 Strefy czasowe Fibonacciego
+- [x] P3 Łuki Fibonacciego
+- [x] P3 Spirala Fibonacciego
 
 ### Gann
 
-- [ ] P3 Gann box
-- [ ] P3 Gann fan
-- [ ] P3 Gann square
+- [x] P3 Gann box
+- [x] P3 Gann fan
+- [x] P3 Gann square
 
 ### Formacje
 
@@ -80,8 +80,8 @@ Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w eta
 - [x] P2 XABCD / formacje harmoniczne
 - [x] P2 Głowa z ramionami
 - [x] P2 Trójkąt
-- [ ] P3 Fale Elliotta (impuls)
-- [ ] P3 Fale Elliotta (korekta)
+- [x] P3 Fale Elliotta (impuls)
+- [x] P3 Fale Elliotta (korekta)
 
 ### Prognozy i pomiary
 
@@ -90,7 +90,7 @@ Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w eta
 - [x] P2 Zakres cen
 - [x] P2 Zakres dat
 - [x] P2 Zakres dat i cen
-- [ ] P3 Prognoza (forecast)
+- [x] P3 Prognoza (forecast)
 
 ### Kształty
 
@@ -99,8 +99,8 @@ Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w eta
 - [x] P2 Trójkąt (kształt)
 - [x] P2 Łuk
 - [x] P2 Strzałki
-- [ ] P3 Ścieżka
-- [ ] P3 Pędzel
+- [x] P3 Ścieżka
+- [x] P3 Pędzel
 
 ### Tekst i notatki
 
@@ -108,7 +108,7 @@ Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w eta
 - [x] P2 Notatka
 - [x] P2 Objaśnienie (callout / balloon)
 - [x] P2 Etykieta ceny
-- [ ] P3 Flaga
+- [x] P3 Flaga
 
 ### Wskaźniki
 
@@ -172,3 +172,9 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 Skończona całość P2 z listy w tym pliku: etykiety wskaźników w układzie wielu wykresów, wszystkie popularne wskaźniki P2 (StochRSI … Aroon) oraz wszystkie narzędzia rysowania P2 (pozycje long/short, zakresy, linie, strzałka, etykieta ceny, notatka/objaśnienie, elipsa, trójkąt kształt i formacja, kanał regresji, XABCD, głowa z ramionami, kanał i wachlarz Fibonacciego, łuk). Każde z uchwytami, przesuwaniem, zapisem i eksportem jak istniejące narzędzia.
 
 Następne (poza tym przebiegiem): pozycje P3, m.in. łuki Fibonacciego.
+
+## Postęp P3 (23 XI 2026)
+
+Zrobione narzędzia rysowania P3 z listy: fale Elliotta (impuls 0–5 i korekta ABC), ścieżka, pędzel, flaga, prognoza, łuki i spirala Fibonacciego, strefy czasowe Fibonacciego, Gann box/fan/square, widły Andrewsa. Każde z uchwytami, przesuwaniem, zapisem i eksportem.
+
+Pozostało: pozostałe wskaźniki z typowej listy ~100 (P3).

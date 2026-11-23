@@ -32,7 +32,20 @@ export type Tool =
   | 'fibchan'
   | 'fibfan'
   | 'arc'
-  | 'tripattern';
+  | 'tripattern'
+  | 'elliottimp'
+  | 'elliottabc'
+  | 'path'
+  | 'brush'
+  | 'flag'
+  | 'forecast'
+  | 'fibarcs'
+  | 'fibspiral'
+  | 'fibtz'
+  | 'gannbox'
+  | 'gannfan'
+  | 'gannsq'
+  | 'pitchfork';
 
 export interface Point {
   time: number;
@@ -69,7 +82,20 @@ export type Drawing =
   | { id: string; type: 'fibchan'; p1: Point; p2: Point; p3: Point }
   | { id: string; type: 'fibfan'; p1: Point; p2: Point }
   | { id: string; type: 'arc'; p1: Point; p2: Point; p3: Point }
-  | { id: string; type: 'tripattern'; p1: Point; p2: Point; p3: Point; p4: Point };
+  | { id: string; type: 'tripattern'; p1: Point; p2: Point; p3: Point; p4: Point }
+  | { id: string; type: 'elliottimp'; points: Point[] }
+  | { id: string; type: 'elliottabc'; points: Point[] }
+  | { id: string; type: 'path'; points: Point[] }
+  | { id: string; type: 'brush'; points: Point[] }
+  | { id: string; type: 'flag'; p1: Point; p2: Point; p3: Point; p4: Point }
+  | { id: string; type: 'forecast'; p1: Point; p2: Point }
+  | { id: string; type: 'fibarcs'; p1: Point; p2: Point }
+  | { id: string; type: 'fibspiral'; p1: Point; p2: Point }
+  | { id: string; type: 'fibtz'; p1: Point; p2: Point }
+  | { id: string; type: 'gannbox'; p1: Point; p2: Point }
+  | { id: string; type: 'gannfan'; p1: Point; p2: Point }
+  | { id: string; type: 'gannsq'; p1: Point; p2: Point }
+  | { id: string; type: 'pitchfork'; p1: Point; p2: Point; p3: Point };
 
 export const TOOLS_POINTS: Record<Tool, number> = {
   cursor: 0,
@@ -103,4 +129,17 @@ export const TOOLS_POINTS: Record<Tool, number> = {
   fibfan: 2,
   arc: 3,
   tripattern: 4,
+  elliottimp: 6,
+  elliottabc: 3,
+  path: Number.POSITIVE_INFINITY,
+  brush: Number.POSITIVE_INFINITY,
+  flag: 4,
+  forecast: 2,
+  fibarcs: 2,
+  fibspiral: 2,
+  fibtz: 2,
+  gannbox: 2,
+  gannfan: 2,
+  gannsq: 2,
+  pitchfork: 3,
 };
