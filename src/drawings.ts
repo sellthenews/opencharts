@@ -13,7 +13,7 @@ import {
 } from './drawings-math';
 import { TOOLS_POINTS } from './drawings-types';
 import type { Drawing, Point, Tool } from './drawings-types';
-import { interactionOptions } from './chart-options';
+import { interactionOptions, isMagnetModifier } from './chart-options';
 import type { FibOptions } from './fib-settings';
 import { cloneFibOptions, fibExtOptionsOf, fibOptionsOf, isFibExtKeyLevel, isFibKeyLevel, loadFibDefaults, loadFibExtDefaults } from './fib-settings';
 
@@ -469,8 +469,13 @@ export class DrawingLayer {
     this.onSelect?.(this.getSelected());
   }
 
+  private shouldSnap(ev: MouseEvent): boolean {
+    const modifier = isMagnetModifier(ev);
+    return modifier ? !this.magnet : this.magnet;
+  }
+
   private snapLogical(point: Point): Point {
-    if (!this.magnet || !this.priceSamples.length) return point;
+    if (!this.priceSamples.length) return point;
     let best = this.priceSamples[0]!;
     let bestDt = Math.abs(best.time - point.time);
     for (const s of this.priceSamples) {
@@ -700,7 +705,7 @@ export class DrawingLayer {
     const y = ev.clientY - rect.top;
     let logical = this.xyToLogical(x, y);
     if (!logical) return null;
-    if (this.magnet) logical = this.snapLogical(logical);
+    if (this.shouldSnap(ev)) logical = this.snapLogical(logical);
     return { x, y, logical };
   }
 
@@ -714,6 +719,7 @@ export class DrawingLayer {
   }
 
   private onPointer(ev: MouseEvent, phase: 'down' | 'move' | 'up'): void {
+    if (phase === 'down' && ev.button === 0 && isMagnetModifier(ev)) ev.preventDefault();
     if (this.layerHidden) {
       if (phase === 'up' && this.drag) {
         this.drag = null;

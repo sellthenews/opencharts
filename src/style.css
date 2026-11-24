@@ -175,6 +175,8 @@ button.danger:hover {
   position: relative;
   min-height: 0;
   background: var(--panel);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 #chart {

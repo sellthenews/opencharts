@@ -9,7 +9,7 @@ import {
   createChart,
 } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
-import { candleSeriesOptions, interactionOptions, themeChartOptions } from './chart-options';
+import { candleSeriesOptions, interactionOptions, isMagnetModifier, themeChartOptions } from './chart-options';
 import { getCachedCandles, setCachedCandles } from './candle-cache';
 import { ohlcLegendHtml } from './ohlc-legend';
 import { DrawingLayer } from './drawings';
@@ -683,6 +683,9 @@ declare global {
       getIndicators: () => IndicatorInstance[];
       getWatchState: () => WatchState;
       applySelection: (sourceId: string, pairId: PairId) => void;
+      getVisibleLogicalRange: () => { from: number; to: number } | null;
+      getCandles: () => { time: number; open: number; high: number; low: number; close: number }[];
+      timePriceToPage: (time: number, price: number) => { x: number; y: number } | null;
     };
   }
 }
@@ -712,6 +715,18 @@ window.__opencharts = {
   getIndicators: () => indicatorItems,
   getWatchState: () => watchlist.getState(),
   applySelection: (src, pair) => applySelection(src, pair, true),
+  getVisibleLogicalRange: () => {
+    const range = chart.timeScale().getVisibleLogicalRange();
+    return range ? { from: range.from, to: range.to } : null;
+  },
+  getCandles: () => lastCandles.map((c) => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close })),
+  timePriceToPage: (time, price) => {
+    const x = chart.timeScale().timeToCoordinate(time as import('lightweight-charts').Time);
+    const y = series.priceToCoordinate(price);
+    if (x === null || y === null) return null;
+    const rect = wrapEl.getBoundingClientRect();
+    return { x: rect.left + x, y: rect.top + y };
+  },
 };
 
 initChartMenu(
@@ -781,6 +796,7 @@ function loadCursorMode(): CursorMode {
 
 let cursorMode: CursorMode = loadCursorMode();
 let magnetOn = localStorage.getItem(MAGNET_KEY) === 'on';
+let magnetModifierHeld = false;
 
 const cursorDot = document.querySelector<HTMLElement>('#cursor-dot');
 const drawBar = document.querySelector<HTMLElement>('#draw-bar');
@@ -795,7 +811,8 @@ function applyCursorAppearance(): void {
   const light = theme === 'light';
   const line = light ? 'rgba(19, 23, 34, 0.45)' : 'rgba(209, 212, 220, 0.45)';
   const labelBg = light ? '#4c525e' : '#2a2e39';
-  const magnetMode = magnetOn ? CrosshairMode.MagnetOHLC : CrosshairMode.Normal;
+  const magnetActive = magnetModifierHeld ? !magnetOn : magnetOn;
+  const magnetMode = magnetActive ? CrosshairMode.MagnetOHLC : CrosshairMode.Normal;
   if (cursorMode === 'arrow') {
     chart.applyOptions({
       crosshair: {
@@ -828,6 +845,20 @@ function applyCursorAppearance(): void {
   localStorage.setItem(CURSOR_MODE_KEY, cursorMode);
   localStorage.setItem(MAGNET_KEY, magnetOn ? 'on' : 'off');
 }
+
+function syncMagnetModifier(ev: Event): void {
+  const held = ev instanceof KeyboardEvent ? isMagnetModifier(ev) : false;
+  if (held === magnetModifierHeld) return;
+  magnetModifierHeld = held;
+  applyCursorAppearance();
+}
+
+window.addEventListener('keydown', syncMagnetModifier);
+window.addEventListener('keyup', syncMagnetModifier);
+window.addEventListener('blur', syncMagnetModifier);
+wrapEl.addEventListener('mousedown', (ev) => {
+  if (isMagnetModifier(ev)) ev.preventDefault();
+});
 
 function setCursorMode(mode: CursorModeState): void {
   cursorMode = mode;

@@ -8,7 +8,7 @@ export const CHART_FONT = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", 
 
 export function interactionOptions(): DeepPartial<ChartOptions> {
   return {
-    kineticScroll: { mouse: true, touch: true },
+    kineticScroll: { mouse: false, touch: false },
     handleScroll: {
       mouseWheel: true,
       pressedMouseMove: true,
@@ -92,4 +92,14 @@ export function themeChartOptions(light: boolean): DeepPartial<ChartOptions> {
     timeScale: timeScaleInteraction('#2a2e39'),
     crosshair: crosshairOptions('rgba(209, 212, 220, 0.35)', '#2a2e39'),
   };
+}
+
+export function isApplePlatform(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Mac|iPhone|iPad|iPod/.test(navigator.platform) || /Mac OS|iPhone|iPad/.test(navigator.userAgent);
+}
+
+/** Ctrl on Windows/Linux, Command on Apple — TradingView-style temporary magnet. */
+export function isMagnetModifier(ev: { ctrlKey: boolean; metaKey: boolean }): boolean {
+  return isApplePlatform() ? ev.metaKey : ev.ctrlKey;
 }

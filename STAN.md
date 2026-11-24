@@ -251,3 +251,8 @@ Zrzuty (lokalne, w `.gitignore`): `screenshots-test/fib-extension-domyslne.png`,
 - Przycisk Settings w pasku narzędzi (koło zębate): Export data i Import data. Backup JSON `{format:'opencharts-backup', version:1, exportedAt, data}` ze wszystkimi kluczami `opencharts:`. Import przez `input type=file`, walidacja, Replace all albo Merge, potem odświeżenie widoku. Bez serwera i logowania.
 
 Zrzut (lokalny, w `.gitignore`): `screenshots-test/eksport-import-menu.png`.
+
+## Kinetic scroll i magnes Ctrl (24 XI 2026)
+
+- `kineticScroll` (mysz i touch) jest wyłączony, więc wykres nie „pływa” po puszczeniu przycisku.
+- Ctrl (Cmd na Macu) tymczasowo włącza magnes do O/H/L/C; gdy stały magnes jest włączony, ten sam klawisz go wyłącza.
