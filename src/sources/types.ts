@@ -12,9 +12,9 @@ export const INTERVALS: { id: IntervalId; label: string }[] = [
 ];
 
 export const PAIR_IDS = ['XRPUSD', 'BTCUSD', 'ETHUSD'] as const;
-export type PairId = (typeof PAIR_IDS)[number];
+export type PairId = string;
 
-export const PAIR_LABELS: Record<PairId, string> = {
+export const PAIR_LABELS: Record<string, string> = {
   XRPUSD: 'XRP/USD',
   BTCUSD: 'BTC/USD',
   ETHUSD: 'ETH/USD',
@@ -52,7 +52,7 @@ export interface DataSource {
 
 export const MAX_CANDLES = 2500;
 
-export function pairsFromNative(map: Record<PairId, string>): PairDef[] {
+export function pairsFromNative(map: Record<string, string>): PairDef[] {
   return PAIR_IDS.map((id) => ({ id, label: PAIR_LABELS[id], native: map[id] }));
 }
 

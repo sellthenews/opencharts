@@ -3,7 +3,7 @@
 
 import { getSource, sources } from './sources';
 import type { PairId, Ticker } from './sources';
-import { PAIR_IDS, PAIR_LABELS } from './sources';
+import { PAIR_IDS, PAIR_LABELS, formatPairLabel } from './sources';
 
 export const WATCH_STORAGE_KEY = 'wykresy:watchlists';
 export const TICKER_INTERVAL_MS = 45_000;
@@ -48,7 +48,7 @@ function newId(): string {
 }
 
 function isPairId(value: string): value is PairId {
-  return (PAIR_IDS as readonly string[]).includes(value);
+  return typeof value === 'string' && value.length > 0 && value.length < 32;
 }
 
 export function loadWatchState(): WatchState {
@@ -287,7 +287,7 @@ export class WatchlistPanel {
       .map((item) => {
         const src = getSource(item.sourceId);
         const quote = this.quotes.get(itemKey(item));
-        const label = PAIR_LABELS[item.pairId];
+        const label = PAIR_LABELS[item.pairId] ?? formatPairLabel(item.sourceId, item.pairId);
         const exch = src?.name ?? item.sourceId;
         const last = quote ? formatPrice(quote.last) : '…';
         const chg = quote ? formatPct(quote.change24hPct) : '…';

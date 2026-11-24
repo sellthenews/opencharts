@@ -2,7 +2,6 @@
 // Copyright (C) 2026 Wykresy contributors
 
 import type { IntervalId, PairId } from './sources';
-import { PAIR_IDS } from './sources';
 import type { MiniState } from './minichart';
 
 export const LAYOUT_KEY = 'wykresy:layout';
@@ -24,7 +23,7 @@ export function loadLayout(): LayoutState | null {
     if (!raw) return null;
     const p = JSON.parse(raw) as Partial<LayoutState>;
     if (typeof p.sourceId !== 'string' || !p.sourceId) return null;
-    if (!PAIR_IDS.includes(p.pairId as PairId)) return null;
+    if (typeof p.pairId !== 'string' || !p.pairId) return null;
     if (!INTERVALS.includes(p.intervalId as IntervalId)) return null;
     if (p.theme !== 'light' && p.theme !== 'dark') return null;
     const paneCount = p.paneCount === 2 || p.paneCount === 4 ? p.paneCount : 1;

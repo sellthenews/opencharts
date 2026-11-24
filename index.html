@@ -18,9 +18,10 @@
           <select id="source" data-source></select>
         </label>
 
-        <label class="field">
+        <label class="field field-pair">
           <span>Para</span>
-          <select id="pair" data-pair></select>
+          <button type="button" id="pair-btn" title="Szukaj pary (zacznij pisać)">XRP/USD</button>
+          <select id="pair" data-pair class="visually-hidden" tabindex="-1" aria-hidden="true"></select>
         </label>
 
         <div class="group" role="group" aria-label="Interwał" id="intervals"></div>
@@ -139,6 +140,24 @@
           </form>
           <div id="alert-list" class="alert-list"></div>
         </aside>
+      </div>
+      <div id="sym-modal" hidden>
+        <div class="sym-modal-backdrop"></div>
+        <div class="sym-modal-box" role="dialog" aria-modal="true" aria-labelledby="sym-modal-title">
+          <div class="ind-modal-head">
+            <h2 id="sym-modal-title">Szukaj pary</h2>
+            <button type="button" id="sym-modal-close" aria-label="Zamknij">×</button>
+          </div>
+          <input id="sym-search" type="search" placeholder="Nazwa lub ticker, np. sol" autocomplete="off" />
+          <div id="sym-filters" class="sym-filters" role="group" aria-label="Giełda">
+            <button type="button" data-sym-filter="all" class="is-active">Wszystkie</button>
+            <button type="button" data-sym-filter="kraken">Kraken</button>
+            <button type="button" data-sym-filter="binance">Binance</button>
+            <button type="button" data-sym-filter="coinbase">Coinbase</button>
+            <button type="button" data-sym-filter="bitstamp">Bitstamp</button>
+          </div>
+          <div id="sym-results" class="sym-results"></div>
+        </div>
       </div>
       <div id="ind-modal" hidden>
         <div class="ind-modal-backdrop"></div>

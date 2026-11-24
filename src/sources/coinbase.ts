@@ -4,7 +4,8 @@
 import { aggregateCandles, sortDedup } from './aggregate';
 import { changePct, fetchJson } from './http';
 import type { Candle, DataSource, IntervalId, PairId, Ticker } from './types';
-import { MAX_CANDLES, nativeOf, pairsFromNative } from './types';
+import { MAX_CANDLES, pairsFromNative } from './types';
+import { nativeSymbol } from './catalog';
 
 /** Coinbase Exchange public candles: granularity in seconds. No native 4h / 1W / 1M. */
 const NATIVE_GRANULARITY: Partial<Record<IntervalId, number>> = {
@@ -64,7 +65,7 @@ export const coinbase: DataSource = {
   }),
   nativeIntervals: ['1h', '1D'],
   async fetchCandles(pairId: PairId, interval: IntervalId): Promise<Candle[]> {
-    const product = nativeOf(this, pairId);
+    const product = nativeSymbol(this, pairId);
     if (interval === '4h') {
       const hourly = await fetchGranularity(product, 3600);
       return aggregateCandles(hourly, '4h');
@@ -78,7 +79,7 @@ export const coinbase: DataSource = {
     return fetchGranularity(product, gran);
   },
   async fetchTicker(pairId: PairId): Promise<Ticker> {
-    const product = nativeOf(this, pairId);
+    const product = nativeSymbol(this, pairId);
     const url = `https://api.exchange.coinbase.com/products/${encodeURIComponent(product)}/stats`;
     const data = await fetchJson<{ last: string; open: string }>(url);
     const last = Number(data.last);

@@ -16,8 +16,9 @@ import type { PaneMap } from './indicators/host';
 import { loadIndicatorSettings, saveIndicatorSettings } from './indicators/settings';
 import { IndicatorHud, initIndicatorModal } from './indicators/ui';
 import type { IndicatorInstance } from './indicators/types';
-import { INTERVALS, getSource, sources } from './sources';
+import { INTERVALS, formatPairLabel, getSource, sources } from './sources';
 import type { Candle, IntervalId, PairId } from './sources';
+import { initSymbolSearch } from './symbol-search';
 import { loadLayout, saveLayout } from './layout';
 import { MiniChart } from './minichart';
 import type { MiniState } from './minichart';
@@ -152,6 +153,7 @@ let indicatorItems = loadIndicatorSettings();
 let paneMap: PaneMap = {};
 let indicatorHud: IndicatorHud;
 let watchlist: WatchlistPanel;
+let symbolSearch: ReturnType<typeof initSymbolSearch> | undefined;
 
 applyTheme(theme);
 
@@ -209,12 +211,24 @@ function fillSources(): void {
     .join('');
 }
 
+function ensurePairOption(id: string, label: string): void {
+  if (![...pairEl.options].some((o) => o.value === id)) {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = label;
+    pairEl.append(opt);
+  }
+  pairEl.value = id;
+}
+
 function fillPairs(): void {
   const src = currentSource();
-  if (!src.pairs.some((p) => p.id === pairId)) pairId = src.pairs[0]?.id ?? DEFAULT_PAIR;
   pairEl.innerHTML = src.pairs
     .map((p) => `<option value="${p.id}"${p.id === pairId ? ' selected' : ''}>${p.label}</option>`)
     .join('');
+  const label = src.pairs.find((p) => p.id === pairId)?.label ?? formatPairLabel(sourceId, pairId);
+  ensurePairOption(pairId, label);
+  symbolSearch?.setCurrent(sourceId, pairId);
 }
 
 function fillIntervals(): void {
@@ -231,14 +245,19 @@ function setReady(ready: boolean): void {
 function applySelection(nextSource: string, nextPair: PairId, reload = true): void {
   sourceId = nextSource;
   pairId = nextPair;
-  
+  fillPairs();
+  sourceEl.value = sourceId;
+  pairEl.value = pairId;
+  persistLayout();
+  watchlist?.highlight(sourceId, pairId);
+  if (reload) void loadChart();
+}
+
 document.querySelector<HTMLButtonElement>('#theme-btn')?.addEventListener('click', () => {
   applyTheme(theme === 'light' ? 'dark' : 'light');
   chart.applyOptions(themeChartOptions(theme === 'light'));
   miniCharts.forEach((m) => m?.setTheme(theme === 'light'));
 });
-
-
 
 alertForm?.addEventListener('submit', (ev) => {
   ev.preventDefault();
@@ -261,15 +280,7 @@ alertListEl?.addEventListener('click', (ev) => {
   renderAlerts();
 });
 
-fillSources();
 renderAlerts();
-
-  fillPairs();
-  sourceEl.value = sourceId;
-  pairEl.value = pairId;
-  watchlist.highlight(sourceId, pairId);
-  if (reload) void loadChart();
-}
 
 function visibleKinds(): Set<string> {
   return new Set(indicatorItems.filter((i) => i.visible).map((i) => i.kind));
@@ -446,8 +457,7 @@ function describeCandles(srcName: string, pairLabel: string, candles: Candle[], 
 async function loadChart(): Promise<void> {
   const seq = ++loadSeq;
   const src = currentSource();
-  const pair = src.pairs.find((p) => p.id === pairId);
-  const pairLabel = pair?.native ?? pair?.label ?? pairId;
+  const pairLabel = formatPairLabel(sourceId, pairId);
   const aggregated = !src.nativeIntervals.includes(intervalId);
   const hadData = lastCandles.length > 0;
   const cached = getCachedCandles(sourceId, pairId, intervalId);
@@ -461,7 +471,7 @@ async function loadChart(): Promise<void> {
   } else {
     setChartLoading('full');
     if (!hadData) setReady(false);
-    setStatus(`Ładowanie ${src.name} · ${pair?.label ?? pairId} · ${intervalId}…`);
+    setStatus(`Ładowanie ${src.name} · ${pairLabel} · ${intervalId}…`);
   }
 
   try {
@@ -570,6 +580,18 @@ fillSources();
 fillPairs();
 fillIntervals();
 drawings.setContext(sourceId, pairId);
+
+symbolSearch = initSymbolSearch({
+  modal: document.querySelector('#sym-modal')!,
+  input: document.querySelector('#sym-search')!,
+  results: document.querySelector('#sym-results')!,
+  filters: document.querySelector('#sym-filters')!,
+  pairBtn: document.querySelector('#pair-btn')!,
+  closeBtn: document.querySelector('#sym-modal-close')!,
+  onSelect: (src, pair) => applySelection(src, pair, true),
+});
+symbolSearch.setCurrent(sourceId, pairId);
+void symbolSearch.ready.then(() => symbolSearch?.setCurrent(sourceId, pairId));
 
 const watchRoot = document.querySelector<HTMLElement>('#watchlist')!;
 watchlist = new WatchlistPanel(

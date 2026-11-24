@@ -19,3 +19,5 @@ export function getSource(id: string): DataSource | undefined {
 
 export type { Candle, DataSource, IntervalId, PairDef, PairId, Ticker } from './types';
 export { INTERVALS, PAIR_IDS, PAIR_LABELS } from './types';
+
+export { formatPairLabel, nativeSymbol, loadAllSymbols, cachedCounts } from './catalog';

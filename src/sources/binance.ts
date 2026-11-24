@@ -4,7 +4,8 @@
 import { fetchJson } from './http';
 import { sortDedup } from './aggregate';
 import type { Candle, DataSource, IntervalId, PairId, Ticker } from './types';
-import { MAX_CANDLES, nativeOf, pairsFromNative } from './types';
+import { MAX_CANDLES, pairsFromNative } from './types';
+import { nativeSymbol } from './catalog';
 
 const NATIVE: Record<IntervalId, string> = {
   '1h': '1h',
@@ -67,10 +68,10 @@ export const binance: DataSource = {
   }),
   nativeIntervals: ['1h', '4h', '1D', '1W', '1M'],
   async fetchCandles(pairId: PairId, interval: IntervalId): Promise<Candle[]> {
-    return fetchKlines(nativeOf(this, pairId), NATIVE[interval]);
+    return fetchKlines(nativeSymbol(this, pairId), NATIVE[interval]);
   },
   async fetchTicker(pairId: PairId): Promise<Ticker> {
-    const symbol = nativeOf(this, pairId);
+    const symbol = nativeSymbol(this, pairId);
     const url = `https://api.binance.com/api/v3/ticker/24hr?symbol=${encodeURIComponent(symbol)}`;
     const data = await fetchJson<{ lastPrice: string; priceChangePercent: string }>(url);
     const last = Number(data.lastPrice);

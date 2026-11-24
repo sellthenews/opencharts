@@ -4,7 +4,8 @@
 import { aggregateCandles, sortDedup } from './aggregate';
 import { changePct, fetchJson } from './http';
 import type { Candle, DataSource, IntervalId, PairId, Ticker } from './types';
-import { nativeOf, pairsFromNative } from './types';
+import { pairsFromNative } from './types';
+import { nativeSymbol } from './catalog';
 
 const NATIVE: Record<Exclude<IntervalId, '1M'>, number> = {
   '1h': 60,
@@ -51,7 +52,7 @@ export const kraken: DataSource = {
   }),
   nativeIntervals: ['1h', '4h', '1D', '1W'],
   async fetchCandles(pairId: PairId, interval: IntervalId): Promise<Candle[]> {
-    const symbol = nativeOf(this, pairId);
+    const symbol = nativeSymbol(this, pairId);
     if (interval === '1M') {
       const weekly = await fetchInterval(symbol, NATIVE['1W']);
       return aggregateCandles(weekly, '1M');
@@ -59,7 +60,7 @@ export const kraken: DataSource = {
     return fetchInterval(symbol, NATIVE[interval]);
   },
   async fetchTicker(pairId: PairId): Promise<Ticker> {
-    const symbol = nativeOf(this, pairId);
+    const symbol = nativeSymbol(this, pairId);
     const url = `https://api.kraken.com/0/public/Ticker?pair=${encodeURIComponent(symbol)}`;
     const data = await fetchJson<{ error: string[]; result?: Record<string, Record<string, unknown>> }>(url);
     if (data.error?.length) throw new Error(`Kraken: ${data.error.join(', ')}`);

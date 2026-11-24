@@ -2,19 +2,28 @@
 // Copyright (C) 2026 Wykresy contributors
 
 import type { Candle, IntervalId, PairId, Ticker } from '../sources/types';
+import { krakenWsName } from '../sources/catalog';
 import { isoToUnix } from './merge';
 
 export const KRAKEN_WS_URL = 'wss://ws.kraken.com/v2';
 
-export const KRAKEN_WS_SYMBOL: Record<PairId, string> = {
+export const KRAKEN_WS_SYMBOL: Record<string, string> = {
   XRPUSD: 'XRP/USD',
   BTCUSD: 'BTC/USD',
   ETHUSD: 'ETH/USD',
 };
 
-const SYMBOL_TO_PAIR = Object.fromEntries(
+const SYMBOL_TO_PAIR: Record<string, PairId> = Object.fromEntries(
   Object.entries(KRAKEN_WS_SYMBOL).map(([pair, symbol]) => [symbol, pair]),
-) as Record<string, PairId>;
+);
+
+function wsSymbol(pair: string): string | undefined {
+  const named = KRAKEN_WS_SYMBOL[pair] ?? krakenWsName(pair);
+  if (!named) return undefined;
+  KRAKEN_WS_SYMBOL[pair] = named;
+  SYMBOL_TO_PAIR[named] = pair;
+  return named;
+}
 
 const INTERVAL_MINUTES: Record<Exclude<IntervalId, '1M'>, number> = {
   '1h': 60,
@@ -132,26 +141,30 @@ export class KrakenLive {
   private subscribe(): void {
     if (this.ws?.readyState !== WebSocket.OPEN) return;
     if (this.chartPair) {
+      const symbol = wsSymbol(this.chartPair);
       const interval = this.chartInterval === '1M' ? 10080 : INTERVAL_MINUTES[this.chartInterval ?? '1D'];
-      this.ws.send(
-        JSON.stringify({
-          method: 'subscribe',
-          params: {
-            channel: 'ohlc',
-            symbol: [KRAKEN_WS_SYMBOL[this.chartPair]],
-            interval,
-            snapshot: false,
-          },
-        }),
-      );
+      if (symbol && interval) {
+        this.ws.send(
+          JSON.stringify({
+            method: 'subscribe',
+            params: {
+              channel: 'ohlc',
+              symbol: [symbol],
+              interval,
+              snapshot: false,
+            },
+          }),
+        );
+      }
     }
-    if (this.tickerPairs.length) {
+    const tickerSymbols = this.tickerPairs.map((p) => wsSymbol(p)).filter((s): s is string => Boolean(s));
+    if (tickerSymbols.length) {
       this.ws.send(
         JSON.stringify({
           method: 'subscribe',
           params: {
             channel: 'ticker',
-            symbol: this.tickerPairs.map((p) => KRAKEN_WS_SYMBOL[p]),
+            symbol: tickerSymbols,
           },
         }),
       );
