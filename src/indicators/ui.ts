@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
-import { clampParams, createInstance } from './settings';
+import { clampParams, clampStyle, createInstance, loadIndicatorFavorites, toggleIndicatorFavorite } from './settings';
 import {
   CATALOG_BY_KIND,
   INDICATOR_CATALOG,
@@ -9,19 +9,30 @@ import {
   formatIndicatorLabel,
   matchesIndicatorQuery,
 } from './types';
-import type { IndicatorInstance, IndicatorKind, IndicatorParams } from './types';
+import type { IndicatorInstance, IndicatorKind, IndicatorMeta, IndicatorParams, IndicatorStyle } from './types';
 import type { PaneMap } from './host';
 
-export function renderIndicatorCatalog(catalogEl: HTMLElement, query: string): void {
+function rowHtml(m: IndicatorMeta, favs: Set<string>): string {
+  const on = favs.has(m.kind);
+  return (
+    `<div class="ind-row">` +
+    `<button type="button" class="ind-add" data-ind-add="${m.kind}"><span class="ind-add-short">${m.short}</span><span class="ind-add-name">${m.name}</span></button>` +
+    `<button type="button" class="ind-fav${on ? ' is-on' : ''}" data-ind-fav="${m.kind}" title="${on ? 'Remove from favorites' : 'Add to favorites'}" aria-label="${on ? 'Remove from favorites' : 'Add to favorites'}" aria-pressed="${on ? 'true' : 'false'}">★</button>` +
+    `</div>`
+  );
+}
+
+export function renderIndicatorCatalog(catalogEl: HTMLElement, query: string, favorites?: IndicatorKind[]): void {
+  const favs = new Set(favorites ?? loadIndicatorFavorites());
   const parts: string[] = [];
+  const favRows = INDICATOR_CATALOG.filter((m) => favs.has(m.kind) && matchesIndicatorQuery(m, query));
+  if (favRows.length) {
+    parts.push(`<div class="ind-group"><h3>Favorites</h3>${favRows.map((m) => rowHtml(m, favs)).join('')}</div>`);
+  }
   for (const group of INDICATOR_GROUPS) {
     const rows = INDICATOR_CATALOG.filter((m) => m.group === group.id && matchesIndicatorQuery(m, query));
     if (!rows.length) continue;
-    parts.push(
-      `<div class="ind-group"><h3>${group.label}</h3>${rows
-        .map((m) => `<button type="button" class="ind-add" data-ind-add="${m.kind}"><span class="ind-add-short">${m.short}</span><span class="ind-add-name">${m.name}</span></button>`)
-        .join('')}</div>`,
-    );
+    parts.push(`<div class="ind-group"><h3>${group.label}</h3>${rows.map((m) => rowHtml(m, favs)).join('')}</div>`);
   }
   catalogEl.innerHTML = parts.join('') || '<p class="ind-empty">No results</p>';
 }
@@ -53,6 +64,15 @@ export function initIndicatorModal(els: IndicatorModalEls): void {
     }
   });
   els.catalog.addEventListener('click', (ev) => {
+    const favBtn = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-ind-fav]');
+    if (favBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const kind = favBtn.dataset.indFav as IndicatorKind;
+      toggleIndicatorFavorite(kind);
+      renderIndicatorCatalog(els.catalog, els.search.value);
+      return;
+    }
     const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-ind-add]');
     if (!btn) return;
     modalAdd?.(btn.dataset.indAdd as IndicatorKind);
@@ -82,6 +102,7 @@ export class IndicatorHud {
     private readonly hooks: {
       onChange: (items: IndicatorInstance[]) => void;
       paneOffset: (index: number) => number;
+      onAdded?: (item: IndicatorInstance) => void;
     },
     private readonly labelsRoot: HTMLElement,
     openBtn: HTMLButtonElement,
@@ -92,7 +113,9 @@ export class IndicatorHud {
   }
 
   add(kind: IndicatorKind): void {
-    this.commit([...this.items, createInstance(kind)]);
+    const item = createInstance(kind);
+    this.commit([...this.items, item]);
+    this.hooks.onAdded?.(item);
   }
 
   setItems(items: IndicatorInstance[]): void {
@@ -135,12 +158,9 @@ export class IndicatorHud {
       const top = this.hooks.paneOffset(pane);
       html.push(`<div class="ind-label-stack" data-pane="${pane}" style="top:${top + 6}px">`);
       for (const item of list) {
-        const meta = CATALOG_BY_KIND[item.kind];
         const label = formatIndicatorLabel(item);
         const vis = item.visible ? 'on' : 'off';
-        const gear = meta.fields.length
-          ? `<button type="button" class="ind-ico" data-ind-act="settings" data-ind-id="${item.id}" title="Settings" aria-label="Settings">⚙</button>`
-          : '';
+        const gear = `<button type="button" class="ind-ico" data-ind-act="settings" data-ind-id="${item.id}" title="Settings" aria-label="Settings">⚙</button>`;
         const eyeTitle = item.visible ? 'Hide' : 'Show';
         html.push(
           `<div class="ind-label" data-ind-id="${item.id}" data-kind="${item.kind}" data-visible="${vis}">` +
@@ -190,31 +210,51 @@ export class IndicatorHud {
     const item = this.items.find((i) => i.id === id);
     if (!item) return;
     const meta = CATALOG_BY_KIND[item.kind];
-    if (!meta.fields.length) return;
     this.openSettingsId = id;
     const params = { ...meta.defaults, ...item.params };
+    const color = item.style?.color ?? '';
+    const width = item.style?.width ?? 1;
     const labelEl = this.labelsRoot.querySelector(`.ind-label[data-ind-id="${id}"]`);
     const pop = document.createElement('div');
     pop.className = 'ind-popover';
-    pop.innerHTML = meta.fields
+    const fieldHtml = meta.fields
       .map((f) => {
+        if (f.type === 'select') {
+          const val = String(params[f.key] ?? '');
+          const opts = (f.options ?? []).map((o) => `<option value="${o.value}"${o.value === val ? ' selected' : ''}>${o.label}</option>`).join('');
+          return `<label>${f.label}<select data-ind-field="${f.key}">${opts}</select></label>`;
+        }
         const val = params[f.key] ?? '';
-        return `<label>${f.label}<input type="number" data-ind-field="${f.key}" min="${f.min}" max="${f.max}" step="${f.step}" value="${val}" /></label>`;
+        return `<label>${f.label}<input type="number" data-ind-field="${f.key}" min="${f.min ?? ''}" max="${f.max ?? ''}" step="${f.step ?? 1}" value="${val}" /></label>`;
       })
       .join('');
+    pop.innerHTML =
+      `<label>Color<input type="color" data-ind-style="color" value="${color || '#5b9cf6'}" /></label>` +
+      `<label>Width<select data-ind-style="width">${[1, 2, 3, 4].map((w) => `<option value="${w}"${w === width ? ' selected' : ''}>${w} px</option>`).join('')}</select></label>` +
+      fieldHtml;
     if (labelEl) labelEl.append(pop);
     else this.labelsRoot.append(pop);
-    pop.addEventListener('input', () => {
+    const applyForm = (): void => {
       const next: IndicatorParams = { ...item.params };
-      for (const input of pop.querySelectorAll<HTMLInputElement>('[data-ind-field]')) {
+      for (const input of pop.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-ind-field]')) {
         const key = input.dataset.indField as keyof IndicatorParams;
-        next[key] = Number(input.value);
+        const field = meta.fields.find((f) => f.key === key);
+        (next as Record<string, string | number | undefined>)[key] = field?.type === 'select' ? input.value : Number(input.value);
       }
+      const style: IndicatorStyle = { ...item.style };
+      const colorEl = pop.querySelector<HTMLInputElement>('[data-ind-style="color"]');
+      const widthEl = pop.querySelector<HTMLSelectElement>('[data-ind-style="width"]');
+      if (colorEl) style.color = colorEl.value;
+      if (widthEl) style.width = Number(widthEl.value);
       const clamped = clampParams(item.kind, next);
-      this.items = this.items.map((i) => (i.id === id ? { ...i, params: clamped } : i));
+      const nextStyle = clampStyle(style);
+      this.items = this.items.map((i) => (i.id === id ? { ...i, params: clamped, style: nextStyle } : i));
+      const current = this.items.find((i) => i.id === id)!;
       const text = this.labelsRoot.querySelector(`.ind-label[data-ind-id="${id}"] .ind-label-text`);
-      if (text) text.textContent = formatIndicatorLabel({ ...item, params: clamped });
+      if (text) text.textContent = formatIndicatorLabel(current);
       this.hooks.onChange(this.items);
-    });
+    };
+    pop.addEventListener('input', applyForm);
+    pop.addEventListener('change', applyForm);
   }
 }

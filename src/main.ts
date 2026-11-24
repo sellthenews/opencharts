@@ -15,7 +15,7 @@ import { ohlcLegendHtml } from './ohlc-legend';
 import { DrawingLayer } from './drawings';
 import { IndicatorHost } from './indicators/host';
 import type { PaneMap } from './indicators/host';
-import { loadIndicatorSettings, saveIndicatorSettings } from './indicators/settings';
+import { indicatorStorageKey, loadIndicatorSettings, saveIndicatorSettings } from './indicators/settings';
 import { IndicatorHud, initIndicatorModal } from './indicators/ui';
 import type { IndicatorInstance } from './indicators/types';
 import { describeLoadError } from './load-error';
@@ -158,9 +158,14 @@ function evaluateAlerts(source: string, pair: PairId, last: number): void {
     renderAlerts();
   }
 }
-let indicatorItems = loadIndicatorSettings();
+const loadedIndicators = loadIndicatorSettings(sourceId, pairId);
+let indicatorItems = loadedIndicators.items;
+let paneStretches = loadedIndicators.panes;
+let indicatorScope = `${sourceId}:${pairId}`;
 let paneMap: PaneMap = {};
 let indicatorHud: IndicatorHud;
+let pendingAnchorId: string | null = null;
+let pendingVpfr: { id: string; step: 0 | 1 } | null = null;
 let watchlist: WatchlistPanel;
 let symbolSearch: ReturnType<typeof initSymbolSearch> | undefined;
 
@@ -192,6 +197,14 @@ chart.subscribeCrosshairMove((param) => {
 
 const drawings = new DrawingLayer(chart, series, overlayEl, wrapEl);
 const indicators = new IndicatorHost(chart, series);
+indicators.setPaneStretches(paneStretches);
+const vpOverlay = document.querySelector<HTMLCanvasElement>('#vp-overlay');
+if (vpOverlay) indicators.setOverlay(vpOverlay, wrapEl);
+indicators.setOnPaneResize((stretches) => {
+  paneStretches = stretches;
+  if (localStorage.getItem(indicatorStorageKey(sourceId, pairId)) == null) return;
+  saveIndicatorSettings(indicatorItems, sourceId, pairId, paneStretches);
+});
 
 function isoDate(ts: number): string {
   return new Date(ts * 1000).toISOString().slice(0, 10);
@@ -300,7 +313,13 @@ function visibleKinds(): Set<string> {
 }
 
 function applyIndicators(): void {
-  paneMap = indicators.apply(lastCandles, indicatorItems);
+  try {
+    indicators.setPaneStretches(paneStretches);
+    paneMap = indicators.apply(lastCandles, indicatorItems);
+  } catch (err) {
+    console.error(err);
+    return;
+  }
   const kinds = visibleKinds();
   appEl.dataset.rsi = kinds.has('rsi') ? 'on' : 'off';
   appEl.dataset.macd = kinds.has('macd') ? 'on' : 'off';
@@ -318,8 +337,31 @@ function applyIndicators(): void {
 
 function persistIndicators(items: IndicatorInstance[]): void {
   indicatorItems = items;
-  saveIndicatorSettings(indicatorItems);
+  paneStretches = indicators.getPaneStretches();
+  saveIndicatorSettings(indicatorItems, sourceId, pairId, paneStretches);
   applyIndicators();
+}
+
+function syncIndicatorContext(): void {
+  const scope = `${sourceId}:${pairId}`;
+  if (scope === indicatorScope) return;
+  indicatorScope = scope;
+  const loaded = loadIndicatorSettings(sourceId, pairId);
+  indicatorItems = loaded.items;
+  paneStretches = loaded.panes;
+  indicators.setPaneStretches(paneStretches);
+  pendingAnchorId = null;
+  pendingVpfr = null;
+}
+
+function onIndicatorAdded(item: IndicatorInstance): void {
+  if (item.kind === 'vwapAnchor' && item.params.anchor == null) {
+    pendingAnchorId = item.id;
+    setStatus('Click the chart to set the VWAP anchor.');
+  } else if (item.kind === 'vpfr' && (item.params.anchor == null || item.params.end == null)) {
+    pendingVpfr = { id: item.id, step: 0 };
+    setStatus('Click the chart to set the start of the fixed range.');
+  }
 }
 
 function resizeCharts(): void {
@@ -469,6 +511,7 @@ function describeCandles(srcName: string, pairLabel: string, candles: Candle[], 
 
 async function loadChart(): Promise<void> {
   const seq = ++loadSeq;
+  syncIndicatorContext();
   const src = currentSource();
   const pairLabel = formatPairLabel(sourceId, pairId);
   const aggregated = !src.nativeIntervals.includes(intervalId);
@@ -659,6 +702,7 @@ indicatorHud = new IndicatorHud(
   {
     onChange: persistIndicators,
     paneOffset: (index) => indicators.paneOffset(index),
+    onAdded: onIndicatorAdded,
   },
   document.querySelector('#ind-labels')!,
   document.querySelector('#ind-btn')!,
@@ -667,6 +711,46 @@ indicatorHud = new IndicatorHud(
 setSidebar(sidebarIsOn());
 document.querySelector('#sidebar-btn')?.addEventListener('click', () => setSidebar(!sidebarIsOn()));
 window.addEventListener('resize', () => resizeCharts());
+
+chart.timeScale().subscribeVisibleTimeRangeChange((range) => {
+  if (!range) return;
+  const from = typeof range.from === 'number' ? range.from : Number(range.from);
+  const to = typeof range.to === 'number' ? range.to : Number(range.to);
+  if (Number.isFinite(from) && Number.isFinite(to)) indicators.setVisibleTimeRange(from, to);
+});
+
+chart.subscribeClick((param) => {
+  const time = typeof param.time === 'number' ? param.time : null;
+  if (time === null) return;
+  if (pendingAnchorId) {
+    const id = pendingAnchorId;
+    pendingAnchorId = null;
+    indicatorItems = indicatorItems.map((item) =>
+      item.id === id ? { ...item, params: { ...item.params, anchor: time } } : item,
+    );
+    persistIndicators(indicatorItems);
+    setStatus('Anchored VWAP start set.');
+    return;
+  }
+  if (pendingVpfr) {
+    const { id, step } = pendingVpfr;
+    if (step === 0) {
+      indicatorItems = indicatorItems.map((item) =>
+        item.id === id ? { ...item, params: { ...item.params, anchor: time } } : item,
+      );
+      pendingVpfr = { id, step: 1 };
+      persistIndicators(indicatorItems);
+      setStatus('Click the chart to set the end of the fixed range.');
+      return;
+    }
+    pendingVpfr = null;
+    indicatorItems = indicatorItems.map((item) =>
+      item.id === id ? { ...item, params: { ...item.params, end: time } } : item,
+    );
+    persistIndicators(indicatorItems);
+    setStatus('Fixed range volume profile set.');
+  }
+});
 
 
 

@@ -4,7 +4,7 @@
 import './storage';
 import { getSource } from './sources';
 import type { PairId, Ticker } from './sources';
-import { PAIR_LABELS, formatPairLabel } from './sources';
+import { formatPairLabel } from './sources';
 
 export const WATCH_STORAGE_KEY = 'opencharts:watchlists';
 export const TICKER_INTERVAL_MS = 60_000;
@@ -14,10 +14,18 @@ export interface WatchItem {
   pairId: PairId;
 }
 
+export interface WatchSection {
+  id: string;
+  name: string;
+  collapsed: boolean;
+  items: WatchItem[];
+}
+
 export interface WatchList {
   id: string;
   name: string;
   items: WatchItem[];
+  sections: WatchSection[];
 }
 
 export interface WatchState {
@@ -37,8 +45,9 @@ export function defaultWatchState(): WatchState {
           { sourceId: 'kraken', pairId: 'BTCUSD' },
           { sourceId: 'kraken', pairId: 'ETHUSD' },
         ],
+        sections: [],
       },
-      { id: 'krypto', name: 'Crypto', items: [] },
+      { id: 'krypto', name: 'Crypto', items: [], sections: [] },
     ],
   };
 }
@@ -52,29 +61,40 @@ function isPairId(value: string): value is PairId {
   return typeof value === 'string' && value.length > 0 && value.length < 48;
 }
 
+function normalizeItems(raw: unknown): WatchItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((i) => i && typeof i.sourceId === 'string' && isPairId(String(i.pairId)))
+    .map((i) => ({ sourceId: (i as WatchItem).sourceId, pairId: (i as WatchItem).pairId as PairId }));
+}
+
+function normalizeSection(raw: unknown): WatchSection | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Partial<WatchSection>;
+  if (typeof r.id !== 'string' || !r.id) return null;
+  const name = typeof r.name === 'string' && r.name.trim() ? r.name.trim() : 'Section';
+  return { id: r.id, name, collapsed: r.collapsed === true, items: normalizeItems(r.items) };
+}
+
+function normalizeList(raw: unknown): WatchList | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const l = raw as Partial<WatchList> & { name?: string; id?: string };
+  if (typeof l.id !== 'string' || typeof l.name !== 'string') return null;
+  const trimmed = l.name.trim();
+  const name = l.id === 'moje' || trimmed === 'Moje' ? 'My list' : l.id === 'krypto' || trimmed === 'Krypto' ? 'Crypto' : trimmed || 'List';
+  const sections = Array.isArray(l.sections)
+    ? l.sections.map(normalizeSection).filter((s): s is WatchSection => s !== null)
+    : [];
+  return { id: l.id, name, items: normalizeItems(l.items), sections };
+}
+
 export function loadWatchState(): WatchState {
   try {
     const raw = localStorage.getItem(WATCH_STORAGE_KEY);
     if (!raw) return defaultWatchState();
     const parsed = JSON.parse(raw) as Partial<WatchState>;
     if (!Array.isArray(parsed.lists) || parsed.lists.length === 0) return defaultWatchState();
-    const lists: WatchList[] = parsed.lists
-      .filter((l) => l && typeof l.id === 'string' && typeof l.name === 'string')
-      .map((l) => ({
-        id: l.id,
-        name: (() => {
-          const trimmed = l.name.trim();
-          if (l.id === 'moje' || trimmed === 'Moje') return 'My list';
-          if (l.id === 'krypto' || trimmed === 'Krypto') return 'Crypto';
-          return trimmed || 'List';
-        })(),
-        items: Array.isArray(l.items)
-          ? l.items.filter((i) => i && typeof i.sourceId === 'string' && isPairId(String(i.pairId))).map((i) => ({
-              sourceId: i.sourceId,
-              pairId: i.pairId as PairId,
-            }))
-          : [],
-      }));
+    const lists = parsed.lists.map(normalizeList).filter((l): l is WatchList => l !== null);
     if (!lists.length) return defaultWatchState();
     const activeId = lists.some((l) => l.id === parsed.activeId) ? (parsed.activeId as string) : lists[0]!.id;
     return { lists, activeId };
@@ -89,6 +109,10 @@ export function saveWatchState(state: WatchState): void {
 
 function itemKey(item: WatchItem): string {
   return `${item.sourceId}:${item.pairId}`;
+}
+
+export function allListItems(list: WatchList): WatchItem[] {
+  return [...list.items, ...list.sections.flatMap((s) => s.items)];
 }
 
 function formatPrice(price: number): string {
@@ -109,6 +133,8 @@ export class WatchlistPanel {
   private quotes = new Map<string, Ticker>();
   private timer: number | null = null;
   private inflight = 0;
+  private menu: HTMLElement | null = null;
+  private dragging: { kind: 'item' | 'section'; id: string } | null = null;
 
   constructor(
     private readonly root: HTMLElement,
@@ -120,9 +146,19 @@ export class WatchlistPanel {
     this.root.addEventListener('click', (ev) => this.onClick(ev));
     this.root.addEventListener('change', (ev) => this.onChange(ev));
     this.root.addEventListener('submit', (ev) => this.onSubmit(ev));
+    this.root.addEventListener('contextmenu', (ev) => this.onContext(ev));
+    this.root.addEventListener('dblclick', (ev) => this.onDblClick(ev));
+    this.root.addEventListener('dragstart', (ev) => this.onDragStart(ev));
+    this.root.addEventListener('dragover', (ev) => this.onDragOver(ev));
+    this.root.addEventListener('drop', (ev) => this.onDrop(ev));
+    this.root.addEventListener('dragend', () => {
+      this.dragging = null;
+      this.clearDragOver();
+    });
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') void this.refreshQuotes();
     });
+    document.addEventListener('click', () => this.hideMenu());
     this.render();
     void this.refreshQuotes();
     this.startTimer();
@@ -130,8 +166,8 @@ export class WatchlistPanel {
   }
 
   private notifyKrakenPairs(): void {
-    const pairs = this.activeList()
-      .items.filter((i) => i.sourceId === 'kraken')
+    const pairs = allListItems(this.activeList())
+      .filter((i) => i.sourceId === 'kraken')
       .map((i) => i.pairId);
     this.onKrakenPairs?.([...new Set(pairs)]);
   }
@@ -139,7 +175,11 @@ export class WatchlistPanel {
   getState(): WatchState {
     return {
       activeId: this.state.activeId,
-      lists: this.state.lists.map((l) => ({ ...l, items: l.items.map((i) => ({ ...i })) })),
+      lists: this.state.lists.map((l) => ({
+        ...l,
+        items: l.items.map((i) => ({ ...i })),
+        sections: l.sections.map((s) => ({ ...s, items: s.items.map((i) => ({ ...i })) })),
+      })),
     };
   }
 
@@ -148,13 +188,13 @@ export class WatchlistPanel {
   }
 
   hasItem(sourceId: string, pairId: PairId): boolean {
-    return this.activeList().items.some((i) => i.sourceId === sourceId && i.pairId === pairId);
+    return allListItems(this.activeList()).some((i) => i.sourceId === sourceId && i.pairId === pairId);
   }
 
   addItem(sourceId: string, pairId: PairId): boolean {
     if (!isPairId(String(pairId))) return false;
     const list = this.activeList();
-    if (list.items.some((i) => i.sourceId === sourceId && i.pairId === pairId)) return false;
+    if (allListItems(list).some((i) => i.sourceId === sourceId && i.pairId === pairId)) return false;
     list.items.push({ sourceId, pairId });
     this.persist();
     this.render();
@@ -164,9 +204,11 @@ export class WatchlistPanel {
 
   removeItem(sourceId: string, pairId: PairId): boolean {
     const list = this.activeList();
-    const before = list.items.length;
-    list.items = list.items.filter((i) => !(i.sourceId === sourceId && i.pairId === pairId));
-    if (list.items.length === before) return false;
+    const key = `${sourceId}:${pairId}`;
+    const before = allListItems(list).length;
+    list.items = list.items.filter((i) => itemKey(i) !== key);
+    for (const s of list.sections) s.items = s.items.filter((i) => itemKey(i) !== key);
+    if (allListItems(list).length === before) return false;
     this.persist();
     this.render();
     return true;
@@ -204,7 +246,7 @@ export class WatchlistPanel {
   }
 
   private async refreshQuotes(): Promise<void> {
-    const items = this.activeList().items;
+    const items = allListItems(this.activeList());
     const seq = ++this.inflight;
     let cursor = 0;
     const worker = async (): Promise<void> => {
@@ -242,8 +284,217 @@ export class WatchlistPanel {
     }
   }
 
+  private addSection(): void {
+    const list = this.activeList();
+    list.sections.push({ id: newId(), name: 'Section', collapsed: false, items: [] });
+    this.persist();
+    this.render();
+  }
+
+  private removeSection(id: string): void {
+    const list = this.activeList();
+    const sec = list.sections.find((s) => s.id === id);
+    if (!sec) return;
+    if (!window.confirm(`Delete section “${sec.name}”? Symbols will be moved back to the list.`)) return;
+    list.items.push(...sec.items);
+    list.sections = list.sections.filter((s) => s.id !== id);
+    this.persist();
+    this.render();
+  }
+
+  private hideMenu(): void {
+    this.menu?.remove();
+    this.menu = null;
+  }
+
+  private showMenu(x: number, y: number): void {
+    this.hideMenu();
+    const menu = document.createElement('div');
+    menu.className = 'watch-menu';
+    menu.setAttribute('role', 'menu');
+    menu.innerHTML = `<button type="button" role="menuitem" data-watch-action="add-section">Add section</button>`;
+    menu.style.left = `${Math.min(x, window.innerWidth - 160)}px`;
+    menu.style.top = `${Math.min(y, window.innerHeight - 48)}px`;
+    document.body.append(menu);
+    this.menu = menu;
+    menu.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const act = (ev.target as HTMLElement).closest<HTMLElement>('[data-watch-action]')?.dataset.watchAction;
+      this.hideMenu();
+      if (act === 'add-section') this.addSection();
+    });
+  }
+
+  private onContext(ev: MouseEvent): void {
+    ev.preventDefault();
+    this.showMenu(ev.clientX, ev.clientY);
+  }
+
+  private onDblClick(ev: Event): void {
+    const nameEl = (ev.target as HTMLElement).closest<HTMLElement>('[data-watch-section-name]');
+    if (!nameEl) return;
+    ev.preventDefault();
+    const id = nameEl.dataset.watchSectionName;
+    const sec = this.activeList().sections.find((s) => s.id === id);
+    if (!sec) return;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'watch-sec-input';
+    input.value = sec.name;
+    nameEl.replaceWith(input);
+    input.focus();
+    input.select();
+    const commit = (): void => {
+      const next = input.value.trim() || 'Section';
+      sec.name = next;
+      this.persist();
+      this.render();
+    };
+    input.addEventListener('blur', commit, { once: true });
+    input.addEventListener('keydown', (ke) => {
+      if (ke.key === 'Enter') input.blur();
+      if (ke.key === 'Escape') {
+        input.removeEventListener('blur', commit);
+        this.render();
+      }
+    });
+  }
+
+  private onDragStart(ev: DragEvent): void {
+    const handleSec = (ev.target as HTMLElement).closest<HTMLElement>('[data-watch-section-drag]');
+    const row = (ev.target as HTMLElement).closest<HTMLElement>('.watch-row');
+    const dt = ev.dataTransfer;
+    if (!dt) return;
+    if (handleSec) {
+      this.dragging = { kind: 'section', id: handleSec.dataset.watchSectionDrag ?? '' };
+      dt.setData('text/plain', `section:${this.dragging.id}`);
+      dt.effectAllowed = 'move';
+      ev.stopPropagation();
+      return;
+    }
+    if (row?.dataset.watchKey) {
+      this.dragging = { kind: 'item', id: row.dataset.watchKey };
+      dt.setData('text/plain', `item:${row.dataset.watchKey}`);
+      dt.effectAllowed = 'move';
+    }
+  }
+
+  private onDragOver(ev: DragEvent): void {
+    if (!this.dragging) return;
+    ev.preventDefault();
+    if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
+    this.clearDragOver();
+    const target =
+      this.dragging.kind === 'section'
+        ? (ev.target as HTMLElement).closest('.watch-section')
+        : (ev.target as HTMLElement).closest('.watch-row, .watch-section, .watch-loose');
+    target?.classList.add('is-drag-over');
+  }
+
+  private clearDragOver(): void {
+    this.root.querySelectorAll('.is-drag-over').forEach((el) => el.classList.remove('is-drag-over'));
+  }
+
+  private takeItem(key: string): WatchItem | null {
+    const list = this.activeList();
+    const fromLoose = list.items.findIndex((i) => itemKey(i) === key);
+    if (fromLoose >= 0) {
+      const [item] = list.items.splice(fromLoose, 1);
+      return item ?? null;
+    }
+    for (const s of list.sections) {
+      const idx = s.items.findIndex((i) => itemKey(i) === key);
+      if (idx >= 0) {
+        const [item] = s.items.splice(idx, 1);
+        return item ?? null;
+      }
+    }
+    return null;
+  }
+
+  private onDrop(ev: DragEvent): void {
+    ev.preventDefault();
+    this.clearDragOver();
+    const list = this.activeList();
+    const drag = this.dragging;
+    this.dragging = null;
+    const text = ev.dataTransfer?.getData('text/plain') ?? '';
+    const sectionId = drag?.kind === 'section' ? drag.id : text.startsWith('section:') ? text.slice(8) : '';
+    const itemKeyData = drag?.kind === 'item' ? drag.id : text.startsWith('item:') ? text.slice(5) : '';
+    if (sectionId) {
+      const target = (ev.target as HTMLElement).closest<HTMLElement>('.watch-section');
+      const toId = target?.dataset.watchSection;
+      const from = list.sections.findIndex((s) => s.id === sectionId);
+      if (from < 0) return;
+      let to = toId ? list.sections.findIndex((s) => s.id === toId) : list.sections.length - 1;
+      if (to < 0) to = list.sections.length - 1;
+      if (from === to) return;
+      const [moved] = list.sections.splice(from, 1);
+      if (!moved) return;
+      if (from < to) to -= 1;
+      list.sections.splice(to, 0, moved);
+      this.persist();
+      this.render();
+      return;
+    }
+    if (!itemKeyData) return;
+    const item = this.takeItem(itemKeyData);
+    if (!item) return;
+    const row = (ev.target as HTMLElement).closest<HTMLElement>('.watch-row');
+    const sectionEl = (ev.target as HTMLElement).closest<HTMLElement>('.watch-section');
+    if (row?.dataset.watchKey) {
+      const destSection = row.dataset.section || '';
+      const dest = destSection ? list.sections.find((s) => s.id === destSection)?.items : list.items;
+      if (!dest) {
+        list.items.push(item);
+      } else {
+        const idx = dest.findIndex((i) => itemKey(i) === row.dataset.watchKey);
+        dest.splice(idx >= 0 ? idx : dest.length, 0, item);
+      }
+    } else if (sectionEl?.dataset.watchSection) {
+      const sec = list.sections.find((s) => s.id === sectionEl.dataset.watchSection);
+      (sec?.items ?? list.items).push(item);
+    } else {
+      list.items.push(item);
+    }
+    this.persist();
+    this.render();
+  }
+
   private onClick(ev: Event): void {
     const t = ev.target as HTMLElement;
+    const menuBtn = t.closest<HTMLButtonElement>('[data-watch-action="list-menu"]');
+    if (menuBtn) {
+      ev.stopPropagation();
+      const rect = menuBtn.getBoundingClientRect();
+      this.showMenu(rect.left, rect.bottom + 4);
+      return;
+    }
+    const addSection = t.closest<HTMLButtonElement>('[data-watch-action="add-section"]');
+    if (addSection) {
+      this.addSection();
+      return;
+    }
+    const toggle = t.closest<HTMLButtonElement>('[data-watch-action="toggle-section"]');
+    if (toggle) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const id = toggle.dataset.watchSectionId;
+      const sec = this.activeList().sections.find((s) => s.id === id);
+      if (sec) {
+        sec.collapsed = !sec.collapsed;
+        this.persist();
+        this.render();
+      }
+      return;
+    }
+    const delSec = t.closest<HTMLButtonElement>('[data-watch-action="remove-section"]');
+    if (delSec) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (delSec.dataset.watchSectionId) this.removeSection(delSec.dataset.watchSectionId);
+      return;
+    }
     const removeList = t.closest<HTMLButtonElement>('[data-watch-action="remove-list"]');
     if (removeList) {
       if (this.state.lists.length <= 1) return;
@@ -264,22 +515,21 @@ export class WatchlistPanel {
     if (addList) {
       const name = window.prompt('New list name', 'New list');
       if (!name || !name.trim()) return;
-      const list: WatchList = { id: newId(), name: name.trim(), items: [] };
+      const list: WatchList = { id: newId(), name: name.trim(), items: [], sections: [] };
       this.state.lists.push(list);
       this.state.activeId = list.id;
       this.persist();
       this.render();
       return;
     }
-    const del = t.closest<HTMLButtonElement>('[data-watch-remove]');
+    const del = t.closest<HTMLElement>('[data-watch-remove]');
     if (del) {
       ev.preventDefault();
       ev.stopPropagation();
       const key = del.getAttribute('data-watch-remove');
-      const list = this.activeList();
-      list.items = list.items.filter((i) => itemKey(i) !== key);
-      this.persist();
-      this.render();
+      if (!key) return;
+      const [sourceId, pairId] = key.split(':');
+      if (sourceId && pairId) this.removeItem(sourceId, pairId as PairId);
       return;
     }
     const row = t.closest<HTMLElement>('.watch-row');
@@ -304,36 +554,49 @@ export class WatchlistPanel {
     ev.preventDefault();
   }
 
+  private rowHtml(item: WatchItem, sectionId: string): string {
+    const src = getSource(item.sourceId);
+    const quote = this.quotes.get(itemKey(item));
+    const label = formatPairLabel(item.sourceId, item.pairId);
+    const exch = src?.name ?? item.sourceId;
+    const last = quote ? formatPrice(quote.last) : '…';
+    const chg = quote ? formatPct(quote.change24hPct) : '…';
+    const chgClass =
+      quote && quote.change24hPct !== null && quote.change24hPct !== 0 ? (quote.change24hPct > 0 ? ' up' : ' down') : '';
+    const key = itemKey(item);
+    return `<button type="button" class="watch-row" draggable="true" data-watch-key="${key}" data-section="${sectionId}" data-source="${item.sourceId}" data-pair="${item.pairId}">
+      <span class="watch-handle" aria-hidden="true"></span>
+      <span class="watch-sym">${escapeHtml(label)}</span>
+      <span class="watch-ex">${escapeHtml(exch)}</span>
+      <span class="watch-last">${last}</span>
+      <span class="watch-chg${chgClass}">${chg}</span>
+      <span class="watch-del" data-watch-remove="${key}" title="Remove from list" role="button">×</span>
+    </button>`;
+  }
+
   private render(): void {
     const list = this.activeList();
     const canDeleteList = this.state.lists.length > 1;
     const listOpts = this.state.lists
       .map((l) => `<option value="${l.id}"${l.id === list.id ? ' selected' : ''}>${escapeHtml(l.name)}</option>`)
       .join('');
-    const rows = list.items
-      .map((item) => {
-        const src = getSource(item.sourceId);
-        const quote = this.quotes.get(itemKey(item));
-        const label = PAIR_LABELS[item.pairId] ?? formatPairLabel(item.sourceId, item.pairId);
-        const exch = item.sourceId === 'yahoo' ? 'Yahoo' : (src?.name ?? item.sourceId);
-        const last = quote ? formatPrice(quote.last) : '…';
-        const chg = quote ? formatPct(quote.change24hPct) : '…';
-        const chgClass =
-          quote && quote.change24hPct !== null && quote.change24hPct !== 0
-            ? quote.change24hPct > 0
-              ? ' up'
-              : ' down'
-            : '';
-        const key = itemKey(item);
-        return `<button type="button" class="watch-row" data-watch-key="${key}" data-source="${item.sourceId}" data-pair="${item.pairId}">
-          <span class="watch-sym">${escapeHtml(label)}</span>
-          <span class="watch-ex">${escapeHtml(exch)}</span>
-          <span class="watch-last">${last}</span>
-          <span class="watch-chg${chgClass}">${chg}</span>
-          <span class="watch-del" data-watch-remove="${key}" title="Remove from list" role="button">×</span>
-        </button>`;
+    const loose = list.items.map((item) => this.rowHtml(item, '')).join('');
+    const sections = list.sections
+      .map((sec) => {
+        const rows = sec.collapsed ? '' : sec.items.map((item) => this.rowHtml(item, sec.id)).join('');
+        const empty = !sec.collapsed && !sec.items.length ? '<p class="watch-empty watch-sec-empty">Drop symbols here.</p>' : '';
+        return `<div class="watch-section" data-watch-section="${sec.id}">
+          <div class="watch-sec-head" data-watch-section-drag="${sec.id}" draggable="true">
+            <button type="button" class="watch-sec-toggle" data-watch-action="toggle-section" data-watch-section-id="${sec.id}" title="${sec.collapsed ? 'Expand' : 'Collapse'}" aria-expanded="${sec.collapsed ? 'false' : 'true'}">${sec.collapsed ? '▸' : '▾'}</button>
+            <span class="watch-sec-name" data-watch-section-name="${sec.id}">${escapeHtml(sec.name)}</span>
+            <span class="watch-sec-count">${sec.items.length}</span>
+            <button type="button" class="watch-sec-del" data-watch-action="remove-section" data-watch-section-id="${sec.id}" title="Delete section" aria-label="Delete section">×</button>
+          </div>
+          ${rows}${empty}
+        </div>`;
       })
       .join('');
+    const body = `${loose || (!list.sections.length ? '<p class="watch-empty">This list is empty. Click + to add a symbol.</p>' : '')}<div class="watch-loose"></div>${sections}`;
     this.notifyKrakenPairs();
     this.root.innerHTML = `
       <div class="watch-head">
@@ -342,10 +605,11 @@ export class WatchlistPanel {
           <select id="watch-list-select" title="List" aria-label="Watchlist">${listOpts}</select>
           <button type="button" data-watch-action="add-symbol" title="Add symbol" aria-label="Add symbol">+</button>
           <button type="button" data-watch-action="add-list" title="New list" aria-label="New list">New</button>
+          <button type="button" data-watch-action="list-menu" title="List menu" aria-label="List menu" aria-haspopup="menu">⋯</button>
           <button type="button" data-watch-action="remove-list" title="Remove list" aria-label="Remove list" ${canDeleteList ? '' : 'disabled'}>−</button>
         </div>
       </div>
-      <div class="watch-body">${rows || '<p class="watch-empty">This list is empty. Click + to add a symbol.</p>'}</div>
+      <div class="watch-body">${body}</div>
     `;
   }
 }

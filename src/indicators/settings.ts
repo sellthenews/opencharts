@@ -7,7 +7,13 @@ import {
   DEFAULT_INDICATORS,
   INDICATOR_STORAGE_KEY,
 } from './types';
-import type { IndicatorInstance, IndicatorKind, IndicatorParams, IndicatorSettings } from './types';
+import type { IndicatorInstance, IndicatorKind, IndicatorParams, IndicatorSettings, IndicatorStyle } from './types';
+
+export function indicatorStorageKey(sourceId: string, pairId: string): string {
+  return `${INDICATOR_STORAGE_KEY}:${sourceId}:${pairId}`;
+}
+
+const FAVORITES_KEY = 'opencharts:indicator-favorites';
 
 function clamp(n: number, min: number, max: number, fallback: number): number {
   if (!Number.isFinite(n)) return fallback;
@@ -27,11 +33,34 @@ export function clampParams(kind: IndicatorKind, params: IndicatorParams): Indic
   const meta = CATALOG_BY_KIND[kind];
   const out: IndicatorParams = { ...meta.defaults };
   for (const field of meta.fields) {
+    if (field.type === 'select') {
+      const raw = String(params[field.key] ?? '');
+      const allowed = field.options?.some((o) => o.value === raw);
+      (out as Record<string, string | number | undefined>)[field.key] = allowed
+        ? raw
+        : (field.options?.[0]?.value ?? (meta.defaults[field.key] as string | undefined) ?? '');
+      continue;
+    }
     const raw = Number(params[field.key]);
     const fallback = Number(meta.defaults[field.key]);
-    out[field.key] = field.step < 1 ? clampFloat(raw, field.min, field.max, fallback) : clamp(raw, field.min, field.max, fallback);
+    const min = field.min ?? 0;
+    const max = field.max ?? 1e9;
+    const step = field.step ?? 1;
+    (out as Record<string, string | number | undefined>)[field.key] = step < 1
+      ? clampFloat(raw, min, max, fallback)
+      : clamp(raw, min, max, fallback);
   }
+  if (typeof params.anchor === 'number' && Number.isFinite(params.anchor)) out.anchor = params.anchor;
+  if (typeof params.end === 'number' && Number.isFinite(params.end)) out.end = params.end;
   return out;
+}
+
+export function clampStyle(style: IndicatorStyle | undefined): IndicatorStyle | undefined {
+  if (!style) return undefined;
+  const out: IndicatorStyle = {};
+  if (typeof style.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(style.color)) out.color = style.color;
+  if (typeof style.width === 'number' && style.width >= 1 && style.width <= 4) out.width = Math.round(style.width);
+  return out.color || out.width ? out : undefined;
 }
 
 export function createInstance(kind: IndicatorKind, params?: IndicatorParams, visible = true): IndicatorInstance {
@@ -44,7 +73,52 @@ function normalizeInstance(raw: unknown): IndicatorInstance | null {
   if (!r.kind || !(r.kind in CATALOG_BY_KIND)) return null;
   const kind = r.kind;
   const id = typeof r.id === 'string' && r.id ? r.id : newIndicatorId();
-  return { id, kind, visible: r.visible !== false, params: clampParams(kind, r.params ?? {}) };
+  return { id, kind, visible: r.visible !== false, params: clampParams(kind, r.params ?? {}), style: clampStyle(r.style) };
+}
+
+export interface StoredIndicators {
+  items: IndicatorInstance[];
+  panes?: number[];
+}
+
+function parseStored(raw: string): StoredIndicators | null {
+  try {
+    const parsed = JSON.parse(raw) as { v?: number; items?: unknown; panes?: unknown } | IndicatorSettings;
+    if (parsed && typeof parsed === 'object' && (parsed as { v?: number }).v === 2 && Array.isArray((parsed as { items?: unknown }).items)) {
+      const rec = parsed as { items: unknown[]; panes?: unknown };
+      const items = rec.items.map(normalizeInstance).filter((x): x is IndicatorInstance => x !== null);
+      const panes = Array.isArray(rec.panes)
+        ? rec.panes.filter((n): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0)
+        : undefined;
+      return { items: items.length ? items : defaultItems(), panes };
+    }
+    return { items: fromLegacy(parsed) };
+  } catch {
+    return null;
+  }
+}
+
+export function loadIndicatorFavorites(): IndicatorKind[] {
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((k): k is IndicatorKind => typeof k === 'string' && k in CATALOG_BY_KIND);
+  } catch {
+    return [];
+  }
+}
+
+export function saveIndicatorFavorites(kinds: IndicatorKind[]): void {
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify(kinds));
+}
+
+export function toggleIndicatorFavorite(kind: IndicatorKind): IndicatorKind[] {
+  const cur = loadIndicatorFavorites();
+  const next = cur.includes(kind) ? cur.filter((k) => k !== kind) : [...cur, kind];
+  saveIndicatorFavorites(next);
+  return next;
 }
 
 function normalizeLegacy(raw: unknown): IndicatorSettings {
@@ -104,21 +178,30 @@ function defaultItems(): IndicatorInstance[] {
   return [createInstance('volume')];
 }
 
-export function loadIndicatorSettings(): IndicatorInstance[] {
+export function loadIndicatorSettings(sourceId?: string, pairId?: string): StoredIndicators {
   try {
-    const raw = localStorage.getItem(INDICATOR_STORAGE_KEY);
-    if (!raw) return defaultItems();
-    const parsed = JSON.parse(raw) as { v?: number; items?: unknown } | IndicatorSettings;
-    if (parsed && typeof parsed === 'object' && (parsed as { v?: number }).v === 2 && Array.isArray((parsed as { items?: unknown }).items)) {
-      const items = (parsed as { items: unknown[] }).items.map(normalizeInstance).filter((x): x is IndicatorInstance => x !== null);
-      return items.length ? items : defaultItems();
+    if (sourceId && pairId) {
+      const raw = localStorage.getItem(indicatorStorageKey(sourceId, pairId));
+      if (raw) {
+        const parsed = parseStored(raw);
+        if (parsed) return parsed;
+      }
     }
-    return fromLegacy(parsed);
+    const raw = localStorage.getItem(INDICATOR_STORAGE_KEY);
+    if (!raw) return { items: defaultItems() };
+    return parseStored(raw) ?? { items: defaultItems() };
   } catch {
-    return defaultItems();
+    return { items: defaultItems() };
   }
 }
 
-export function saveIndicatorSettings(items: IndicatorInstance[]): void {
-  localStorage.setItem(INDICATOR_STORAGE_KEY, JSON.stringify({ v: 2, items }));
+export function saveIndicatorSettings(
+  items: IndicatorInstance[],
+  sourceId?: string,
+  pairId?: string,
+  panes?: number[],
+): void {
+  const payload = JSON.stringify({ v: 2, items, panes });
+  if (sourceId && pairId) localStorage.setItem(indicatorStorageKey(sourceId, pairId), payload);
+  else localStorage.setItem(INDICATOR_STORAGE_KEY, payload);
 }

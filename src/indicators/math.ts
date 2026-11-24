@@ -124,18 +124,139 @@ export function wma(candles: Candle[], period: number): LinePoint[] {
   return out;
 }
 
+function typicalPrice(c: Candle): number {
+  return (c.high + c.low + c.close) / 3;
+}
+
 /** Cumulative VWAP from the first candle (typical price = (H+L+C)/3). */
 export function vwap(candles: Candle[]): LinePoint[] {
+  return anchoredVwap(candles, 0);
+}
+
+/** Session VWAP, reset at each UTC day. Typical price (H+L+C)/3. */
+export function sessionVwap(candles: Candle[]): LinePoint[] {
   const out: LinePoint[] = [];
   let pv = 0;
   let vol = 0;
+  let day = Number.NaN;
   for (const c of candles) {
-    const tp = (c.high + c.low + c.close) / 3;
-    pv += tp * c.volume;
+    const d = Math.floor(c.time / 86400);
+    if (d !== day) {
+      day = d;
+      pv = 0;
+      vol = 0;
+    }
+    pv += typicalPrice(c) * c.volume;
     vol += c.volume;
     if (vol > 0) out.push({ time: c.time, value: pv / vol });
   }
   return out;
+}
+
+/** Anchored VWAP from the first candle with time >= fromTime. */
+export function anchoredVwap(candles: Candle[], fromTime = 0): LinePoint[] {
+  const out: LinePoint[] = [];
+  let pv = 0;
+  let vol = 0;
+  for (const c of candles) {
+    if (c.time < fromTime) continue;
+    pv += typicalPrice(c) * c.volume;
+    vol += c.volume;
+    if (vol > 0) out.push({ time: c.time, value: pv / vol });
+  }
+  return out;
+}
+
+/** Simple moving average of volume. */
+export function smaVolume(candles: Candle[], period: number): LinePoint[] {
+  if (period < 1 || candles.length < period) return [];
+  const out: LinePoint[] = [];
+  let sum = 0;
+  for (let i = 0; i < candles.length; i++) {
+    sum += candles[i]!.volume;
+    if (i >= period) sum -= candles[i - period]!.volume;
+    if (i >= period - 1) out.push({ time: candles[i]!.time, value: sum / period });
+  }
+  return out;
+}
+
+export interface VolumeProfileBin {
+  low: number;
+  high: number;
+  price: number;
+  volume: number;
+}
+
+export interface VolumeProfileResult {
+  bins: VolumeProfileBin[];
+  poc: number;
+  vah: number;
+  val: number;
+  total: number;
+}
+
+/**
+ * Volume profile for candles in [fromTime, toTime]. Volume is spread evenly
+ * across the bins touched by each candle's high–low range. Value area is 70%
+ * of volume around the point of control.
+ */
+export function volumeProfile(
+  candles: Candle[],
+  fromTime: number,
+  toTime: number,
+  rows = 24,
+): VolumeProfileResult | null {
+  const n = Math.max(2, Math.min(200, Math.round(rows)));
+  const slice = candles.filter((c) => c.time >= fromTime && c.time <= toTime);
+  if (!slice.length) return null;
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const c of slice) {
+    lo = Math.min(lo, c.low);
+    hi = Math.max(hi, c.high);
+  }
+  if (!(hi > lo) || !Number.isFinite(lo) || !Number.isFinite(hi)) return null;
+  const span = hi - lo;
+  const bins: VolumeProfileBin[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = lo + (span * i) / n;
+    const b = lo + (span * (i + 1)) / n;
+    bins.push({ low: a, high: b, price: (a + b) / 2, volume: 0 });
+  }
+  for (const c of slice) {
+    const i0 = Math.max(0, Math.min(n - 1, Math.floor(((c.low - lo) / span) * n)));
+    const i1 = Math.max(0, Math.min(n - 1, Math.floor(((Math.min(c.high, hi) - lo) / span) * n)));
+    const count = i1 - i0 + 1;
+    if (count <= 0 || c.volume === 0) continue;
+    const share = c.volume / count;
+    for (let i = i0; i <= i1; i++) bins[i]!.volume += share;
+  }
+  const total = bins.reduce((s, b) => s + b.volume, 0);
+  if (total <= 0) return null;
+  let pocIdx = 0;
+  for (let i = 1; i < n; i++) if (bins[i]!.volume > bins[pocIdx]!.volume) pocIdx = i;
+  let left = pocIdx;
+  let right = pocIdx;
+  let covered = bins[pocIdx]!.volume;
+  const target = total * 0.7;
+  while (covered < target && (left > 0 || right < n - 1)) {
+    const takeLeft = left > 0 ? bins[left - 1]!.volume : -1;
+    const takeRight = right < n - 1 ? bins[right + 1]!.volume : -1;
+    if (takeRight > takeLeft) {
+      right += 1;
+      covered += bins[right]!.volume;
+    } else {
+      left -= 1;
+      covered += bins[left]!.volume;
+    }
+  }
+  return {
+    bins,
+    poc: bins[pocIdx]!.price,
+    vah: bins[right]!.high,
+    val: bins[left]!.low,
+    total,
+  };
 }
 
 export function stochastic(candles: Candle[], kPeriod = 14, dPeriod = 3): { time: number; k: number; d: number }[] {
@@ -241,12 +362,23 @@ export interface PivotLevels {
   s3: number;
 }
 
-/** Classic floor pivots from the previous completed candle. */
-export function pivotPoints(candles: Candle[]): PivotLevels | null {
+/** Classic or Fibonacci floor pivots from the previous completed candle. */
+export function pivotPoints(candles: Candle[], mode: 'standard' | 'fib' = 'standard'): PivotLevels | null {
   const src = candles.length >= 2 ? candles[candles.length - 2]! : candles[candles.length - 1];
   if (!src) return null;
   const p = (src.high + src.low + src.close) / 3;
   const range = src.high - src.low;
+  if (mode === 'fib') {
+    return {
+      p,
+      r1: p + 0.382 * range,
+      s1: p - 0.382 * range,
+      r2: p + 0.618 * range,
+      s2: p - 0.618 * range,
+      r3: p + range,
+      s3: p - range,
+    };
+  }
   return {
     p,
     r1: 2 * p - src.low,

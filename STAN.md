@@ -256,3 +256,11 @@ Zrzut (lokalny, w `.gitignore`): `screenshots-test/eksport-import-menu.png`.
 
 - `kineticScroll` (mysz i touch) jest wyłączony, więc wykres nie „pływa” po puszczeniu przycisku.
 - Ctrl (Cmd na Macu) tymczasowo włącza magnes do O/H/L/C; gdy stały magnes jest włączony, ten sam klawisz go wyłącza.
+
+## Wskaźniki ETAP 1 i sekcje watchlisty (24 XI 2026)
+
+- Okno Indicators: wyszukiwarka, kategorie, ulubione (gwiazdki). Ustawienia parametrów, koloru i grubości, ukryj/usuń, wiele instancji. Nakładki na cenie i panele oscylatorów z możliwością zmiany wysokości. Zapis per wykres `opencharts:indicators:<giełda>:<symbol>` (migracja ze starego `opencharts:indicators`).
+- Zestaw ETAP 1: SMA, EMA, WMA, VWAP sesyjny i anchored, Bollinger, RSI, MACD, Stochastic, Stoch RSI, ATR, ADX/DMI, Ichimoku, Parabolic SAR, SuperTrend, OBV, Volume + MA, Volume Profile (Visible Range i Fixed Range), Pivot Points (Standard/Fib), Keltner, Donchian, CCI, MFI, Williams %R, ROC/Momentum, Aroon, CMF.
+- Watchlista: przeciąganie kolejności i między sekcjami, Add section (menu listy i prawy przycisk), nazwa dwuklikiem, zwijanie, przeciąganie sekcji, usuwanie sekcji z potwierdzeniem (aktywa wracają do listy bez sekcji). Migracja istniejącej listy, klucz `opencharts:watchlists` (objęty Export/Import).
+
+Zrzuty (lokalne, w `.gitignore`): `screenshots-test/wskazniki-okno.png`, `screenshots-test/wskazniki-wykres.png`, `screenshots-test/watchlista-sekcje.png`.

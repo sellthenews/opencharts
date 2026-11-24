@@ -76,6 +76,9 @@ export type IndicatorKind =
   | 'atr'
   | 'volume'
   | 'vwap'
+  | 'vwapAnchor'
+  | 'vpvr'
+  | 'vpfr'
   | 'stochRsi'
   | 'cci'
   | 'sar'
@@ -102,6 +105,19 @@ export interface IndicatorParams {
   signal?: number;
   start?: number;
   max?: number;
+  mode?: string;
+  anchor?: number;
+  end?: number;
+  rows?: number;
+  tenkan?: number;
+  kijun?: number;
+  senkou?: number;
+  shift?: number;
+}
+
+export interface IndicatorStyle {
+  color?: string;
+  width?: number;
 }
 
 export interface IndicatorInstance {
@@ -109,6 +125,7 @@ export interface IndicatorInstance {
   kind: IndicatorKind;
   visible: boolean;
   params: IndicatorParams;
+  style?: IndicatorStyle;
 }
 
 export type IndicatorFieldKey = keyof IndicatorParams;
@@ -116,9 +133,11 @@ export type IndicatorFieldKey = keyof IndicatorParams;
 export interface IndicatorField {
   key: IndicatorFieldKey;
   label: string;
-  min: number;
-  max: number;
-  step: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  type?: 'number' | 'select';
+  options?: { value: string; label: string }[];
 }
 
 export interface IndicatorMeta {
@@ -147,7 +166,21 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
   { kind: 'sma', name: 'Simple Moving Average', short: 'SMA', aliases: ['ma', 'sma'], group: 'trend', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
   { kind: 'ema', name: 'Exponential Moving Average', short: 'EMA', aliases: ['ema'], group: 'trend', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
   { kind: 'wma', name: 'Weighted Moving Average', short: 'WMA', aliases: ['wma'], group: 'trend', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
-  { kind: 'ichimoku', name: 'Ichimoku', short: 'Ichimoku', aliases: ['cloud', 'kumo', 'ichimoku'], group: 'trend', defaults: {}, fields: [], pane: 'price' },
+  {
+    kind: 'ichimoku',
+    name: 'Ichimoku',
+    short: 'Ichimoku',
+    aliases: ['cloud', 'kumo', 'ichimoku'],
+    group: 'trend',
+    defaults: { tenkan: 9, kijun: 26, senkou: 52, shift: 26 },
+    fields: [
+      { key: 'tenkan', label: 'Tenkan', min: 2, max: 200, step: 1 },
+      { key: 'kijun', label: 'Kijun', min: 2, max: 200, step: 1 },
+      { key: 'senkou', label: 'Senkou B', min: 2, max: 400, step: 1 },
+      { key: 'shift', label: 'Displacement', min: 1, max: 200, step: 1 },
+    ],
+    pane: 'price',
+  },
   {
     kind: 'supertrend',
     name: 'Supertrend',
@@ -158,7 +191,19 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     fields: [periodField('ATR Period'), { key: 'multiplier', label: 'Multiplier', min: 0.5, max: 10, step: 0.1 }],
     pane: 'price',
   },
-  { kind: 'pivots', name: 'Pivot Points', short: 'Pivot Points', aliases: ['pivot', 'pp', 'pivots'], group: 'trend', defaults: {}, fields: [], pane: 'price' },
+  {
+    kind: 'pivots',
+    name: 'Pivot Points',
+    short: 'Pivot Points',
+    aliases: ['pivot', 'pp', 'pivots', 'fib pivot'],
+    group: 'trend',
+    defaults: { mode: 'standard' },
+    fields: [{ key: 'mode', label: 'Type', type: 'select', options: [
+      { value: 'standard', label: 'Standard' },
+      { value: 'fib', label: 'Fibonacci' },
+    ] }],
+    pane: 'price',
+  },
   { kind: 'aroon', name: 'Aroon', short: 'Aroon', aliases: ['aroon'], group: 'trend', defaults: { period: 25 }, fields: [periodField()], pane: 'osc' },
   { kind: 'adx', name: 'ADX/DMI', short: 'ADX', aliases: ['dmi', 'adx'], group: 'trend', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   { kind: 'rsi', name: 'RSI', short: 'RSI', aliases: ['rsi'], group: 'momentum', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
@@ -247,11 +292,32 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
   },
   { kind: 'donchian', name: 'Donchian Channels', short: 'Donchian', aliases: ['donchian', 'dc'], group: 'volatility', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
   { kind: 'atr', name: 'ATR', short: 'ATR', aliases: ['atr'], group: 'volatility', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
-  { kind: 'volume', name: 'Volume', short: 'Volume', aliases: ['volume', 'vol', 'wolumen'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
+  { kind: 'volume', name: 'Volume', short: 'Volume', aliases: ['volume', 'vol', 'wolumen', 'volume ma'], group: 'volume', defaults: { period: 20 }, fields: [periodField('MA Period')], pane: 'price' },
   { kind: 'cmf', name: 'Chaikin Money Flow', short: 'CMF', aliases: ['cmf', 'chaikin'], group: 'volume', defaults: { period: 20 }, fields: [periodField()], pane: 'osc' },
   { kind: 'mfi', name: 'Money Flow Index', short: 'MFI', aliases: ['mfi', 'money flow'], group: 'volume', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   { kind: 'obv', name: 'On-Balance Volume', short: 'OBV', aliases: ['obv', 'on balance'], group: 'volume', defaults: {}, fields: [], pane: 'osc' },
-  { kind: 'vwap', name: 'VWAP', short: 'VWAP', aliases: ['vwap'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
+  { kind: 'vwap', name: 'VWAP', short: 'VWAP', aliases: ['vwap', 'session vwap'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
+  { kind: 'vwapAnchor', name: 'Anchored VWAP', short: 'Anchored VWAP', aliases: ['avwap', 'anchored vwap'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
+  {
+    kind: 'vpvr',
+    name: 'Volume Profile Visible Range',
+    short: 'VPVR',
+    aliases: ['vpvr', 'volume profile', 'visible range'],
+    group: 'volume',
+    defaults: { rows: 24 },
+    fields: [{ key: 'rows', label: 'Rows', min: 8, max: 100, step: 1 }],
+    pane: 'price',
+  },
+  {
+    kind: 'vpfr',
+    name: 'Volume Profile Fixed Range',
+    short: 'VPFR',
+    aliases: ['vpfr', 'fixed range', 'volume profile'],
+    group: 'volume',
+    defaults: { rows: 24 },
+    fields: [{ key: 'rows', label: 'Rows', min: 8, max: 100, step: 1 }],
+    pane: 'price',
+  },
 ];
 
 export const CATALOG_BY_KIND: Record<IndicatorKind, IndicatorMeta> = Object.fromEntries(
@@ -294,6 +360,18 @@ export function formatIndicatorLabel(item: IndicatorInstance): string {
       return `Donchian ${fmtNum(p.period, 20)}`;
     case 'obv':
       return 'OBV';
+    case 'vwapAnchor':
+      return 'Anchored VWAP';
+    case 'vpvr':
+      return `VPVR ${fmtNum(p.rows, 24)}`;
+    case 'vpfr':
+      return `VPFR ${fmtNum(p.rows, 24)}`;
+    case 'volume':
+      return `Volume ${fmtNum(p.period, 20)}`;
+    case 'pivots':
+      return p.mode === 'fib' ? 'Pivots Fib' : 'Pivots';
+    case 'ichimoku':
+      return `Ichimoku ${fmtNum(p.tenkan, 9)} ${fmtNum(p.kijun, 26)} ${fmtNum(p.senkou, 52)}`;
     case 'mfi':
       return `MFI ${fmtNum(p.period, 14)}`;
     case 'willr':

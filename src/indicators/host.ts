@@ -2,19 +2,57 @@
 // Copyright (C) 2026 OpenCharts contributors
 
 import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
-import type { IChartApi, IPriceLine, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
+import type { IChartApi, IPriceLine, ISeriesApi, Time, UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../sources/types';
-import { adx, aroon, atr, bollinger, cci, cmf, donchian, ema, ichimoku, keltner, macd, mfi, momentum, obv, parabolicSar, pivotPoints, roc, rsi, sma, stochRsi, stochastic, supertrend, vwap, williamsR, wma } from './math';
+import {
+  adx,
+  anchoredVwap,
+  aroon,
+  atr,
+  bollinger,
+  cci,
+  cmf,
+  donchian,
+  ema,
+  ichimoku,
+  keltner,
+  macd,
+  mfi,
+  momentum,
+  obv,
+  parabolicSar,
+  pivotPoints,
+  roc,
+  rsi,
+  sessionVwap,
+  sma,
+  smaVolume,
+  stochRsi,
+  stochastic,
+  supertrend,
+  volumeProfile,
+  williamsR,
+  wma,
+} from './math';
 import { CATALOG_BY_KIND, type IndicatorInstance, type LinePoint } from './types';
 
-function lineBase(color: string) {
+function lineBase(color: string, width: 1 | 2 | 3 | 4 = 1) {
   return {
     color,
-    lineWidth: 1 as const,
+    lineWidth: width,
     priceLineVisible: false,
     lastValueVisible: false,
     crosshairMarkerVisible: false,
   };
+}
+
+function strokeWidth(item: IndicatorInstance): 1 | 2 | 3 | 4 {
+  const w = item.style?.width;
+  return w === 2 || w === 3 || w === 4 ? w : 1;
+}
+
+function strokeColor(item: IndicatorInstance, fallback: string): string {
+  return item.style?.color ?? fallback;
 }
 
 function asLine(points: LinePoint[]): { time: UTCTimestamp; value: number }[] {
@@ -48,6 +86,9 @@ const KIND_COLOR: Record<string, string> = {
   aroon: '#26a69a',
   volume: '#26a69a',
   pivots: '#787b86',
+  vwapAnchor: '#ffab40',
+  vpvr: '#5c6bc0',
+  vpfr: '#7e57c2',
 };
 
 const PALETTE = ['#42a5f5', '#26a69a', '#ab47bc', '#ff9800', '#ef5350', '#f5d76e', '#66bb6a', '#ff7043', '#26c6da', '#9c27b0'];
@@ -57,14 +98,47 @@ export type PaneMap = Record<string, number>;
 export class IndicatorHost {
   private series: (ISeriesApi<'Line'> | ISeriesApi<'Histogram'>)[] = [];
   private pivotLines: IPriceLine[] = [];
+  private lastData: Candle[] = [];
+  private lastItems: IndicatorInstance[] = [];
+  private vpCanvas: HTMLCanvasElement | null = null;
+  private wrap: HTMLElement | null = null;
+  private paneStretches: number[] | undefined;
+  private onPaneResize: ((stretches: number[]) => void) | null = null;
+  private paneObs: ResizeObserver | null = null;
+  private profileRange: { from: number; to: number } | null = null;
+  private resizeTimer = 0;
 
   constructor(
     private readonly chart: IChartApi,
     private readonly candles: ISeriesApi<'Candlestick'>,
   ) {}
 
+  setOverlay(canvas: HTMLCanvasElement, wrap: HTMLElement): void {
+    this.vpCanvas = canvas;
+    this.wrap = wrap;
+  }
+
+  setPaneStretches(values: number[] | undefined): void {
+    this.paneStretches = values;
+  }
+
+  setOnPaneResize(cb: (stretches: number[]) => void): void {
+    this.onPaneResize = cb;
+  }
+
+  getPaneStretches(): number[] {
+    return this.chart.panes().map((pane) => pane.getStretchFactor());
+  }
+
+  setVisibleTimeRange(from: number, to: number): void {
+    this.profileRange = { from, to };
+    this.paintProfiles();
+  }
+
   apply(data: Candle[], items: IndicatorInstance[]): PaneMap {
     this.clear();
+    this.lastData = data;
+    this.lastItems = items;
     const map: PaneMap = {};
     const visible = items.filter((i) => i.visible);
     const kindCount: Record<string, number> = {};
@@ -74,7 +148,7 @@ export class IndicatorHost {
       if (CATALOG_BY_KIND[item.kind].pane === 'osc') continue;
       const slot = kindCount[item.kind] ?? 0;
       kindCount[item.kind] = slot + 1;
-      this.addOverlay(data, item, this.color(item.kind, slot));
+      this.addOverlay(data, item, strokeColor(item, this.color(item.kind, slot)));
       map[item.id] = 0;
       if (item.kind === 'volume') hasVolume = true;
     }
@@ -89,13 +163,20 @@ export class IndicatorHost {
       const idx = this.chart.panes().length - 1;
       const slot = kindCount[item.kind] ?? 0;
       kindCount[item.kind] = slot + 1;
-      this.addOscillator(data, item, idx, this.color(item.kind, slot));
+      this.addOscillator(data, item, idx, strokeColor(item, this.color(item.kind, slot)));
       map[item.id] = idx;
     }
 
     const panes = this.chart.panes();
-    panes[0]?.setStretchFactor(3);
-    for (let i = 1; i < panes.length; i++) panes[i]!.setStretchFactor(1);
+    const saved = this.paneStretches;
+    if (saved && saved.length === panes.length) {
+      panes.forEach((pane, i) => pane.setStretchFactor(saved[i]!));
+    } else {
+      panes[0]?.setStretchFactor(3);
+      for (let i = 1; i < panes.length; i++) panes[i]!.setStretchFactor(1);
+    }
+    this.observePanes();
+    this.paintProfiles();
     return map;
   }
 
@@ -103,9 +184,21 @@ export class IndicatorHost {
     let y = 0;
     const n = this.chart.panes().length;
     for (let i = 0; i < index && i < n; i++) {
-      y += this.chart.paneSize(i).height;
+      const size = this.safePaneSize(i);
+      if (!size) break;
+      y += size.height;
     }
     return y;
+  }
+
+  private safePaneSize(index: number): { width: number; height: number } | null {
+    try {
+      const size = this.chart.paneSize(index);
+      if (!size || !Number.isFinite(size.height)) return null;
+      return size;
+    } catch {
+      return null;
+    }
   }
 
   private color(kind: string, slot: number): string {
@@ -128,27 +221,34 @@ export class IndicatorHost {
 
   private addOverlay(data: Candle[], item: IndicatorInstance, color: string): void {
     const p = item.params;
+    const width = strokeWidth(item);
     if (item.kind === 'sma') {
-      const s = this.chart.addSeries(LineSeries, lineBase(color), 0);
+      const s = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
       s.setData(asLine(sma(data, p.period ?? 20)));
       this.keep(s);
     } else if (item.kind === 'ema') {
-      const s = this.chart.addSeries(LineSeries, lineBase(color), 0);
+      const s = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
       s.setData(asLine(ema(data, p.period ?? 20)));
       this.keep(s);
     } else if (item.kind === 'wma') {
-      const s = this.chart.addSeries(LineSeries, lineBase(color), 0);
+      const s = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
       s.setData(asLine(wma(data, p.period ?? 20)));
       this.keep(s);
     } else if (item.kind === 'vwap') {
-      const s = this.chart.addSeries(LineSeries, lineBase(color), 0);
-      s.setData(asLine(vwap(data)));
+      const s = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
+      s.setData(asLine(sessionVwap(data)));
       this.keep(s);
+    } else if (item.kind === 'vwapAnchor') {
+      const s = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
+      s.setData(asLine(anchoredVwap(data, p.anchor ?? 0)));
+      this.keep(s);
+    } else if (item.kind === 'vpvr' || item.kind === 'vpfr') {
+      /* painted on the overlay canvas */
     } else if (item.kind === 'bb') {
       const bands = bollinger(data, p.period ?? 20, p.std ?? 2);
-      const mid = this.chart.addSeries(LineSeries, lineBase(color), 0);
-      const up = this.chart.addSeries(LineSeries, lineBase(color), 0);
-      const lo = this.chart.addSeries(LineSeries, lineBase(color), 0);
+      const mid = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
+      const up = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
+      const lo = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
       mid.setData(asLine(bands.map((b) => ({ time: b.time, value: b.mid }))));
       up.setData(asLine(bands.map((b) => ({ time: b.time, value: b.upper }))));
       lo.setData(asLine(bands.map((b) => ({ time: b.time, value: b.lower }))));
@@ -156,12 +256,12 @@ export class IndicatorHost {
       this.keep(up);
       this.keep(lo);
     } else if (item.kind === 'ichimoku') {
-      const cloud = ichimoku(data);
-      const tenkan = this.chart.addSeries(LineSeries, lineBase('#f44336'), 0);
-      const kijun = this.chart.addSeries(LineSeries, lineBase('#2196f3'), 0);
-      const spanA = this.chart.addSeries(LineSeries, lineBase('#26a69a'), 0);
-      const spanB = this.chart.addSeries(LineSeries, lineBase('#ef5350'), 0);
-      const chikou = this.chart.addSeries(LineSeries, lineBase('#9c27b0'), 0);
+      const cloud = ichimoku(data, p.tenkan ?? 9, p.kijun ?? 26, p.senkou ?? 52, p.shift ?? 26);
+      const tenkan = this.chart.addSeries(LineSeries, lineBase('#f44336', width), 0);
+      const kijun = this.chart.addSeries(LineSeries, lineBase('#2196f3', width), 0);
+      const spanA = this.chart.addSeries(LineSeries, lineBase('#26a69a', width), 0);
+      const spanB = this.chart.addSeries(LineSeries, lineBase('#ef5350', width), 0);
+      const chikou = this.chart.addSeries(LineSeries, lineBase('#9c27b0', width), 0);
       tenkan.setData(asLine(cloud.tenkan));
       kijun.setData(asLine(cloud.kijun));
       spanA.setData(asLine(cloud.spanA));
@@ -174,14 +274,14 @@ export class IndicatorHost {
       this.keep(chikou);
     } else if (item.kind === 'supertrend') {
       const pts = supertrend(data, p.period ?? 10, p.multiplier ?? 3);
-      const up = this.chart.addSeries(LineSeries, lineBase('#26a69a'), 0);
-      const down = this.chart.addSeries(LineSeries, lineBase('#ef5350'), 0);
+      const up = this.chart.addSeries(LineSeries, lineBase('#26a69a', width), 0);
+      const down = this.chart.addSeries(LineSeries, lineBase('#ef5350', width), 0);
       up.setData(asLine(pts.filter((x) => x.dir === 1).map((x) => ({ time: x.time, value: x.value }))));
       down.setData(asLine(pts.filter((x) => x.dir === -1).map((x) => ({ time: x.time, value: x.value }))));
       this.keep(up);
       this.keep(down);
     } else if (item.kind === 'pivots') {
-      const lv = pivotPoints(data);
+      const lv = pivotPoints(data, p.mode === 'fib' ? 'fib' : 'standard');
       if (!lv) return;
       const add = (price: number, col: string, title: string) => {
         this.pivotLines.push(
@@ -204,9 +304,9 @@ export class IndicatorHost {
       add(lv.s3, '#26a69a', 'S3');
     } else if (item.kind === 'donchian') {
       const bands = donchian(data, p.period ?? 20);
-      const mid = this.chart.addSeries(LineSeries, lineBase(color), 0);
-      const up = this.chart.addSeries(LineSeries, lineBase(color), 0);
-      const lo = this.chart.addSeries(LineSeries, lineBase(color), 0);
+      const mid = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
+      const up = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
+      const lo = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
       mid.setData(asLine(bands.map((b) => ({ time: b.time, value: b.mid }))));
       up.setData(asLine(bands.map((b) => ({ time: b.time, value: b.upper }))));
       lo.setData(asLine(bands.map((b) => ({ time: b.time, value: b.lower }))));
@@ -215,9 +315,9 @@ export class IndicatorHost {
       this.keep(lo);
     } else if (item.kind === 'keltner') {
       const bands = keltner(data, p.period ?? 20, p.kPeriod ?? 10, p.multiplier ?? 2);
-      const mid = this.chart.addSeries(LineSeries, lineBase(color), 0);
-      const up = this.chart.addSeries(LineSeries, lineBase(color), 0);
-      const lo = this.chart.addSeries(LineSeries, lineBase(color), 0);
+      const mid = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
+      const up = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
+      const lo = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
       mid.setData(asLine(bands.map((b) => ({ time: b.time, value: b.mid }))));
       up.setData(asLine(bands.map((b) => ({ time: b.time, value: b.upper }))));
       lo.setData(asLine(bands.map((b) => ({ time: b.time, value: b.lower }))));
@@ -228,12 +328,12 @@ export class IndicatorHost {
       const pts = parabolicSar(data, p.start ?? 0.02, p.multiplier ?? 0.02, p.max ?? 0.2);
       const up = this.chart.addSeries(
         LineSeries,
-        { ...lineBase('#26a69a'), lineVisible: false, pointMarkersVisible: true, lastValueVisible: false },
+        { ...lineBase('#26a69a', width), lineVisible: false, pointMarkersVisible: true, lastValueVisible: false },
         0,
       );
       const down = this.chart.addSeries(
         LineSeries,
-        { ...lineBase('#ef5350'), lineVisible: false, pointMarkersVisible: true, lastValueVisible: false },
+        { ...lineBase('#ef5350', width), lineVisible: false, pointMarkersVisible: true, lastValueVisible: false },
         0,
       );
       up.setData(asLine(pts.filter((x) => x.dir === 1).map((x) => ({ time: x.time, value: x.value }))));
@@ -258,22 +358,33 @@ export class IndicatorHost {
         })),
       );
       this.keep(s);
+      const period = p.period ?? 20;
+      if (period >= 1) {
+        const ma = this.chart.addSeries(
+          LineSeries,
+          { ...lineBase(color, width), priceScaleId: 'volume', lastValueVisible: false },
+          0,
+        );
+        ma.setData(asLine(smaVolume(data, period)));
+        this.keep(ma);
+      }
     }
   }
 
   private addOscillator(data: Candle[], item: IndicatorInstance, idx: number, color: string): void {
     const p = item.params;
+    const width = strokeWidth(item);
     const dotted = { lineWidth: 1 as const, lineStyle: LineStyle.Dotted, axisLabelVisible: false };
     if (item.kind === 'rsi') {
-      const s = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
+      const s = this.chart.addSeries(LineSeries, { ...lineBase(color, width), lastValueVisible: true }, idx);
       s.setData(asLine(rsi(data, p.period ?? 14)));
       s.createPriceLine({ price: 70, color: '#6d5a78', title: '', ...dotted });
       s.createPriceLine({ price: 30, color: '#6d5a78', title: '', ...dotted });
       this.keep(s);
     } else if (item.kind === 'stoch') {
       const pts = stochastic(data, p.kPeriod ?? 14, p.dPeriod ?? 3);
-      const k = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
-      const d = this.chart.addSeries(LineSeries, lineBase('#ef5350'), idx);
+      const k = this.chart.addSeries(LineSeries, { ...lineBase(color, width), lastValueVisible: true }, idx);
+      const d = this.chart.addSeries(LineSeries, lineBase('#ef5350', width), idx);
       k.setData(asLine(pts.map((x) => ({ time: x.time, value: x.k }))));
       d.setData(asLine(pts.map((x) => ({ time: x.time, value: x.d }))));
       k.createPriceLine({ price: 80, color: '#6d5a78', title: '', ...dotted });
@@ -281,14 +392,14 @@ export class IndicatorHost {
       this.keep(k);
       this.keep(d);
     } else if (item.kind === 'atr') {
-      const s = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
+      const s = this.chart.addSeries(LineSeries, { ...lineBase(color, width), lastValueVisible: true }, idx);
       s.setData(asLine(atr(data, p.period ?? 14)));
       this.keep(s);
     } else if (item.kind === 'adx') {
       const pts = adx(data, p.period ?? 14);
-      const line = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
-      const plus = this.chart.addSeries(LineSeries, lineBase('#26a69a'), idx);
-      const minus = this.chart.addSeries(LineSeries, lineBase('#ef5350'), idx);
+      const line = this.chart.addSeries(LineSeries, { ...lineBase(color, width), lastValueVisible: true }, idx);
+      const plus = this.chart.addSeries(LineSeries, lineBase('#26a69a', width), idx);
+      const minus = this.chart.addSeries(LineSeries, lineBase('#ef5350', width), idx);
       line.setData(asLine(pts.map((x) => ({ time: x.time, value: x.adx }))));
       plus.setData(asLine(pts.map((x) => ({ time: x.time, value: x.pdi }))));
       minus.setData(asLine(pts.map((x) => ({ time: x.time, value: x.mdi }))));
@@ -297,8 +408,8 @@ export class IndicatorHost {
       this.keep(minus);
     } else if (item.kind === 'stochRsi') {
       const pts = stochRsi(data, p.period ?? 14, p.period ?? 14, p.kPeriod ?? 3, p.dPeriod ?? 3);
-      const k = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
-      const d = this.chart.addSeries(LineSeries, lineBase('#ef5350'), idx);
+      const k = this.chart.addSeries(LineSeries, { ...lineBase(color, width), lastValueVisible: true }, idx);
+      const d = this.chart.addSeries(LineSeries, lineBase('#ef5350', width), idx);
       k.setData(asLine(pts.map((x) => ({ time: x.time, value: x.k }))));
       d.setData(asLine(pts.map((x) => ({ time: x.time, value: x.d }))));
       k.createPriceLine({ price: 80, color: '#6d5a78', title: '', ...dotted });
@@ -306,46 +417,46 @@ export class IndicatorHost {
       this.keep(k);
       this.keep(d);
     } else if (item.kind === 'momentum') {
-      const s = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
+      const s = this.chart.addSeries(LineSeries, { ...lineBase(color, width), lastValueVisible: true }, idx);
       s.setData(asLine(momentum(data, p.period ?? 10)));
       s.createPriceLine({ price: 100, color: '#6d5a78', title: '', ...dotted });
       this.keep(s);
     } else if (item.kind === 'roc') {
-      const s = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
+      const s = this.chart.addSeries(LineSeries, { ...lineBase(color, width), lastValueVisible: true }, idx);
       s.setData(asLine(roc(data, p.period ?? 12)));
       s.createPriceLine({ price: 0, color: '#6d5a78', title: '', ...dotted });
       this.keep(s);
     } else if (item.kind === 'willr') {
-      const s = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
+      const s = this.chart.addSeries(LineSeries, { ...lineBase(color, width), lastValueVisible: true }, idx);
       s.setData(asLine(williamsR(data, p.period ?? 14)));
       s.createPriceLine({ price: -20, color: '#6d5a78', title: '', ...dotted });
       s.createPriceLine({ price: -80, color: '#6d5a78', title: '', ...dotted });
       this.keep(s);
     } else if (item.kind === 'cci') {
-      const s = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
+      const s = this.chart.addSeries(LineSeries, { ...lineBase(color, width), lastValueVisible: true }, idx);
       s.setData(asLine(cci(data, p.period ?? 20)));
       s.createPriceLine({ price: 100, color: '#6d5a78', title: '', ...dotted });
       s.createPriceLine({ price: -100, color: '#6d5a78', title: '', ...dotted });
       this.keep(s);
     } else if (item.kind === 'cmf') {
-      const s = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
+      const s = this.chart.addSeries(LineSeries, { ...lineBase(color, width), lastValueVisible: true }, idx);
       s.setData(asLine(cmf(data, p.period ?? 20)));
       s.createPriceLine({ price: 0, color: '#6d5a78', title: '', ...dotted });
       this.keep(s);
     } else if (item.kind === 'mfi') {
-      const s = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
+      const s = this.chart.addSeries(LineSeries, { ...lineBase(color, width), lastValueVisible: true }, idx);
       s.setData(asLine(mfi(data, p.period ?? 14)));
       s.createPriceLine({ price: 80, color: '#6d5a78', title: '', ...dotted });
       s.createPriceLine({ price: 20, color: '#6d5a78', title: '', ...dotted });
       this.keep(s);
     } else if (item.kind === 'obv') {
-      const s = this.chart.addSeries(LineSeries, { ...lineBase(color), lastValueVisible: true }, idx);
+      const s = this.chart.addSeries(LineSeries, { ...lineBase(color, width), lastValueVisible: true }, idx);
       s.setData(asLine(obv(data)));
       this.keep(s);
     } else if (item.kind === 'aroon') {
       const pts = aroon(data, p.period ?? 25);
-      const up = this.chart.addSeries(LineSeries, { ...lineBase('#26a69a'), lastValueVisible: true }, idx);
-      const down = this.chart.addSeries(LineSeries, lineBase('#ef5350'), idx);
+      const up = this.chart.addSeries(LineSeries, { ...lineBase('#26a69a', width), lastValueVisible: true }, idx);
+      const down = this.chart.addSeries(LineSeries, lineBase('#ef5350', width), idx);
       up.setData(asLine(pts.map((x) => ({ time: x.time, value: x.up }))));
       down.setData(asLine(pts.map((x) => ({ time: x.time, value: x.down }))));
       this.keep(up);
@@ -360,13 +471,96 @@ export class IndicatorHost {
           color: x.histogram >= 0 ? 'rgba(38, 166, 154, 0.6)' : 'rgba(239, 83, 80, 0.6)',
         })),
       );
-      const line = this.chart.addSeries(LineSeries, lineBase(color), idx);
-      const signal = this.chart.addSeries(LineSeries, lineBase('#ff9800'), idx);
+      const line = this.chart.addSeries(LineSeries, lineBase(color, width), idx);
+      const signal = this.chart.addSeries(LineSeries, lineBase('#ff9800', width), idx);
       line.setData(asLine(pts.map((x) => ({ time: x.time, value: x.macd }))));
       signal.setData(asLine(pts.map((x) => ({ time: x.time, value: x.signal }))));
       this.keep(hist);
       this.keep(line);
       this.keep(signal);
+    }
+  }
+
+  private observePanes(): void {
+    this.paneObs?.disconnect();
+    this.paneObs = new ResizeObserver(() => {
+      window.clearTimeout(this.resizeTimer);
+      this.resizeTimer = window.setTimeout(() => {
+        this.onPaneResize?.(this.getPaneStretches());
+        this.paintProfiles();
+      }, 120);
+    });
+    for (const pane of this.chart.panes()) {
+      const el = pane.getHTMLElement();
+      if (el) this.paneObs.observe(el);
+    }
+  }
+
+  private paintProfiles(): void {
+    const canvas = this.vpCanvas;
+    if (!canvas) return;
+    const wrap = this.wrap ?? canvas.parentElement;
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, rect.width, rect.height);
+    const paneH = this.safePaneSize(0)?.height ?? rect.height;
+    const visible = this.lastItems.filter((i) => i.visible && (i.kind === 'vpvr' || i.kind === 'vpfr'));
+    if (!visible.length || !this.lastData.length) return;
+    for (const item of visible) {
+      let from: number;
+      let to: number;
+      if (item.kind === 'vpfr') {
+        const a = item.params.anchor;
+        const b = item.params.end;
+        if (typeof a === 'number' && typeof b === 'number') {
+          from = Math.min(a, b);
+          to = Math.max(a, b);
+        } else {
+          const slice = this.lastData.slice(-50);
+          from = slice[0]!.time;
+          to = slice[slice.length - 1]!.time;
+        }
+      } else {
+        from = this.profileRange?.from ?? this.lastData[0]!.time;
+        to = this.profileRange?.to ?? this.lastData[this.lastData.length - 1]!.time;
+      }
+      const profile = volumeProfile(this.lastData, from, to, item.params.rows ?? 24);
+      if (!profile) continue;
+      const color = strokeColor(item, this.color(item.kind, 0));
+      const maxVol = Math.max(...profile.bins.map((bin) => bin.volume), 0);
+      if (maxVol <= 0) continue;
+      const xTo = item.kind === 'vpfr' ? this.chart.timeScale().timeToCoordinate(to as Time) : rect.width - 8;
+      const xFrom = item.kind === 'vpfr' ? this.chart.timeScale().timeToCoordinate(from as Time) : null;
+      const right = xTo ?? rect.width - 8;
+      const leftBound = xFrom ?? Math.max(0, right - rect.width * 0.28);
+      const maxW = Math.max(8, (right - leftBound) * (item.kind === 'vpfr' ? 1 : 1));
+      if (item.kind === 'vpfr' && xFrom !== null && xTo !== null) {
+        ctx.fillStyle = 'rgba(120, 123, 134, 0.08)';
+        ctx.fillRect(xFrom, 0, Math.max(1, xTo - xFrom), paneH);
+      }
+      for (const bin of profile.bins) {
+        const y1 = this.candles.priceToCoordinate(bin.high);
+        const y2 = this.candles.priceToCoordinate(bin.low);
+        if (y1 === null || y2 === null) continue;
+        const top = Math.min(y1, y2);
+        const h = Math.max(1, Math.abs(y2 - y1));
+        if (top > paneH || top + h < 0) continue;
+        const w = (bin.volume / maxVol) * Math.min(maxW, rect.width * 0.32);
+        const isVa = bin.low >= profile.val - 1e-12 && bin.high <= profile.vah + 1e-12;
+        const isPoc = Math.abs(bin.price - profile.poc) < 1e-8;
+        ctx.globalAlpha = isPoc ? 0.85 : isVa ? 0.45 : 0.22;
+        ctx.fillStyle = color;
+        ctx.fillRect(right - w, top, w, h);
+        ctx.globalAlpha = 1;
+      }
     }
   }
 }
