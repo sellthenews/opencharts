@@ -40,7 +40,13 @@
         <div class="workspace-body">
         <nav id="tool-rail" aria-label="Narzędzia rysowania">
           <div class="group" role="group" aria-label="Narzędzia rysowania">
-          <button type="button" class="tool is-active" data-tool="cursor" title="Kursor (przesuwanie wykresu)" aria-label="Kursor (przesuwanie wykresu)"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M3.5 2.5 6 13l2-4.5 4.5-1.5z"/></svg><span class="tool-name">Kursor</span></button>
+          <button type="button" class="tool is-active" id="cursor-tool" data-tool="cursor" title="Kursor — kliknij ponownie, aby zmienić tryb" aria-label="Kursor — kliknij ponownie, aby zmienić tryb"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M3.5 2.5 6 13l2-4.5 4.5-1.5z"/></svg><span class="tool-name">Kursor</span></button>
+          <div id="cursor-mode-pop" hidden role="menu" aria-label="Tryb kursora">
+            <button type="button" data-cursor-mode="cross" title="Krzyż">Krzyż</button>
+            <button type="button" data-cursor-mode="dot" title="Kropka">Kropka</button>
+            <button type="button" data-cursor-mode="arrow" title="Strzałka">Strzałka</button>
+          </div>
+          <button type="button" class="tool" id="magnet-btn" title="Magnes — przyciąganie do OHLC" aria-label="Magnes — przyciąganie do OHLC" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M4 3v5a4 4 0 0 0 8 0V3M4 3h2v5a2 2 0 0 0 4 0V3h2"/></svg><span class="tool-name">Magnes</span></button>
           <button type="button" class="tool" data-tool="trend" title="Linia trendu — dwa kliknięcia" aria-label="Linia trendu — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2.5 12.5 13.5 3.5"/><circle cx="2.5" cy="12.5" r="1" fill="currentColor"/><circle cx="13.5" cy="3.5" r="1" fill="currentColor"/></svg><span class="tool-name">Linia trendu</span></button>
           <button type="button" class="tool" data-tool="hline" title="Linia pozioma — jedno kliknięcie" aria-label="Linia pozioma — jedno kliknięcie"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M1.5 8h13"/></svg><span class="tool-name">Linia pozioma</span></button>
           <button type="button" class="tool" data-tool="rect" title="Prostokąt — dwa kliknięcia" aria-label="Prostokąt — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><rect fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" x="3" y="4" width="10" height="8"/></svg><span class="tool-name">Prostokąt</span></button>
@@ -118,6 +124,23 @@
           <div id="chart-loader" hidden>
             <div class="chart-skeleton" aria-hidden="true"></div>
             <div class="chart-spinner" role="status" aria-label="Ładowanie wykresu"></div>
+          </div>
+          <div id="cursor-dot" hidden></div>
+          <div id="draw-bar" hidden>
+            <input type="color" id="draw-color" title="Kolor" aria-label="Kolor linii" value="#5b9cf6" />
+            <select id="draw-width" title="Grubość" aria-label="Grubość linii">
+              <option value="1">1 px</option>
+              <option value="2">2 px</option>
+              <option value="3">3 px</option>
+              <option value="4">4 px</option>
+            </select>
+            <select id="draw-linestyle" title="Styl linii" aria-label="Styl linii">
+              <option value="solid">Ciągła</option>
+              <option value="dashed">Przerywana</option>
+              <option value="dotted">Kropkowana</option>
+            </select>
+            <button type="button" id="draw-lock" title="Zablokuj">Zablokuj</button>
+            <button type="button" id="draw-delete" title="Usuń">Usuń</button>
           </div>
         </div>
         <div class="chart-cell extra-cell" data-extra="0"></div>

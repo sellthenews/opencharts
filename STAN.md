@@ -1,8 +1,8 @@
 # Stan prac
 
-Aktualizacja: 23 listopada 2026, ok. 21:00 (Europe/Warsaw).
+Aktualizacja: 24 listopada 2026, ok. 16:40 (Europe/Warsaw).
 
-Etap 1 i etap 2 są ukończone lokalnie (bez remote i bez pusha). Licencja projektu: **AGPL-3.0-or-later**.
+Etap 1 i etap 2 są ukończone. Repozytorium publiczne: [sellthenews/wykresy](https://github.com/sellthenews/wykresy). GitHub Pages: [https://sellthenews.github.io/wykresy/](https://sellthenews.github.io/wykresy/). Licencja projektu: **AGPL-3.0-or-later**.
 
 ## Commity
 
@@ -23,12 +23,12 @@ Podgląd: http://127.0.0.1:4173 (`npm run build && npm run preview`). Testy: `np
 ## Co działa
 
 - Giełdy: Kraken (domyślna), Binance, Coinbase, Bitstamp — publiczne REST, CORS OK w przeglądarce.
-- Pary XRP/USD, BTC/USD, ETH/USD; interwały 1h, 4h, 1D, 1W, 1M (agregacja gdy trzeba).
+- Pary: wyszukiwarka wszystkich par spot z oficjalnych API Krakena, Binance, Coinbase i Bitstamp (filtr giełdy, podpowiedzi, cache 24 h). Domyślnie XRP/USD, BTC/USD, ETH/USD; interwały 1h, 4h, 1D, 1W, 1M (agregacja gdy trzeba).
 - Wskaźniki lokalne, włączanie/okres w UI, `localStorage`.
 - Obserwowane: wiele list (Moje, Krypto), dodawanie/usuwanie, cena i zmiana 24h, klik otwiera wykres; odświeżanie 45 s gdy karta widoczna; pozycje Krakena też z tickera WS.
-- Rysunki: linia trendu, promień, pozioma, prostokąt, kanał, Fibo, Fibo rozszerzenie, AB=CD (projekcje 1.272/1.618), tekst; uchwyty, przeciąganie, JSON, `localStorage` per giełda+para.
+- Rysunki: narzędzia P1–P3 z listy poniżej; rysowanie klik-klik z podglądem, magnes do OHLC, cienkie wygładzone linie, kółka-uchwyty po zaznaczeniu, pływający pasek stylu (kolor, grubość, styl, blokada, usuń), Delete/Backspace, po narysowaniu powrót do kursora. JSON i `localStorage` per giełda+para, wraz ze stylem. Linia pozioma ma etykietę ceny na osi.
 - Live Kraken: `wss://ws.kraken.com/v2`, kanały `ohlc` i `ticker`, ponowne łączenie.
-- Workflow Pages zapisany lokalnie w `.github/workflows/pages.yml` — nie wypushowany.
+- Deploy Pages z `main` (`.github/workflows/pages.yml`) na https://sellthenews.github.io/wykresy/.
 - Runtime w `vendor/lightweight-charts@5.3.0/` (Apache 2.0, bez CDN).
 
 ## Uruchomienie
@@ -178,3 +178,13 @@ Następne (poza tym przebiegiem): pozycje P3, m.in. łuki Fibonacciego.
 Zrobione narzędzia rysowania P3 z listy: fale Elliotta (impuls 0–5 i korekta ABC), ścieżka, pędzel, flaga, prognoza, łuki i spirala Fibonacciego, strefy czasowe Fibonacciego, Gann box/fan/square, widły Andrewsa. Każde z uchwytami, przesuwaniem, zapisem i eksportem.
 
 Pozostało: pozostałe wskaźniki z typowej listy ~100 (P3).
+
+## Wyszukiwarka, menu, kursor i rysowanie (24 XI 2026)
+
+- Wyszukiwarka par: klik w nazwę pary w nagłówku albo litera na wykresie (gdy focus nie jest w polu tekstowym); Esc zamyka. Listy z oficjalnych API (Kraken AssetPairs, Binance exchangeInfo — tylko SPOT/TRADING, Coinbase products online, Bitstamp trading-pairs-info Enabled). Filtr Wszystkie/Kraken/Binance/Coinbase/Bitstamp. Prefiks bazy przed trafieniem w środku, limit ~100, strzałki + Enter. Wybór przełącza giełdę i parę. Cache `wykresy:symbols:<giełda>` 24 h. Błąd jednej giełdy nie psuje pozostałych. Kraken WS tylko gdy źródło to Kraken.
+- Cache list (24 XI 2026): Kraken 1353, Binance 1376, Coinbase 511. Lista Bitstamp z `trading-pairs-info` jest blokowana przez CORS w przeglądarce (świece z `/api/v2/ohlc/` nadal działają; curl widzi 252 pary Enabled). Błąd tej giełdy nie psuje pozostałych.
+- Menu kontekstowe (prawy klik na wykresie): Zresetuj wykres (zoom/scroll i autoscale osi ceny, bez kasowania rysunków i wskaźników), Kopiuj cenę, Dodaj alert na tej cenie, Usuń wszystkie rysunki (z potwierdzeniem). Zamknięcie: klik poza / Esc.
+- Kursor: krzyż z przerywanymi liniami i etykietami ceny/czasu na osiach (LWC CrosshairMode + LineStyle.Dashed). Pierwsza ikona lewego paska: krzyż / kropka / strzałka, zapis w `localStorage`. Przełącznik magnesu (przyciąganie do OHLC) obok.
+- Po zaznaczeniu rysunku pływający pasek (kolor, grubość 1–4, styl linii, zablokuj, usuń). Ustawienia zapisywane z rysunkiem.
+
+Zrzuty (lokalne, w `.gitignore`): `screenshots-test/wyszukiwarka-par.png`, `screenshots-test/menu-kontekstowe.png`, `screenshots-test/rysowanie-tv.png`.

@@ -52,7 +52,16 @@ export interface Point {
   price: number;
 }
 
-export type Drawing =
+export type LinePattern = 'solid' | 'dashed' | 'dotted';
+
+export interface DrawStyle {
+  color?: string;
+  width?: number;
+  lineStyle?: LinePattern;
+  locked?: boolean;
+}
+
+type DrawingShape =
   | { id: string; type: 'trend'; p1: Point; p2: Point }
   | { id: string; type: 'hline'; price: number }
   | { id: string; type: 'rect'; p1: Point; p2: Point }
@@ -96,6 +105,8 @@ export type Drawing =
   | { id: string; type: 'gannfan'; p1: Point; p2: Point }
   | { id: string; type: 'gannsq'; p1: Point; p2: Point }
   | { id: string; type: 'pitchfork'; p1: Point; p2: Point; p3: Point };
+
+export type Drawing = DrawingShape & { style?: DrawStyle };
 
 export const TOOLS_POINTS: Record<Tool, number> = {
   cursor: 0,

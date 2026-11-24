@@ -3,6 +3,8 @@
 
 import {
   CandlestickSeries,
+  CrosshairMode,
+  LineStyle,
   createChart,
 } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
@@ -35,6 +37,9 @@ const DEFAULT_PAIR: PairId = 'XRPUSD';
 const DEFAULT_INTERVAL: IntervalId = '1D';
 const THEME_KEY = 'wykresy:theme';
 const SIDEBAR_KEY = 'wykresy:sidebar';
+const CURSOR_MODE_KEY = 'wykresy:cursor-mode';
+const MAGNET_KEY = 'wykresy:magnet';
+type CursorMode = 'cross' | 'dot' | 'arrow';
 type ThemeName = 'dark' | 'light';
 
 function loadTheme(): ThemeName {
@@ -251,50 +256,14 @@ function applySelection(nextSource: string, nextPair: PairId, reload = true): vo
   pairEl.value = pairId;
   persistLayout();
   watchlist?.highlight(sourceId, pairId);
-  if (reload) 
-initChartMenu(
-  wrapEl,
-  document.querySelector('#chart-menu')!,
-  (_x, y) => {
-    const rect = wrapEl.getBoundingClientRect();
-    return series.coordinateToPrice(y - rect.top);
-  },
-  {
-    resetView: () => {
-      chart.timeScale().applyOptions({ rightOffset: 6, barSpacing: 8 });
-      chart.timeScale().fitContent();
-      chart.timeScale().scrollToRealTime();
-      series.priceScale().applyOptions({ autoScale: true });
-      setStatus('Zresetowano widok wykresu.');
-    },
-    copyPrice: (price) => {
-      const text = String(price);
-      void navigator.clipboard?.writeText(text).then(
-        () => setStatus(`Skopiowano cenę ${text}`),
-        () => setStatus(`Nie udało się skopiować ceny ${text}`, true),
-      );
-    },
-    addAlert: (price) => {
-      const last = lastCandles[lastCandles.length - 1]?.close;
-      const direction = last !== undefined && price < last ? 'below' : 'above';
-      alerts.push(createAlert(sourceId, pairId, price, direction));
-      saveAlerts(alerts);
-      renderAlerts();
-      setStatus(`Dodano alert na ${price}`);
-    },
-    clearDrawings: () => {
-      drawings.clearAll();
-      setStatus('Usunięto wszystkie rysunki.');
-    },
-  },
-);
-
-void loadChart();
+  if (reload) void loadChart();
 }
+
 
 document.querySelector<HTMLButtonElement>('#theme-btn')?.addEventListener('click', () => {
   applyTheme(theme === 'light' ? 'dark' : 'light');
   chart.applyOptions(themeChartOptions(theme === 'light'));
+  applyCursorAppearance();
   miniCharts.forEach((m) => m?.setTheme(theme === 'light'));
 });
 
@@ -433,7 +402,7 @@ function applyPriceData(candles: Candle[], fit: boolean): void {
   applyIndicators();
   const step = candles.length >= 2 ? candles[candles.length - 1]!.time - candles[candles.length - 2]!.time : 86400;
   drawings.setTimeInfo(candles[candles.length - 1]!.time, step);
-  drawings.setPriceData(candles.map((c) => ({ time: c.time, close: c.close })));
+  drawings.setPriceData(candles.map((c) => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close })));
   if (fit) chart.timeScale().fitContent();
   else if (range) chart.timeScale().setVisibleLogicalRange(range);
   evaluateAlerts(sourceId, pairId, candles[candles.length - 1]!.close);
@@ -567,12 +536,14 @@ intervalsEl.addEventListener('click', (ev) => {
 });
 
 document.querySelectorAll<HTMLButtonElement>('[data-tool]').forEach((btn) => {
+  if (btn.id === 'cursor-tool') return;
   btn.addEventListener('click', () => {
     const tool = btn.dataset.tool as Tool;
     drawings.setTool(tool);
     document.querySelectorAll('[data-tool]').forEach((el) => {
       el.classList.toggle('is-active', el === btn);
     });
+    cursorPop && (cursorPop.hidden = true);
   });
 });
 
@@ -729,5 +700,221 @@ window.__wykresy = {
   getWatchState: () => watchlist.getState(),
   applySelection: (src, pair) => applySelection(src, pair, true),
 };
+
+initChartMenu(
+  wrapEl,
+  document.querySelector('#chart-menu')!,
+  (_x, y) => {
+    const rect = wrapEl.getBoundingClientRect();
+    return series.coordinateToPrice(y - rect.top);
+  },
+  {
+    resetView: () => {
+      chart.timeScale().applyOptions({ rightOffset: 6, barSpacing: 8 });
+      chart.timeScale().fitContent();
+      chart.timeScale().scrollToRealTime();
+      series.priceScale().applyOptions({ autoScale: true });
+      setStatus('Zresetowano widok wykresu.');
+    },
+    copyPrice: (price) => {
+      const text = String(price);
+      void navigator.clipboard?.writeText(text).then(
+        () => setStatus(`Skopiowano cenę ${text}`),
+        () => setStatus(`Nie udało się skopiować ceny ${text}`, true),
+      );
+    },
+    addAlert: (price) => {
+      const last = lastCandles[lastCandles.length - 1]?.close;
+      const direction = last !== undefined && price < last ? 'below' : 'above';
+      alerts.push(createAlert(sourceId, pairId, price, direction));
+      saveAlerts(alerts);
+      renderAlerts();
+      setStatus(`Dodano alert na ${price}`);
+    },
+    clearDrawings: () => {
+      drawings.clearAll();
+      setStatus('Usunięto wszystkie rysunki.');
+    },
+  },
+);
+
+
+type CursorModeState = CursorMode;
+
+function loadCursorMode(): CursorMode {
+  const v = localStorage.getItem(CURSOR_MODE_KEY);
+  return v === 'dot' || v === 'arrow' || v === 'cross' ? v : 'cross';
+}
+
+let cursorMode: CursorMode = loadCursorMode();
+let magnetOn = localStorage.getItem(MAGNET_KEY) === 'on';
+
+const cursorDot = document.querySelector<HTMLElement>('#cursor-dot');
+const cursorPop = document.querySelector<HTMLElement>('#cursor-mode-pop');
+const magnetBtn = document.querySelector<HTMLButtonElement>('#magnet-btn');
+const drawBar = document.querySelector<HTMLElement>('#draw-bar');
+const drawColor = document.querySelector<HTMLInputElement>('#draw-color');
+const drawWidth = document.querySelector<HTMLSelectElement>('#draw-width');
+const drawLineStyle = document.querySelector<HTMLSelectElement>('#draw-linestyle');
+const drawLock = document.querySelector<HTMLButtonElement>('#draw-lock');
+const drawDelete = document.querySelector<HTMLButtonElement>('#draw-delete');
+
+function applyCursorAppearance(): void {
+  const light = theme === 'light';
+  const line = light ? 'rgba(19, 23, 34, 0.45)' : 'rgba(209, 212, 220, 0.45)';
+  const labelBg = light ? '#4c525e' : '#2a2e39';
+  const magnetMode = magnetOn ? CrosshairMode.MagnetOHLC : CrosshairMode.Normal;
+  if (cursorMode === 'arrow') {
+    chart.applyOptions({
+      crosshair: {
+        mode: CrosshairMode.Hidden,
+        vertLine: { visible: false, labelVisible: false },
+        horzLine: { visible: false, labelVisible: false },
+      },
+    });
+    if (cursorDot) cursorDot.hidden = true;
+  } else if (cursorMode === 'dot') {
+    chart.applyOptions({
+      crosshair: {
+        mode: magnetMode,
+        vertLine: { visible: false, labelVisible: true, labelBackgroundColor: labelBg, color: line, style: LineStyle.Dashed, width: 1 },
+        horzLine: { visible: false, labelVisible: true, labelBackgroundColor: labelBg, color: line, style: LineStyle.Dashed, width: 1 },
+      },
+    });
+  } else {
+    chart.applyOptions({
+      crosshair: {
+        mode: magnetMode,
+        vertLine: { visible: true, labelVisible: true, labelBackgroundColor: labelBg, color: line, style: LineStyle.Dashed, width: 1 },
+        horzLine: { visible: true, labelVisible: true, labelBackgroundColor: labelBg, color: line, style: LineStyle.Dashed, width: 1 },
+      },
+    });
+    if (cursorDot) cursorDot.hidden = true;
+  }
+  drawings.setMagnet(magnetOn);
+  magnetBtn?.classList.toggle('is-active', magnetOn);
+  if (magnetBtn) magnetBtn.setAttribute('aria-pressed', magnetOn ? 'true' : 'false');
+  cursorPop?.querySelectorAll('[data-cursor-mode]').forEach((el) => {
+    el.classList.toggle('is-active', el.getAttribute('data-cursor-mode') === cursorMode);
+  });
+  localStorage.setItem(CURSOR_MODE_KEY, cursorMode);
+  localStorage.setItem(MAGNET_KEY, magnetOn ? 'on' : 'off');
+}
+
+function setCursorMode(mode: CursorModeState): void {
+  cursorMode = mode;
+  applyCursorAppearance();
+}
+
+function placeDrawBar(): void {
+  if (!drawBar) return;
+  const d = drawings.getSelected();
+  if (!d) {
+    drawBar.hidden = true;
+    return;
+  }
+  drawBar.hidden = false;
+  const color = d.style?.color ?? '#5b9cf6';
+  if (drawColor) drawColor.value = color.length === 7 ? color : '#5b9cf6';
+  if (drawWidth) drawWidth.value = String(d.style?.width ?? 1);
+  if (drawLineStyle) drawLineStyle.value = d.style?.lineStyle ?? 'solid';
+  if (drawLock) drawLock.textContent = d.style?.locked ? 'Odblokuj' : 'Zablokuj';
+  const anchor = drawings.selectionAnchor();
+  if (anchor) {
+    const top = Math.max(8, anchor.y - 40);
+    const left = Math.min(Math.max(8, anchor.x), wrapEl.clientWidth - 8);
+    drawBar.style.left = `${left}px`;
+    drawBar.style.top = `${top}px`;
+    drawBar.style.transform = 'translateX(-50%)';
+  } else {
+    drawBar.style.left = '50%';
+    drawBar.style.top = '8px';
+    drawBar.style.transform = 'translateX(-50%)';
+  }
+}
+
+function activateCursorTool(): void {
+  drawings.setTool('cursor');
+  document.querySelectorAll('[data-tool]').forEach((el) => {
+    el.classList.toggle('is-active', el.getAttribute('data-tool') === 'cursor');
+  });
+}
+
+drawings.setOnToolDone(() => activateCursorTool());
+drawings.setOnSelect(() => placeDrawBar());
+
+magnetBtn?.addEventListener('click', () => {
+  magnetOn = !magnetOn;
+  applyCursorAppearance();
+});
+
+document.querySelector('#cursor-tool')?.addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  const already = document.querySelector('#cursor-tool')?.classList.contains('is-active');
+  activateCursorTool();
+  if (already && cursorPop) cursorPop.hidden = !cursorPop.hidden;
+  else if (cursorPop) cursorPop.hidden = true;
+});
+
+cursorPop?.addEventListener('click', (ev) => {
+  const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-cursor-mode]');
+  if (!btn) return;
+  setCursorMode((btn.dataset.cursorMode as CursorMode) ?? 'cross');
+  cursorPop.hidden = true;
+});
+
+document.addEventListener('mousedown', (ev) => {
+  if (!cursorPop || cursorPop.hidden) return;
+  if (cursorPop.contains(ev.target as Node) || (ev.target as HTMLElement).closest('#cursor-tool')) return;
+  cursorPop.hidden = true;
+});
+
+drawColor?.addEventListener('input', () => {
+  if (drawColor) drawings.patchStyle({ color: drawColor.value });
+});
+drawWidth?.addEventListener('change', () => {
+  if (drawWidth) drawings.patchStyle({ width: Number(drawWidth.value) });
+});
+drawLineStyle?.addEventListener('change', () => {
+  if (drawLineStyle) drawings.patchStyle({ lineStyle: drawLineStyle.value as 'solid' | 'dashed' | 'dotted' });
+});
+drawLock?.addEventListener('click', () => {
+  const d = drawings.getSelected();
+  drawings.patchStyle({ locked: !d?.style?.locked });
+});
+drawDelete?.addEventListener('click', () => {
+  drawings.deleteSelected();
+});
+
+let drawBarDrag: { x: number; y: number; left: number; top: number } | null = null;
+drawBar?.addEventListener('mousedown', (ev) => {
+  if ((ev.target as HTMLElement).closest('input, select, button')) return;
+  if (!drawBar) return;
+  ev.preventDefault();
+  drawBarDrag = { x: ev.clientX, y: ev.clientY, left: drawBar.offsetLeft, top: drawBar.offsetTop };
+});
+window.addEventListener('mousemove', (ev) => {
+  if (!drawBarDrag || !drawBar) return;
+  drawBar.style.transform = 'none';
+  drawBar.style.left = `${drawBarDrag.left + ev.clientX - drawBarDrag.x}px`;
+  drawBar.style.top = `${drawBarDrag.top + ev.clientY - drawBarDrag.y}px`;
+});
+window.addEventListener('mouseup', () => {
+  drawBarDrag = null;
+});
+
+chart.subscribeCrosshairMove((param) => {
+  if (cursorMode === 'dot' && cursorDot && param.point) {
+    cursorDot.hidden = false;
+    cursorDot.style.left = `${param.point.x}px`;
+    cursorDot.style.top = `${param.point.y}px`;
+  } else if (cursorDot && cursorMode !== 'dot') {
+    cursorDot.hidden = true;
+  } else if (cursorDot && !param.point) {
+    cursorDot.hidden = true;
+  }
+});
+
+applyCursorAppearance();
 
 void loadChart();

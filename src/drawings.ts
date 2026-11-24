@@ -19,7 +19,7 @@ export type { Drawing, Point, Tool };
 
 const COLOR = '#5b9cf6';
 
-type PriceSample = { time: number; close: number };
+type PriceSample = { time: number; open?: number; high?: number; low?: number; close: number };
 
 function linearChannel(samples: PriceSample[], t1: number, t2: number): {
   t1: number;
@@ -302,6 +302,9 @@ export class DrawingLayer {
   private lastTime = 0;
   private stepSec = 86400;
   private priceSamples: PriceSample[] = [];
+  private magnet = false;
+  private onToolDone: (() => void) | null = null;
+  private onSelect: ((d: Drawing | null) => void) | null = null;
   private ro: ResizeObserver;
   private rafId = 0;
   private needsPaint = false;
@@ -367,6 +370,70 @@ export class DrawingLayer {
     this.scheduleRedraw();
   }
 
+  setMagnet(on: boolean): void {
+    this.magnet = on;
+  }
+
+  setOnToolDone(cb: () => void): void {
+    this.onToolDone = cb;
+  }
+
+  setOnSelect(cb: (d: Drawing | null) => void): void {
+    this.onSelect = cb;
+  }
+
+  getSelected(): Drawing | null {
+    return this.drawings.find((d) => d.id === this.selectedId) ?? null;
+  }
+
+  patchStyle(partial: import('./drawings-types').DrawStyle): boolean {
+    const d = this.getSelected();
+    if (!d) return false;
+    d.style = { ...d.style, ...partial };
+    this.persist();
+    this.redraw();
+    this.emitSelect();
+    return true;
+  }
+
+  selectionAnchor(): { x: number; y: number } | null {
+    const d = this.getSelected();
+    if (!d) return null;
+    const width = this.canvas.getBoundingClientRect().width;
+    const hs = this.handlesOf(d).map((h) => {
+      if (d.type === 'hline') {
+        const yy = this.series.priceToCoordinate(d.price);
+        return yy === null ? null : { x: width / 2, y: yy };
+      }
+      return this.pointToXy(h.point);
+    }).filter((p): p is { x: number; y: number } => !!p);
+    if (!hs.length) return null;
+    const x = hs.reduce((a, p) => a + p.x, 0) / hs.length;
+    const y = Math.min(...hs.map((p) => p.y));
+    return { x, y };
+  }
+
+  private emitSelect(): void {
+    this.onSelect?.(this.getSelected());
+  }
+
+  private snapLogical(point: Point): Point {
+    if (!this.magnet || !this.priceSamples.length) return point;
+    let best = this.priceSamples[0]!;
+    let bestDt = Math.abs(best.time - point.time);
+    for (const s of this.priceSamples) {
+      const dt = Math.abs(s.time - point.time);
+      if (dt < bestDt) {
+        best = s;
+        bestDt = dt;
+      }
+    }
+    const levels = [best.close, best.open, best.high, best.low].filter((n): n is number => n !== undefined && Number.isFinite(n));
+    if (!levels.length) return { time: best.time, price: point.price };
+    const price = levels.reduce((a, n) => (Math.abs(n - point.price) < Math.abs(a - point.price) ? n : a));
+    return { time: best.time, price };
+  }
+
   setContext(sourceId: string, pairId: string): void {
     this.sourceId = sourceId;
     this.pairId = pairId;
@@ -374,6 +441,7 @@ export class DrawingLayer {
     this.selectedId = null;
     this.draft = null;
     this.redraw();
+    this.emitSelect();
   }
 
   deleteSelected(): boolean {
@@ -382,6 +450,7 @@ export class DrawingLayer {
     this.selectedId = null;
     this.persist();
     this.redraw();
+    this.emitSelect();
     return true;
   }
 
@@ -391,6 +460,7 @@ export class DrawingLayer {
     this.draft = null;
     this.persist();
     this.redraw();
+    this.emitSelect();
   }
 
   exportJson(): string {
@@ -537,8 +607,9 @@ export class DrawingLayer {
     const rect = this.canvas.getBoundingClientRect();
     const x = ev.clientX - rect.left;
     const y = ev.clientY - rect.top;
-    const logical = this.xyToLogical(x, y);
+    let logical = this.xyToLogical(x, y);
     if (!logical) return null;
+    if (this.magnet) logical = this.snapLogical(logical);
     return { x, y, logical };
   }
 
@@ -588,7 +659,7 @@ export class DrawingLayer {
       this.selectedId = id;
       if (id) {
         const orig = this.drawings.find((d) => d.id === id);
-        if (orig) {
+        if (orig && !orig.style?.locked) {
           this.drag = {
             mode: handle ? 'point' : 'move',
             handle: handle?.handle,
@@ -601,6 +672,7 @@ export class DrawingLayer {
         }
       }
       this.redraw();
+      this.emitSelect();
       return;
     }
     if (phase === 'move' && this.drag) this.applyDrag(hit);
@@ -984,6 +1056,7 @@ export class DrawingLayer {
     }
     this.draft = null;
     this.redraw();
+    this.onToolDone?.();
   }
 
   private addDraftPoint(point: Point): void {
@@ -1000,6 +1073,8 @@ export class DrawingLayer {
       this.selectedId = this.drawings[this.drawings.length - 1]!.id;
       this.persist();
       this.redraw();
+      this.emitSelect();
+      this.onToolDone?.();
       return;
     }
     if (this.tool === 'text') {
@@ -1008,6 +1083,10 @@ export class DrawingLayer {
         this.drawings.push({ id: newId(), type: 'text', p: point, text: text.trim() });
         this.selectedId = this.drawings[this.drawings.length - 1]!.id;
         this.persist();
+        this.emitSelect();
+        this.redraw();
+        this.onToolDone?.();
+        return;
       }
       this.redraw();
       return;
@@ -1023,6 +1102,10 @@ export class DrawingLayer {
               this.drawings.push(drawing);
               this.selectedId = drawing.id;
               this.persist();
+              this.emitSelect();
+              this.redraw();
+              this.onToolDone?.();
+              return;
             }
           }
           this.redraw();
@@ -1033,8 +1116,10 @@ export class DrawingLayer {
           this.drawings.push(drawing);
           this.selectedId = drawing.id;
           this.persist();
+          this.emitSelect();
         }
         this.redraw();
+        if (drawing) this.onToolDone?.();
         return;
       }
       this.draft = { type: this.tool, points: [point], current: point };
@@ -1060,6 +1145,11 @@ export class DrawingLayer {
         this.drawings.push(created);
         this.selectedId = created.id;
         this.persist();
+        this.emitSelect();
+        this.draft = null;
+        this.redraw();
+        this.onToolDone?.();
+        return;
       }
       this.draft = null;
       this.redraw();
@@ -1070,9 +1160,11 @@ export class DrawingLayer {
       this.drawings.push(created);
       this.selectedId = created.id;
       this.persist();
+      this.emitSelect();
     }
     this.draft = null;
     this.redraw();
+    if (created) this.onToolDone?.();
   }
 
   private commitPoints(type: Tool, points: Point[]): Drawing | null {
@@ -1752,6 +1844,8 @@ export class DrawingLayer {
     if (!ctx) return;
     const dpr = window.devicePixelRatio || 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     const width = this.canvas.getBoundingClientRect().width;
     const height = this.canvas.getBoundingClientRect().height;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -1808,7 +1902,7 @@ export class DrawingLayer {
       ctx.strokeStyle = SELECTED;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.rect(xy.x - HANDLE, xy.y - HANDLE, HANDLE * 2, HANDLE * 2);
+      ctx.arc(xy.x, xy.y, HANDLE, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
     }
@@ -1832,21 +1926,33 @@ export class DrawingLayer {
     return price.toFixed(6);
   }
 
+  private styleOf(d: Drawing, selected: boolean): { color: string; width: number; dash: number[] } {
+    const color = d.style?.color ?? (selected ? SELECTED : COLOR);
+    const width = Math.min(4, Math.max(1, d.style?.width ?? 1));
+    const pattern = d.style?.lineStyle ?? 'solid';
+    const dash = pattern === 'dashed' ? [6, 4] : pattern === 'dotted' ? [1.5, 3] : [];
+    return { color, width, dash };
+  }
+
   private paint(ctx: CanvasRenderingContext2D, d: Drawing, width: number, height: number, selected: boolean): void {
     ctx.save();
-    ctx.strokeStyle = selected ? SELECTED : COLOR;
+    const st = this.styleOf(d, selected);
+    ctx.strokeStyle = st.color;
     ctx.fillStyle = selected ? 'rgba(255, 204, 102, 0.12)' : 'rgba(91, 156, 246, 0.12)';
-    ctx.lineWidth = selected ? 2 : 1.5;
+    ctx.lineWidth = st.width;
     ctx.lineCap = 'round';
-    ctx.setLineDash(d.id.startsWith('d-') && d.id.length < 0 ? [6, 4] : []);
+    ctx.lineJoin = 'round';
+    ctx.setLineDash(st.dash);
 
     if (d.type === 'hline') {
       const y = this.series.priceToCoordinate(d.price);
       if (y !== null) {
+        const yy = Math.round(y) + 0.5;
         ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
+        ctx.moveTo(0, yy);
+        ctx.lineTo(width, yy);
         ctx.stroke();
+        this.paintBadge(ctx, this.formatPrice(d.price), width - 84, yy + 8, selected);
       }
     } else if (d.type === 'vline') {
       const x0 = this.timeToX(d.time);
