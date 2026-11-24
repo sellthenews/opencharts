@@ -812,12 +812,17 @@ function applyPriceData(candles: Candle[], fit: boolean, shift = 0): void {
   drawings.setPriceData(candles.map((c) => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close })));
   if (fit) chart.timeScale().fitContent();
   else if (range) {
-    chart.timeScale().setVisibleLogicalRange({
-      from: range.from + shift,
-      to: range.to + shift,
-    });
+    const next = { from: range.from + shift, to: range.to + shift };
+    chart.timeScale().setVisibleLogicalRange(next);
+    if (shift && lastGoodView?.logical) {
+      lastGoodView = {
+        ...lastGoodView,
+        logical: { from: lastGoodView.logical.from + shift, to: lastGoodView.logical.to + shift },
+      };
+    }
   }
   restoringView = false;
+  if (!fit) rememberChartView();
   evaluateAlerts(sourceId, pairId, candles[candles.length - 1]!.close);
   showLastOhlc();
 }
@@ -975,13 +980,14 @@ async function loadChart(): Promise<void> {
     drawings.setContext(src.id, pairId);
     syncLiveChart();
     setStatus(describeCandles(src.name, pairLabel, candles, aggregated));
+    if (!historyExhausted && candles.length < MAX_HISTORY) await loadOlderHistory();
+    if (seq !== loadSeq) return;
     setReady(true);
     setChartLoading('off');
     watchlist?.highlight(sourceId, pairId);
     resetHistory();
     void comparePanel?.reload();
     requestAnimationFrame(() => drawings.syncSize());
-    if (!historyExhausted && candles.length < MAX_HISTORY) void loadOlderHistory();
   } catch (err) {
     if (seq !== loadSeq) return;
     if (!cached?.length) {
@@ -1335,7 +1341,27 @@ window.__opencharts = {
   getCandles: () => lastCandles.map((c) => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close })),
   loadOlderHistory: () => loadOlderHistory(),
   timePriceToPage: (time, price) => {
-    const x = chart.timeScale().timeToCoordinate(time as import('lightweight-charts').Time);
+    const ts = chart.timeScale();
+    let x: number | null = ts.timeToCoordinate(time as import('lightweight-charts').Time);
+    if (x === null && lastCandles.length) {
+      let lo = 0;
+      let hi = lastCandles.length - 1;
+      if (time <= lastCandles[0]!.time) x = ts.timeToCoordinate(lastCandles[0]!.time as UTCTimestamp);
+      else if (time >= lastCandles[hi]!.time) x = ts.timeToCoordinate(lastCandles[hi]!.time as UTCTimestamp);
+      else {
+        while (hi - lo > 1) {
+          const mid = (lo + hi) >> 1;
+          if (lastCandles[mid]!.time <= time) lo = mid;
+          else hi = mid;
+        }
+        const a = lastCandles[lo]!;
+        const b = lastCandles[hi]!;
+        const xa = ts.timeToCoordinate(a.time as UTCTimestamp);
+        const xb = ts.timeToCoordinate(b.time as UTCTimestamp);
+        const t = b.time === a.time ? 0 : (time - a.time) / (b.time - a.time);
+        if (xa !== null && xb !== null) x = xa + (xb - xa) * t;
+      }
+    }
     const y = series.priceToCoordinate(price);
     if (x === null || y === null) return null;
     const rect = wrapEl.getBoundingClientRect();
@@ -1457,6 +1483,8 @@ const drawWidth = document.querySelector<HTMLSelectElement>('#draw-width');
 const drawLineStyle = document.querySelector<HTMLSelectElement>('#draw-linestyle');
 const drawLock = document.querySelector<HTMLButtonElement>('#draw-lock');
 const drawSettings = document.querySelector<HTMLButtonElement>('#draw-settings');
+const drawPrice = document.querySelector<HTMLInputElement>('#draw-price');
+const drawPriceWrap = document.querySelector<HTMLElement>('#draw-price-wrap');
 const drawDelete = document.querySelector<HTMLButtonElement>('#draw-delete');
 
 function applyCursorAppearance(): void {
@@ -1535,6 +1563,11 @@ function placeDrawBar(): void {
     drawLock.title = drawLock.textContent;
   }
   if (drawSettings) drawSettings.hidden = d.type !== 'fib' && d.type !== 'fibext';
+  const priceValue = d.type === 'hline' ? d.price : d.type === 'hray' ? d.p1.price : null;
+  if (drawPriceWrap) drawPriceWrap.hidden = priceValue === null;
+  if (drawPrice && priceValue !== null && document.activeElement !== drawPrice) {
+    drawPrice.value = String(priceValue);
+  }
   drawBar.style.left = '8px';
   drawBar.style.top = '8px';
   drawBar.style.right = 'auto';
@@ -1635,6 +1668,20 @@ drawLock?.addEventListener('click', () => {
   drawings.patchStyle({ locked: !d?.style?.locked });
 });
 drawSettings?.addEventListener('click', () => openFibSettings());
+const applyDrawPrice = (): void => {
+  if (!drawPrice) return;
+  const price = Number(drawPrice.value);
+  if (!Number.isFinite(price)) return;
+  drawings.setSelectedPrice(price);
+};
+drawPrice?.addEventListener('change', applyDrawPrice);
+drawPrice?.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Enter') {
+    ev.preventDefault();
+    applyDrawPrice();
+    drawPrice.blur();
+  }
+});
 drawDelete?.addEventListener('click', () => {
   drawings.deleteSelected();
 });

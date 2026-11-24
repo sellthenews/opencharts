@@ -514,6 +514,21 @@ export class DrawingLayer {
     return true;
   }
 
+  setSelectedPrice(price: number): boolean {
+    if (!Number.isFinite(price)) return false;
+    const d = this.getSelected();
+    if (!d) return false;
+    if (d.type === 'hline') d.price = price;
+    else if (d.type === 'hray') {
+      d.p1 = { ...d.p1, price };
+      d.p2 = { ...d.p2, price };
+    } else return false;
+    this.persist();
+    this.redraw();
+    this.emitSelect();
+    return true;
+  }
+
   selectionAnchor(): { x: number; y: number } | null {
     const d = this.getSelected();
     if (!d) return null;
@@ -540,21 +555,31 @@ export class DrawingLayer {
     return modifier ? !this.magnet : this.magnet;
   }
 
-  private snapLogical(point: Point): Point {
+  private snapLogical(point: Point, nearOnly = true): Point {
     if (!this.priceSamples.length) return point;
     let best = this.priceSamples[0]!;
     let bestDt = Math.abs(best.time - point.time);
-    for (const s of this.priceSamples) {
-      const dt = Math.abs(s.time - point.time);
+    for (const sample of this.priceSamples) {
+      const dt = Math.abs(sample.time - point.time);
       if (dt < bestDt) {
-        best = s;
+        best = sample;
         bestDt = dt;
       }
     }
     const levels = [best.close, best.open, best.high, best.low].filter((n): n is number => n !== undefined && Number.isFinite(n));
-    if (!levels.length) return { time: best.time, price: point.price };
-    const price = levels.reduce((a, n) => (Math.abs(n - point.price) < Math.abs(a - point.price) ? n : a));
-    return { time: best.time, price };
+    const snappedPrice = levels.length
+      ? levels.reduce((a, n) => (Math.abs(n - point.price) < Math.abs(a - point.price) ? n : a))
+      : point.price;
+    const snapped = { time: best.time, price: snappedPrice };
+    if (!nearOnly) return snapped;
+    const from = this.pointToXy(point);
+    const to = this.pointToXy(snapped);
+    if (!from || !to) return point;
+    const threshold = 12;
+    return {
+      time: Math.abs(to.x - from.x) <= threshold ? snapped.time : point.time,
+      price: Math.abs(to.y - from.y) <= threshold ? snapped.price : point.price,
+    };
   }
 
   setContext(sourceId: string, pairId: string): void {
@@ -882,7 +907,7 @@ export class DrawingLayer {
     const y = ev.clientY - rect.top;
     let logical = this.xyToLogical(x, y, loose);
     if (!logical) return null;
-    if (this.shouldSnap(ev)) logical = this.snapLogical(logical);
+    if (this.shouldSnap(ev)) logical = this.snapLogical(logical, !this.drag);
     const hit = { x, y, logical };
     this.lastHit = hit;
     return hit;
@@ -1015,7 +1040,7 @@ export class DrawingLayer {
       }
       return;
     }
-    const loose = phase !== 'down' && !!(this.drag || this.draft || this.tool === 'brush');
+    const loose = this.tool !== 'cursor' || this.draft !== null || this.drag !== null;
     const hit = this.eventPoint(ev, loose);
     if (hit && (this.drag || this.draft || this.tool !== 'cursor')) this.syncCrosshair(hit.logical);
     if (phase === 'down' && ev.button !== 0) {
@@ -1924,7 +1949,7 @@ export class DrawingLayer {
     for (const d of this.drawings) {
       for (const h of this.handleScreens(d)) {
         if (h.box) {
-          if (Math.abs(x - h.x) <= 56 && Math.abs(y - h.y) <= 10) {
+          if (Math.abs(x - h.x) <= 72 && Math.abs(y - h.y) <= 14) {
             return { id: d.id, handle: h.handle, priceOnly: h.priceOnly };
           }
           continue;
@@ -2450,12 +2475,20 @@ export class DrawingLayer {
     color = '#d1d4dc',
     size = 11,
     align: CanvasTextAlign = 'left',
+    backdrop = false,
   ): void {
     ctx.save();
     const light = document.documentElement.getAttribute('data-theme') === 'light';
-    ctx.font = `${size}px system-ui, sans-serif`;
+    ctx.font = `600 ${size}px system-ui, sans-serif`;
     ctx.textAlign = align;
-    ctx.textBaseline = size <= 10 ? 'middle' : 'alphabetic';
+    ctx.textBaseline = 'middle';
+    if (backdrop) {
+      const w = ctx.measureText(text).width;
+      const h = size + 6;
+      const left = align === 'right' ? x - w - 5 : align === 'center' ? x - w / 2 - 5 : x - 5;
+      ctx.fillStyle = light ? 'rgba(255, 255, 255, 0.86)' : 'rgba(13, 15, 20, 0.82)';
+      ctx.fillRect(left, y - h / 2, w + 10, h);
+    }
     ctx.lineWidth = 3;
     ctx.strokeStyle = light ? 'rgba(255, 255, 255, 0.88)' : 'rgba(13, 15, 20, 0.85)';
     ctx.fillStyle = color;
@@ -3251,17 +3284,13 @@ export class DrawingLayer {
       if (opts.showPrices) parts.push(this.formatPrice(price));
       if (parts.length) placed.push({ y, text: parts.join('  '), color: level.color });
     }
-    placed.sort((p, q) => p.y - q.y);
-    const gap = 12;
-    for (let i = 1; i < placed.length; i++) {
-      if (placed[i]!.y - placed[i - 1]!.y < gap) placed[i]!.y = placed[i - 1]!.y + gap;
-    }
     const atLeft = opts.labels === 'left';
-    const lx = atLeft ? startX + 5 : endX - 5;
+    this.spreadLabels(placed, 18);
+    const lx = atLeft ? startX + 8 : endX - 8;
     const align: CanvasTextAlign = atLeft ? 'left' : 'right';
-    const v = opts.labelVAlign === 'top' ? -7 : opts.labelVAlign === 'bottom' ? 7 : 0;
+    const v = opts.labelVAlign === 'top' ? -8 : opts.labelVAlign === 'bottom' ? 8 : 0;
     for (const row of placed) {
-      this.label(ctx, row.text, lx, row.y + v, row.color, 11, align);
+      this.label(ctx, row.text, lx, row.y + v, row.color, 13, align, true);
     }
   }
 
@@ -3326,17 +3355,20 @@ export class DrawingLayer {
       ctx.stroke();
       ctx.setLineDash([]);
     }
+    this.spreadLabels(placed, 18);
+    const atLeft = opts.labels === 'left';
+    const lx = atLeft ? left + 8 : Math.max(left + 8, right - 8);
+    const align: CanvasTextAlign = atLeft ? 'left' : 'right';
+    for (const row of placed) {
+      this.label(ctx, row.text, lx, row.y, row.color, 13, align, true);
+    }
+  }
+
+  private spreadLabels(placed: { y: number }[], gap: number): void {
+    if (placed.length < 2) return;
     placed.sort((p, q) => p.y - q.y);
-    const gap = 11;
     for (let i = 1; i < placed.length; i++) {
       if (placed[i]!.y - placed[i - 1]!.y < gap) placed[i]!.y = placed[i - 1]!.y + gap;
-    }
-    const atLeft = opts.labels === 'left';
-    const lx = atLeft ? left + 6 : Math.max(left + 6, right - 6);
-    const align: CanvasTextAlign = atLeft ? 'left' : 'right';
-    const light = document.documentElement.getAttribute('data-theme') === 'light';
-    for (const row of placed) {
-      this.label(ctx, row.text, lx, row.y, light ? row.color : row.color, 10, align);
     }
   }
 
