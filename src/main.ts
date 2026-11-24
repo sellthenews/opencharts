@@ -18,7 +18,7 @@ import type { PaneMap } from './indicators/host';
 import { loadIndicatorSettings, saveIndicatorSettings } from './indicators/settings';
 import { IndicatorHud, initIndicatorModal } from './indicators/ui';
 import type { IndicatorInstance } from './indicators/types';
-import { STOCKS_PROXY_UNCONFIGURED } from './config';
+import { describeLoadError } from './load-error';
 import { INTERVALS, formatPairLabel, getSource, sources } from './sources';
 import { lookupSymbol } from './sources/catalog';
 import type { Candle, IntervalId, PairId } from './sources';
@@ -502,9 +502,7 @@ async function loadChart(): Promise<void> {
       setReady(false);
     }
     syncLiveChart();
-    const message = err instanceof Error ? err.message : String(err);
-    if (message === STOCKS_PROXY_UNCONFIGURED) setStatus(STOCKS_PROXY_UNCONFIGURED, true);
-    else setStatus(`Failed to load data from ${src.name}: ${message}`, true);
+    setStatus(describeLoadError(sourceId, src.name, err), true);
     setChartLoading('off');
   }
 }
@@ -580,6 +578,11 @@ symbolSearch = initSymbolSearch({
   pairBtn: document.querySelector('#pair-btn')!,
   closeBtn: document.querySelector('#sym-modal-close')!,
   onSelect: (src, pair) => applySelection(src, pair, true),
+  onAdd: (src, pair) => {
+    const added = watchlist.addItem(src, pair);
+    const label = formatPairLabel(src, pair);
+    setStatus(added ? `Added ${label} to the watchlist.` : `${label} is already on the watchlist.`);
+  },
 });
 symbolSearch.setCurrent(sourceId, pairId);
 void symbolSearch.ready.then(() => symbolSearch?.setCurrent(sourceId, pairId));
@@ -591,6 +594,7 @@ watchlist = new WatchlistPanel(
     applySelection(src, pair, true);
   },
   (pairs) => live.setTickers(pairs),
+  () => symbolSearch?.open('', 'add'),
 );
 watchlist.highlight(sourceId, pairId);
 live.start();
@@ -719,6 +723,18 @@ initChartMenu(
     exportDrawings: () => exportDrawingsFile(),
     importDrawings: () => importFile.click(),
     extendFib: () => extendSelectedFib(),
+    watchlistLabel: () => formatPairLabel(sourceId, pairId),
+    isOnWatchlist: () => watchlist.hasItem(sourceId, pairId),
+    toggleWatchlist: () => {
+      const label = formatPairLabel(sourceId, pairId);
+      if (watchlist.hasItem(sourceId, pairId)) {
+        watchlist.removeItem(sourceId, pairId);
+        setStatus(`Removed ${label} from the watchlist.`);
+      } else {
+        watchlist.addItem(sourceId, pairId);
+        setStatus(`Added ${label} to the watchlist.`);
+      }
+    },
   },
 );
 
@@ -915,3 +931,22 @@ chart.subscribeCrosshairMove((param) => {
 applyCursorAppearance();
 
 void loadChart();
+
+async function checkFreshBuild(): Promise<void> {
+  if (!import.meta.env.PROD) return;
+  try {
+    const res = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    const info = (await res.json()) as { js?: string };
+    const current = document.querySelector<HTMLScriptElement>('script[src*="assets/index-"]')?.getAttribute('src') ?? '';
+    if (!info.js || current.includes(info.js)) return;
+    const key = 'opencharts:reloaded-build';
+    if (sessionStorage.getItem(key) === info.js) return;
+    sessionStorage.setItem(key, info.js);
+    location.reload();
+  } catch {
+    /* offline or old host without version.json */
+  }
+}
+
+void checkFreshBuild();

@@ -212,3 +212,13 @@ Zrzut (lokalny, w `.gitignore`): `screenshots-test/stocks-yahoo.png` (XRPN z zam
 - Eksport / import rysunków oraz „Extend Fib right” są w menu kontekstowym, nie na lewym pasku.
 
 Zrzuty (lokalne, w `.gitignore`): `screenshots-test/pasek-menu.png`, `screenshots-test/pasek-ulubione.png`. Folder `screenshots-test/ref/` z referencyjnymi zdjęciami też jest ignorowany i nie trafia do repo.
+
+## Watchlista i menu (24 XI 2026)
+
+- Menu prawego przycisku: „Add <SYMBOL> to watchlist” albo „Remove <SYMBOL> from watchlist”.
+- Przycisk + w nagłówku listy otwiera wyszukiwarkę w trybie dodawania (wybór dopisuje symbol, nie zmienia wykresu). × przy wierszu usuwa. Zapis `opencharts:watchlists` (migracja z `wykresy:`).
+- Limit 3 pozycji wynikał z formularza Add opartego wyłącznie o `PAIR_IDS` (XRP/BTC/ETH) — te trzy już były na liście. Formularz zastąpiony wyszukiwarką, bez limitu.
+- Wiersze dla krypto (wszystkie giełdy), Kraken xStocks i Yahoo (XRPN itd.): cena i zmiana % (24h / dzienna z meta). Klik otwiera wykres ze źródłem. Odświeżanie co 60 s, max 4 równoległe zapytania.
+- Gdy fetch do Workera lub giełdy się nie uda (np. adblock): czytelny komunikat w pasku statusu. W `index.html` jest `Cache-Control: no-cache, no-store`; GitHub Pages i tak serwuje HTML z `max-age=600`. `version.json` z hashem buildu — przy starcie, jeśli nowszy, jednorazowy reload.
+
+Zrzuty (lokalne, w `.gitignore`): `screenshots-test/watchlist-menu.png`, `screenshots-test/watchlist-lista.png`.

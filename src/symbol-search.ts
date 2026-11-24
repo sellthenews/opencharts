@@ -40,7 +40,8 @@ export function initSymbolSearch(opts: {
   pairBtn: HTMLButtonElement;
   closeBtn: HTMLButtonElement;
   onSelect: (sourceId: string, pairId: string) => void;
-}): { open: (query?: string) => void; close: () => void; setCurrent: (sourceId: string, pairId: string) => void; ready: Promise<void> } {
+  onAdd?: (sourceId: string, pairId: string) => void;
+}): { open: (query?: string, mode?: 'chart' | 'add') => void; close: () => void; setCurrent: (sourceId: string, pairId: string) => void; ready: Promise<void> } {
   let items: SymbolInfo[] = [];
   let filter: SourceFilter = 'all';
   let category: CategoryFilter = 'all';
@@ -48,6 +49,7 @@ export function initSymbolSearch(opts: {
   let visible: SymbolInfo[] = [];
   let current = { sourceId: 'kraken', pairId: 'XRPUSD' };
   let open = false;
+  let mode: 'chart' | 'add' = 'chart';
 
   function setCurrent(sourceId: string, pairId: string): void {
     current = { sourceId, pairId };
@@ -63,7 +65,10 @@ export function initSymbolSearch(opts: {
   function close(): void {
     if (!open) return;
     open = false;
+    mode = 'chart';
     opts.modal.hidden = true;
+    const title = opts.modal.querySelector('#sym-modal-title');
+    if (title) title.textContent = 'Search symbol';
   }
 
   function moveActive(delta: number): void {
@@ -86,8 +91,10 @@ export function initSymbolSearch(opts: {
   function choose(index = active): void {
     const item = visible[index];
     if (!item) return;
+    const add = mode === 'add';
     close();
-    opts.onSelect(item.sourceId, item.id);
+    if (add && opts.onAdd) opts.onAdd(item.sourceId, item.id);
+    else opts.onSelect(item.sourceId, item.id);
   }
 
   let yahooHits: SymbolInfo[] = [];
@@ -187,9 +194,12 @@ export function initSymbolSearch(opts: {
         .join('');
   }
 
-  function show(query?: string): void {
+  function show(query?: string, nextMode: 'chart' | 'add' = 'chart'): void {
     open = true;
+    mode = nextMode;
     opts.modal.hidden = false;
+    const title = opts.modal.querySelector('#sym-modal-title');
+    if (title) title.textContent = nextMode === 'add' ? 'Add to watchlist' : 'Search symbol';
     if (query !== undefined) opts.input.value = query;
     active = 0;
     render();
@@ -197,7 +207,7 @@ export function initSymbolSearch(opts: {
     if (query) opts.input.setSelectionRange(query.length, query.length);
   }
 
-  opts.pairBtn.addEventListener('click', () => show(''));
+  opts.pairBtn.addEventListener('click', () => show('', 'chart'));
   opts.closeBtn.addEventListener('click', () => close());
   opts.modal.querySelector('.sym-modal-backdrop')?.addEventListener('click', () => close());
 

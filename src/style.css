@@ -503,6 +503,12 @@ button.danger:hover {
   padding: 5px 0;
 }
 
+.watch-lists button[data-watch-action="add-list"] {
+  width: auto;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
 .watch-body {
   flex: 1;
   overflow: auto;

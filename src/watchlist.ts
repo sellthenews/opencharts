@@ -2,12 +2,12 @@
 // Copyright (C) 2026 OpenCharts contributors
 
 import './storage';
-import { getSource, sources } from './sources';
+import { getSource } from './sources';
 import type { PairId, Ticker } from './sources';
-import { PAIR_IDS, PAIR_LABELS, formatPairLabel } from './sources';
+import { PAIR_LABELS, formatPairLabel } from './sources';
 
 export const WATCH_STORAGE_KEY = 'opencharts:watchlists';
-export const TICKER_INTERVAL_MS = 45_000;
+export const TICKER_INTERVAL_MS = 60_000;
 
 export interface WatchItem {
   sourceId: string;
@@ -49,7 +49,7 @@ function newId(): string {
 }
 
 function isPairId(value: string): value is PairId {
-  return typeof value === 'string' && value.length > 0 && value.length < 32;
+  return typeof value === 'string' && value.length > 0 && value.length < 48;
 }
 
 export function loadWatchState(): WatchState {
@@ -114,6 +114,7 @@ export class WatchlistPanel {
     private readonly root: HTMLElement,
     private readonly onOpen: (sourceId: string, pairId: PairId) => void,
     private readonly onKrakenPairs?: (pairs: PairId[]) => void,
+    private readonly onRequestAdd?: () => void,
   ) {
     this.state = loadWatchState();
     this.root.addEventListener('click', (ev) => this.onClick(ev));
@@ -144,6 +145,31 @@ export class WatchlistPanel {
 
   activeList(): WatchList {
     return this.state.lists.find((l) => l.id === this.state.activeId) ?? this.state.lists[0]!;
+  }
+
+  hasItem(sourceId: string, pairId: PairId): boolean {
+    return this.activeList().items.some((i) => i.sourceId === sourceId && i.pairId === pairId);
+  }
+
+  addItem(sourceId: string, pairId: PairId): boolean {
+    if (!isPairId(String(pairId))) return false;
+    const list = this.activeList();
+    if (list.items.some((i) => i.sourceId === sourceId && i.pairId === pairId)) return false;
+    list.items.push({ sourceId, pairId });
+    this.persist();
+    this.render();
+    void this.refreshQuotes();
+    return true;
+  }
+
+  removeItem(sourceId: string, pairId: PairId): boolean {
+    const list = this.activeList();
+    const before = list.items.length;
+    list.items = list.items.filter((i) => !(i.sourceId === sourceId && i.pairId === pairId));
+    if (list.items.length === before) return false;
+    this.persist();
+    this.render();
+    return true;
   }
 
   /** Live quote hook (Kraken WebSocket ticker, later). */
@@ -180,10 +206,13 @@ export class WatchlistPanel {
   private async refreshQuotes(): Promise<void> {
     const items = this.activeList().items;
     const seq = ++this.inflight;
-    await Promise.all(
-      items.map(async (item) => {
+    let cursor = 0;
+    const worker = async (): Promise<void> => {
+      while (cursor < items.length) {
+        const item = items[cursor]!;
+        cursor += 1;
         const src = getSource(item.sourceId);
-        if (!src) return;
+        if (!src) continue;
         try {
           const ticker = await src.fetchTicker(item.pairId);
           if (seq !== this.inflight) return;
@@ -193,8 +222,10 @@ export class WatchlistPanel {
         } catch {
           /* leave last known quote */
         }
-      }),
-    );
+      }
+    };
+    const n = Math.min(4, items.length);
+    await Promise.all(Array.from({ length: n }, () => worker()));
   }
 
   private paintRow(row: HTMLElement, ticker: Ticker): void {
@@ -222,6 +253,11 @@ export class WatchlistPanel {
       this.persist();
       this.render();
       void this.refreshQuotes();
+      return;
+    }
+    const addSymbol = t.closest<HTMLButtonElement>('[data-watch-action="add-symbol"]');
+    if (addSymbol) {
+      this.onRequestAdd?.();
       return;
     }
     const addList = t.closest<HTMLButtonElement>('[data-watch-action="add-list"]');
@@ -265,18 +301,7 @@ export class WatchlistPanel {
   }
 
   private onSubmit(ev: Event): void {
-    const form = ev.target as HTMLFormElement;
-    if (form.id !== 'watch-add-form') return;
     ev.preventDefault();
-    const sourceId = form.querySelector<HTMLSelectElement>('#watch-add-source')?.value;
-    const pairIdRaw = form.querySelector<HTMLSelectElement>('#watch-add-pair')?.value;
-    if (!sourceId || !pairIdRaw || !isPairId(pairIdRaw)) return;
-    const list = this.activeList();
-    if (list.items.some((i) => i.sourceId === sourceId && i.pairId === pairIdRaw)) return;
-    list.items.push({ sourceId, pairId: pairIdRaw });
-    this.persist();
-    this.render();
-    void this.refreshQuotes();
   }
 
   private render(): void {
@@ -285,16 +310,12 @@ export class WatchlistPanel {
     const listOpts = this.state.lists
       .map((l) => `<option value="${l.id}"${l.id === list.id ? ' selected' : ''}>${escapeHtml(l.name)}</option>`)
       .join('');
-    const sourceOpts = sources
-      .map((s) => `<option value="${s.id}">${escapeHtml(s.name)}</option>`)
-      .join('');
-    const pairOpts = PAIR_IDS.map((id) => `<option value="${id}">${PAIR_LABELS[id]}</option>`).join('');
     const rows = list.items
       .map((item) => {
         const src = getSource(item.sourceId);
         const quote = this.quotes.get(itemKey(item));
         const label = PAIR_LABELS[item.pairId] ?? formatPairLabel(item.sourceId, item.pairId);
-        const exch = src?.name ?? item.sourceId;
+        const exch = item.sourceId === 'yahoo' ? 'Yahoo' : (src?.name ?? item.sourceId);
         const last = quote ? formatPrice(quote.last) : '…';
         const chg = quote ? formatPct(quote.change24hPct) : '…';
         const chgClass =
@@ -319,16 +340,12 @@ export class WatchlistPanel {
         <h2>Watchlist</h2>
         <div class="watch-lists">
           <select id="watch-list-select" title="List" aria-label="Watchlist">${listOpts}</select>
-          <button type="button" data-watch-action="add-list" title="New list">+</button>
-          <button type="button" data-watch-action="remove-list" title="Remove list" ${canDeleteList ? '' : 'disabled'}>−</button>
+          <button type="button" data-watch-action="add-symbol" title="Add symbol" aria-label="Add symbol">+</button>
+          <button type="button" data-watch-action="add-list" title="New list" aria-label="New list">New</button>
+          <button type="button" data-watch-action="remove-list" title="Remove list" aria-label="Remove list" ${canDeleteList ? '' : 'disabled'}>−</button>
         </div>
       </div>
-      <div class="watch-body">${rows || '<p class="watch-empty">This list is empty.</p>'}</div>
-      <form id="watch-add-form" class="watch-add">
-        <select id="watch-add-source" aria-label="Exchange">${sourceOpts}</select>
-        <select id="watch-add-pair" aria-label="Para">${pairOpts}</select>
-        <button type="submit">Add</button>
-      </form>
+      <div class="watch-body">${rows || '<p class="watch-empty">This list is empty. Click + to add a symbol.</p>'}</div>
     `;
   }
 }
