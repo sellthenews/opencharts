@@ -21,15 +21,8 @@ export interface CompareItem {
 }
 
 export function loadCompare(): CompareItem[] {
-  try {
-    const raw = localStorage.getItem(COMPARE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((x) => x && typeof x.sourceId === 'string' && typeof x.pairId === 'string') as CompareItem[];
-  } catch {
-    return [];
-  }
+  // Do not auto-restore compared symbols from a previous session.
+  return [];
 }
 
 export function saveCompare(items: CompareItem[]): void {
@@ -109,7 +102,7 @@ export class CompareOverlay {
       const s = this.chart.addSeries(LineSeries, {
         color: item.color,
         lineWidth: 2,
-        priceScaleId: 'left',
+        priceScaleId: 'compare',
         lastValueVisible: true,
         priceLineVisible: false,
         title: formatPairLabel(item.sourceId, item.pairId),
@@ -133,7 +126,7 @@ export class CompareOverlay {
   }
 
   private applyAxis(): void {
-    this.chart.priceScale('left').applyOptions({
+    this.chart.priceScale('compare').applyOptions({
       visible: this.axisVisible && this.items.length > 0,
       borderVisible: false,
       scaleMargins: { top: 0.05, bottom: 0.08 },

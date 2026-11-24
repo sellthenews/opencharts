@@ -102,7 +102,7 @@ export interface RailGroup {
 const FAV_KEY = 'opencharts:favorites';
 const FAV_KEY_V2 = 'opencharts:favorites-v2';
 const LAST_KEY = 'opencharts:rail-last';
-const DEFAULT_FAV_TOP = 48;
+const DEFAULT_FAV_TOP = 72;
 
 /** Default set used for first visits and the one-time v2 favorites migration. */
 export const DEFAULT_FAV_TOOLS: Tool[] = [
@@ -247,6 +247,7 @@ interface FavState {
   tools: Tool[];
   x: number;
   y: number;
+  collapsed?: boolean;
 }
 
 export interface ToolRailOptions {
@@ -304,8 +305,9 @@ function loadFav(): { state: FavState; stored: boolean; placed: boolean } {
           state: {
             v: 2,
             tools: p.tools.filter(isToolId),
-            x: typeof p.x === 'number' ? p.x : 0,
+            x: typeof p.x === 'number' ? p.x : 8,
             y: typeof p.y === 'number' ? p.y : DEFAULT_FAV_TOP,
+            collapsed: p.collapsed === true,
           },
           stored: true,
           placed,
@@ -430,7 +432,7 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
     const parent = opts.favBar.offsetParent as HTMLElement | null;
     const pw = parent?.clientWidth ?? opts.favBar.parentElement?.clientWidth ?? window.innerWidth;
     const maxX = Math.max(0, pw - opts.favBar.offsetWidth);
-    fav.x = Math.round(maxX / 2);
+    fav.x = Math.min(8, maxX);
     fav.y = DEFAULT_FAV_TOP;
     opts.favBar.style.left = `${fav.x}px`;
     opts.favBar.style.top = `${fav.y}px`;
@@ -453,9 +455,12 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
         return `<button type="button" class="fav-btn${cls}" data-tool="${id}" title="${toolTooltip(id)}" aria-label="${t(`tool.${id}`)}">${icon(id)}</button>`;
       })
       .join('');
+    const collapseLabel = fav.collapsed ? t('draw.expandBar') : t('draw.collapseBar');
+    opts.favBar.classList.toggle('is-collapsed', Boolean(fav.collapsed));
     opts.favBar.innerHTML = `<button type="button" class="fav-handle" id="fav-handle" title="${t('rail.favDrag')}" aria-label="${t('rail.favDrag')}">
         <span></span><span></span><span></span><span></span><span></span><span></span>
-      </button><div class="fav-items">${items}</div>`;
+      </button><div class="fav-items">${items}</div>
+      <button type="button" class="fav-collapse" id="fav-collapse" title="${collapseLabel}" aria-label="${collapseLabel}" aria-expanded="${fav.collapsed ? 'false' : 'true'}">${fav.collapsed ? '▸' : '▾'}</button>`;
     if (!favPlaced) requestAnimationFrame(() => centerFavIfNeeded());
   }
 
@@ -647,6 +652,14 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
   });
 
   opts.favBar.addEventListener('click', (ev) => {
+    if ((ev.target as HTMLElement).closest('#fav-collapse')) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      fav.collapsed = !fav.collapsed;
+      saveFav(fav);
+      renderFav();
+      return;
+    }
     if ((ev.target as HTMLElement).closest('.fav-handle')) return;
     const btn = (ev.target as HTMLElement).closest<HTMLElement>('[data-tool]');
     const tool = btn?.getAttribute('data-tool') as Tool | null;

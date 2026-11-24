@@ -153,7 +153,10 @@
         </div>
         <aside id="watchlist" aria-label="Watchlists" data-i18n-aria="watch.lists"></aside>
         <aside id="alerts-panel" aria-label="Price alerts" data-i18n-aria="alerts.title">
-          <h2 data-i18n="alerts.title">Price alerts</h2>
+          <div class="alerts-head">
+            <h2 data-i18n="alerts.title">Price alerts</h2>
+            <button type="button" id="alert-list-toggle" title="Collapse alert list" data-i18n-title="alerts.collapseList" aria-label="Collapse alert list" data-i18n-aria="alerts.collapseList" aria-expanded="true">▾</button>
+          </div>
           <p class="alert-note" data-i18n="alerts.note">Alerts work while this tab is open</p>
           <form id="alert-form" class="alert-form">
             <select id="alert-kind" aria-label="Alert type" data-i18n-aria="alerts.type">

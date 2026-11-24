@@ -194,6 +194,7 @@ button.danger:hover {
 #chart-wrap {
   position: relative;
   min-height: 0;
+  overflow: hidden;
   background: var(--panel);
   user-select: none;
   -webkit-user-select: none;
@@ -229,6 +230,7 @@ button.danger:hover {
   inset: 0;
   z-index: 3;
   pointer-events: none;
+  overflow: visible;
 }
 
 .ind-label-stack {
@@ -239,7 +241,7 @@ button.danger:hover {
   align-items: flex-start;
   gap: 3px;
   pointer-events: auto;
-  max-width: min(360px, 70%);
+  max-width: min(280px, calc(100% - 16px));
 }
 
 .ind-label {
@@ -458,15 +460,57 @@ button.danger:hover {
 #alerts-panel {
   border-top: 1px solid var(--border);
   padding: 10px;
-  flex-shrink: 0;
-  max-height: 34%;
-  overflow: auto;
+  flex: 1 1 42%;
+  min-height: 200px;
+  max-height: 58%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#alerts-panel.is-list-collapsed {
+  flex: 0 0 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.alerts-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 #alerts-panel h2 {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 13px;
   font-weight: 700;
+}
+
+#alert-list-toggle {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+#alerts-panel .alert-list {
+  flex: 1 1 auto;
+  min-height: 72px;
+  overflow: auto;
+}
+
+#alerts-panel.is-list-collapsed .alert-list {
+  display: none;
 }
 
 .alert-form {
@@ -1093,6 +1137,29 @@ html[data-theme="light"] #rail-flyout {
   background: rgba(255, 255, 255, 0.08);
 }
 
+#fav-bar .fav-collapse {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e0e3ea;
+  cursor: pointer;
+}
+
+#fav-bar.is-collapsed {
+  padding-right: 8px;
+}
+
+#fav-bar.is-collapsed .fav-items {
+  display: none;
+}
+
 #ohlc-legend {
   position: absolute;
   top: 8px;
@@ -1100,6 +1167,9 @@ html[data-theme="light"] #rail-flyout {
   transform: translateX(-50%);
   z-index: 3;
   pointer-events: none;
+  max-width: min(560px, calc(100% - 24px));
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding: 3px 10px;
   border-radius: 4px;
   background: color-mix(in srgb, var(--panel) 88%, transparent);
@@ -1118,6 +1188,7 @@ html[data-theme="light"] #rail-flyout {
   display: flex;
   align-items: baseline;
   gap: 10px;
+  overflow: hidden;
 }
 
 .ohlc-item em {
@@ -1393,7 +1464,7 @@ html[data-theme="light"] #rail-flyout {
 
 #draw-bar {
   position: absolute;
-  top: 8px;
+  top: 118px;
   left: 8px;
   transform: none;
   z-index: 8;
@@ -2112,29 +2183,7 @@ html[dir="rtl"] #cursor-dot {
   font-variant-numeric: tabular-nums;
 }
 
-#chart-wrap.is-draw-open #chart,
-#chart-wrap:has(#draw-bar:not([hidden]):not(.is-collapsed)) #chart,
-#chart-wrap.is-draw-open #draw-overlay,
-#chart-wrap:has(#draw-bar:not([hidden]):not(.is-collapsed)) #draw-overlay,
-#chart-wrap.is-draw-open #vp-overlay,
-#chart-wrap:has(#draw-bar:not([hidden]):not(.is-collapsed)) #vp-overlay {
-  top: 36px;
-  right: 0;
-  bottom: 0;
-  left: 0;
-}
-
-#chart-wrap.is-draw-open #ohlc-legend,
-#chart-wrap:has(#draw-bar:not([hidden]):not(.is-collapsed)) #ohlc-legend {
-  top: 44px;
-}
-
-#chart-wrap.is-draw-open #ind-labels,
-#chart-wrap.is-draw-open #compare-legend,
-#chart-wrap:has(#draw-bar:not([hidden]):not(.is-collapsed)) #ind-labels,
-#chart-wrap:has(#draw-bar:not([hidden]):not(.is-collapsed)) #compare-legend {
-  top: 36px;
-}
+/* Selecting a drawing no longer shifts the chart or side panel. */
 
 #draw-bar.is-collapsed {
   padding: 2px;
@@ -2146,10 +2195,17 @@ html[dir="rtl"] #cursor-dot {
 }
 
 #draw-collapse {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 24px;
   padding: 0;
+  font-size: 14px;
+  font-weight: 800;
   line-height: 1;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bar) 70%, var(--accent) 30%);
+  color: var(--heading);
+  cursor: pointer;
 }
 
 #scale-btns {
@@ -2179,6 +2235,7 @@ html[dir="rtl"] #cursor-dot {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--heading);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--heading) 35%, transparent);
 }
 
 #confirm-modal {

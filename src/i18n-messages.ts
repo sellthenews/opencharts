@@ -84,6 +84,8 @@ export const MESSAGES: Record<string, Record<string, string>> = {
     'alerts.editTitle': 'Edit alert',
     'alerts.removeTitle': 'Remove alert',
     'alerts.none': 'No alerts.',
+    'alerts.collapseList': 'Collapse alert list',
+    'alerts.expandList': 'Expand alert list',
     'alerts.macdCross': '{pair} {source} · MACD crosses signal',
     'alerts.rsiCross': '{pair} {source} · RSI crosses {price}',
     'alerts.trendCross': '{pair} {source} · trend line cross',

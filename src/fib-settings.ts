@@ -6,6 +6,8 @@ export const FIBEXT_DEFAULTS_KEY = 'opencharts:fibext-defaults';
 
 export const FIB_KEY_LEVELS = [0.5, 0.61, 0.786, 1, 1.618] as const;
 
+const FIB_VISIBLE_DEFAULTS = [0, 0.236, 0.38, 0.5, 0.61, 0.786, 1] as const;
+
 export const FIB_DEFAULT_VALUES = [
   0, 0.236, 0.278, 0.38, 0.44, 0.5, 0.577, 0.61, 0.667, 0.707, 0.77, 0.786, 0.8, 0.878, 0.941, 1, 1.13, 1.25, 1.414,
   1.618, 1.732, 2.058, 2.236, 2.618,
@@ -127,11 +129,11 @@ export function builtInFibOptions(): FibOptions {
   return {
     levels: FIB_DEFAULT_VALUES.map((value) => ({
       value,
-      visible: true,
+      visible: FIB_VISIBLE_DEFAULTS.some((v) => nearlyEqual(v, value)),
       color: colorForFibValue(value),
     })),
     background: true,
-    backgroundOpacity: 0.08,
+    backgroundOpacity: 0.04,
     // false = default order (level 1 at the first point, 0 at the second).
     reverse: false,
     showPrices: true,

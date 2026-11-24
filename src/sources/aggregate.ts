@@ -18,6 +18,23 @@ export function monthStartUtc(time: number): number {
   return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 1000);
 }
 
+export function isValidCandle(c: Candle): boolean {
+  return (
+    Number.isFinite(c.time) &&
+    Number.isFinite(c.open) &&
+    Number.isFinite(c.high) &&
+    Number.isFinite(c.low) &&
+    Number.isFinite(c.close) &&
+    c.open > 0 &&
+    c.high > 0 &&
+    c.low > 0 &&
+    c.close > 0 &&
+    c.high >= c.low &&
+    Number.isFinite(c.volume) &&
+    c.volume >= 0
+  );
+}
+
 export function bucketStart(time: number, interval: IntervalId): number {
   if (interval === '1M') return monthStartUtc(time);
   if (interval === '1W') return weekStartUtc(time);
@@ -29,7 +46,7 @@ export function bucketStart(time: number, interval: IntervalId): number {
 /** Merge smaller candles into `interval` buckets. Input may be unsorted. */
 export function aggregateCandles(candles: Candle[], interval: IntervalId): Candle[] {
   const buckets = new Map<number, Candle>();
-  const ordered = [...candles].sort((a, b) => a.time - b.time);
+  const ordered = [...candles].filter(isValidCandle).sort((a, b) => a.time - b.time);
   for (const c of ordered) {
     const t = bucketStart(c.time, interval);
     const existing = buckets.get(t);
@@ -54,6 +71,9 @@ export function aggregateCandles(candles: Candle[], interval: IntervalId): Candl
 
 export function sortDedup(candles: Candle[]): Candle[] {
   const byTime = new Map<number, Candle>();
-  for (const c of candles) byTime.set(c.time, c);
+  for (const c of candles) {
+    if (!isValidCandle(c)) continue;
+    byTime.set(c.time, c);
+  }
   return [...byTime.values()].sort((a, b) => a.time - b.time);
 }

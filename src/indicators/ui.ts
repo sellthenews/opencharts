@@ -154,6 +154,7 @@ export function openIndicatorModal(onAdd: (kind: IndicatorKind) => void): void {
 
 export class IndicatorHud {
   private paneMap: PaneMap = {};
+  private popoverLocked = false;
   private openSettingsId: string | null = null;
   private lastValues: Record<string, string> = {};
 
@@ -183,8 +184,10 @@ export class IndicatorHud {
       const target = ev.target as HTMLElement | null;
       if (pop.contains(target)) return;
       if (target?.closest('[data-ind-act="settings"]')) return;
+      this.popoverLocked = true;
       this.openSettingsId = null;
       pop.remove();
+      this.popoverLocked = false;
     });
   }
 
@@ -337,6 +340,7 @@ export class IndicatorHud {
     if (labelEl) labelEl.append(pop);
     else this.labelsRoot.append(pop);
     const applyForm = (): void => {
+      if (this.popoverLocked || !pop.isConnected) return;
       const next: IndicatorParams = { ...item.params };
       for (const input of pop.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-ind-field]')) {
         const key = input.dataset.indField as keyof IndicatorParams;

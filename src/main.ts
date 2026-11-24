@@ -22,6 +22,7 @@ import type { IndicatorInstance, IndicatorKind } from './indicators/types';
 import { macd, rsi } from './indicators/math';
 import { describeLoadError } from './load-error';
 import { BUILTIN_INTERVALS, HISTORY_PAGE, MAX_HISTORY, formatPairLabel, getSource, intervalLabel, isIntervalId, loadIntervalFavorites, parseIntervalId, saveIntervalFavorites, sources } from './sources';
+import { isValidCandle } from './sources/aggregate';
 import { lookupSymbol } from './sources/catalog';
 import type { Candle, IntervalId, PairId } from './sources';
 import { initSymbolSearch } from './symbol-search';
@@ -97,7 +98,7 @@ let intervalFavs = loadIntervalFavorites();
 let historyKey = '';
 let historyExhausted = false;
 let historyLoading = false;
-const HISTORY_LEFT_EDGE = 40;
+const HISTORY_LEFT_EDGE = 80;
 
 let paneCount: 1 | 2 | 4 = 1;
 const defaultExtras: MiniState[] = [
@@ -128,6 +129,21 @@ let lastCandles: Candle[] = [];
 
 let alerts: PriceAlert[] = loadAlerts();
 const alertListEl = document.querySelector<HTMLDivElement>('#alert-list');
+const ALERT_LIST_COLLAPSE_KEY = 'opencharts:alerts-list-collapsed';
+let alertListCollapsed = localStorage.getItem(ALERT_LIST_COLLAPSE_KEY) === 'on';
+
+function syncAlertListCollapse(): void {
+  const panel = document.querySelector('#alerts-panel');
+  const btn = document.querySelector<HTMLButtonElement>('#alert-list-toggle');
+  panel?.classList.toggle('is-list-collapsed', alertListCollapsed);
+  if (btn) {
+    const label = alertListCollapsed ? t('alerts.expandList') : t('alerts.collapseList');
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('aria-expanded', alertListCollapsed ? 'false' : 'true');
+    btn.textContent = alertListCollapsed ? '▸' : '▾';
+  }
+}
 const alertForm = document.querySelector<HTMLFormElement>('#alert-form');
 const alertToast = document.querySelector<HTMLDivElement>('#alert-toast');
 let toastTimer: number | null = null;
@@ -137,6 +153,7 @@ function renderAlerts(): void {
   if (!alertListEl) return;
   if (!alerts.length) {
     alertListEl.innerHTML = `<p class="watch-empty">${t('alerts.none')}</p>`;
+    syncAlertListCollapse();
     return;
   }
   alertListEl.innerHTML = alerts
@@ -152,6 +169,7 @@ function renderAlerts(): void {
       </div>`;
     })
     .join('');
+  syncAlertListCollapse();
 }
 
 function showAlertToast(text: string): void {
@@ -609,6 +627,16 @@ alertListEl?.addEventListener('click', (ev) => {
   renderAlerts();
 });
 
+document.querySelector('#alert-list-toggle')?.addEventListener('click', () => {
+  alertListCollapsed = !alertListCollapsed;
+  try {
+    localStorage.setItem(ALERT_LIST_COLLAPSE_KEY, alertListCollapsed ? 'on' : 'off');
+  } catch {
+    /* quota */
+  }
+  syncAlertListCollapse();
+});
+
 document.querySelector('#alert-notify-btn')?.addEventListener('click', () => {
   requestAlertPermission();
   setStatus(
@@ -667,10 +695,12 @@ function persistIndicators(items: IndicatorInstance[]): void {
 function syncIndicatorContext(): void {
   const scope = `${sourceId}:${pairId}`;
   if (scope === indicatorScope) return;
+  const carried = structuredClone(indicatorItems);
+  const carriedPanes = paneStretches ? [...paneStretches] : paneStretches;
   indicatorScope = scope;
-  const loaded = loadIndicatorSettings(sourceId, pairId);
-  indicatorItems = loaded.items;
-  paneStretches = loaded.panes;
+  indicatorItems = carried;
+  paneStretches = carriedPanes;
+  saveIndicatorSettings(indicatorItems, sourceId, pairId, paneStretches);
   indicators.clearHigherTf();
   indicators.setChartInterval(intervalId);
   indicators.setPaneStretches(paneStretches);
@@ -862,6 +892,7 @@ function showLastOhlc(): void {
 
 function applyPriceData(candles: Candle[], fit: boolean, shift = 0): void {
   const range = !fit ? chart.timeScale().getVisibleLogicalRange() : null;
+  candles = candles.filter(isValidCandle);
   lastCandles = candles;
   restoringView = true;
   if (!candles.length) {
@@ -954,6 +985,7 @@ async function loadOlderHistory(): Promise<number> {
     const extra = src.id === 'kraken' && added.length ? t('status.olderFrom', { source: 'Binance' }) : '';
     const base = describeCandles(src.name, formatPairLabel(sourceId, pairId), merged, aggregated);
     setStatus(extra ? `${base}${extra}` : base);
+    queueMicrotask(() => maybeLoadOlderHistory());
     return Math.max(0, shift);
   } catch (err) {
     console.error(err);
@@ -963,11 +995,19 @@ async function loadOlderHistory(): Promise<number> {
   }
 }
 
+function isAtHistoryLeftEdge(): boolean {
+  const range = chart.timeScale().getVisibleLogicalRange();
+  if (range && range.from <= HISTORY_LEFT_EDGE) return true;
+  const timeRange = chart.timeScale().getVisibleRange();
+  const first = lastCandles[0];
+  if (!timeRange || !first) return false;
+  const from = typeof timeRange.from === 'number' ? timeRange.from : Number(timeRange.from);
+  return Number.isFinite(from) && from <= first.time + 1;
+}
+
 function maybeLoadOlderHistory(): void {
   if (historyLoading || historyExhausted || wrapEl.dataset.loading === 'full') return;
-  const range = chart.timeScale().getVisibleLogicalRange();
-  if (!range) return;
-  if (range.from <= HISTORY_LEFT_EDGE) void loadOlderHistory();
+  if (isAtHistoryLeftEdge()) void loadOlderHistory();
 }
 
 type LoaderMode = 'off' | 'full' | 'refresh';
@@ -1637,11 +1677,40 @@ function setCursorMode(mode: CursorModeState): void {
   applyCursorAppearance();
 }
 
-let drawBarCollapsed = false;
+const DRAW_BAR_POS_KEY = 'opencharts:draw-bar-pos';
+let drawBarCollapsed = localStorage.getItem('opencharts:draw-bar-collapsed') === 'on';
+let drawBarPos = { x: 8, y: 118 };
+try {
+  const raw = localStorage.getItem(DRAW_BAR_POS_KEY);
+  if (raw) {
+    const p = JSON.parse(raw) as { x?: number; y?: number };
+    if (typeof p.x === 'number' && typeof p.y === 'number') drawBarPos = { x: p.x, y: p.y };
+  }
+} catch {
+  /* ignore */
+}
+
+function saveDrawBarPos(): void {
+  try {
+    localStorage.setItem(DRAW_BAR_POS_KEY, JSON.stringify(drawBarPos));
+  } catch {
+    /* quota */
+  }
+}
+
+function applyDrawBarPos(): void {
+  if (!drawBar) return;
+  const maxX = Math.max(0, wrapEl.clientWidth - drawBar.offsetWidth);
+  const maxY = Math.max(0, wrapEl.clientHeight - drawBar.offsetHeight);
+  drawBarPos = { x: Math.min(maxX, Math.max(0, drawBarPos.x)), y: Math.min(maxY, Math.max(0, drawBarPos.y)) };
+  drawBar.style.left = `${drawBarPos.x}px`;
+  drawBar.style.top = `${drawBarPos.y}px`;
+  drawBar.style.right = 'auto';
+  drawBar.style.transform = 'none';
+}
 
 function syncDrawBarLayout(): void {
-  const open = Boolean(drawBar && !drawBar.hidden && !drawBarCollapsed);
-  wrapEl.classList.toggle('is-draw-open', open);
+  wrapEl.classList.remove('is-draw-open');
   if (drawBar) drawBar.classList.toggle('is-collapsed', drawBarCollapsed);
   const collapseBtn = document.querySelector<HTMLButtonElement>('#draw-collapse');
   if (collapseBtn) {
@@ -1677,10 +1746,7 @@ function placeDrawBar(): void {
   if (drawPrice && priceValue !== null && document.activeElement !== drawPrice) {
     drawPrice.value = String(priceValue);
   }
-  drawBar.style.left = '8px';
-  drawBar.style.top = '8px';
-  drawBar.style.right = 'auto';
-  drawBar.style.transform = 'none';
+  applyDrawBarPos();
   syncDrawBarLayout();
 }
 
@@ -1799,6 +1865,11 @@ drawDelete?.addEventListener('click', () => {
 document.querySelector('#draw-collapse')?.addEventListener('click', (ev) => {
   ev.stopPropagation();
   drawBarCollapsed = !drawBarCollapsed;
+  try {
+    localStorage.setItem('opencharts:draw-bar-collapsed', drawBarCollapsed ? 'on' : 'off');
+  } catch {
+    /* quota */
+  }
   syncDrawBarLayout();
 });
 
@@ -1806,16 +1877,20 @@ function syncScaleButtons(): void {
   const mode = series.priceScale().options().mode;
   const logBtn = document.querySelector<HTMLButtonElement>('#scale-btns [data-scale="log"]');
   const pctBtn = document.querySelector<HTMLButtonElement>('#scale-btns [data-scale="pct"]');
+  const autoBtn = document.querySelector<HTMLButtonElement>('#scale-btns [data-scale="auto"]');
   if (logBtn) {
     const on = mode === PriceScaleMode.Logarithmic;
     logBtn.classList.toggle('is-on', on);
     logBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    logBtn.title = t('scale.logTitle');
   }
   if (pctBtn) {
     const on = mode === PriceScaleMode.Percentage;
     pctBtn.classList.toggle('is-on', on);
     pctBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    pctBtn.title = t('scale.percentTitle');
   }
+  if (autoBtn) autoBtn.title = t('scale.autoTitle');
 }
 
 document.querySelector('#scale-btns')?.addEventListener('click', (ev) => {
@@ -1852,6 +1927,10 @@ window.addEventListener('mousemove', (ev) => {
   drawBar.style.top = `${drawBarDrag.top + ev.clientY - drawBarDrag.y}px`;
 });
 window.addEventListener('mouseup', () => {
+  if (drawBarDrag && drawBar) {
+    drawBarPos = { x: drawBar.offsetLeft, y: drawBar.offsetTop };
+    saveDrawBarPos();
+  }
   drawBarDrag = null;
 });
 

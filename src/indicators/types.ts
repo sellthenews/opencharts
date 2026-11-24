@@ -121,6 +121,7 @@ export interface IndicatorParams {
   bands?: number;
   highs?: string;
   divergences?: string;
+  extensions?: string;
   tf?: string;
   source?: string;
 }
@@ -357,7 +358,7 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     fields: [{ key: 'rows', label: 'Rows', min: 8, max: 100, step: 1 }],
     pane: 'price',
   },
-  { kind: 'autoFib', name: 'Auto Fib Retracement', short: 'Auto Fib', aliases: ['auto fib', 'autofib'], group: 'trend', defaults: { period: 5 }, fields: [periodField('Pivot length')], pane: 'price' },
+  { kind: 'autoFib', name: 'Auto Fib Retracement', short: 'Auto Fib', aliases: ['auto fib', 'autofib'], group: 'trend', defaults: { period: 5, extensions: 'off' }, fields: [periodField('Pivot length'), { key: 'extensions', label: 'Extensions', type: 'select', options: [{ value: 'off', label: 'Off' }, { value: 'on', label: 'On' }] }], pane: 'price' },
   { kind: 'autoTrend', name: 'Auto Trend', short: 'Auto Trend', aliases: ['auto trend', 'autotrend'], group: 'trend', defaults: { period: 5 }, fields: [periodField('Pivot length')], pane: 'price' },
   {
     kind: 'maOf',

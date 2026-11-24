@@ -301,7 +301,7 @@ export class IndicatorHost {
       const slot = kindCount[item.kind] ?? 0;
       kindCount[item.kind] = slot + 1;
       this.currentBind = [];
-      this.addOverlay(data, item, strokeColor(item, this.color(item.kind, slot)));
+      this.addOverlay(data, item, strokeColor(item, this.color(item.kind, slot, item.params.period)));
       this.bindings.push({ id: item.id, series: this.currentBind });
       this.lastPlots.set(item.id, indicatorPlots(item, data, this.plotCtx()));
       this.currentBind = null;
@@ -320,7 +320,7 @@ export class IndicatorHost {
       const slot = kindCount[item.kind] ?? 0;
       kindCount[item.kind] = slot + 1;
       this.currentBind = [];
-      this.addOscillator(data, item, idx, strokeColor(item, this.color(item.kind, slot)));
+      this.addOscillator(data, item, idx, strokeColor(item, this.color(item.kind, slot, item.params.period)));
       this.bindings.push({ id: item.id, series: this.currentBind });
       this.lastPlots.set(item.id, indicatorPlots(item, data, this.plotCtx()));
       this.currentBind = null;
@@ -402,7 +402,14 @@ export class IndicatorHost {
     }
   }
 
-  private color(kind: string, slot: number): string {
+  private color(kind: string, slot: number, period?: number): string {
+    if (kind === 'ema') {
+      if (period === 50) return '#7e57c2';
+      if (period === 200) return '#ffa726';
+      if (period === 20) return '#42a5f5';
+      const emaColors = ['#42a5f5', '#7e57c2', '#ffa726'];
+      return emaColors[slot % emaColors.length]!;
+    }
     if (slot === 0) return KIND_COLOR[kind] ?? PALETTE[0]!;
     return PALETTE[slot % PALETTE.length]!;
   }
@@ -539,29 +546,32 @@ export class IndicatorHost {
     } else if (item.kind === 'volume') {
       const s = this.chart.addSeries(
         HistogramSeries,
-        { priceScaleId: 'volume', priceLineVisible: false, lastValueVisible: false },
+        { priceScaleId: '', priceLineVisible: false, lastValueVisible: false },
         0,
       );
-      this.chart.priceScale('volume', 0).applyOptions({
-        scaleMargins: { top: 0.8, bottom: 0 },
+      this.chart.priceScale('', 0).applyOptions({
+        visible: false,
         borderVisible: false,
+        scaleMargins: { top: 0.78, bottom: 0.02 },
       });
       s.setData(
-        data.map((c) => ({
-          time: c.time as UTCTimestamp,
-          value: c.volume,
-          color: c.close >= c.open ? 'rgba(38, 166, 154, 0.45)' : 'rgba(239, 83, 80, 0.45)',
-        })),
+        data
+          .filter((c) => Number.isFinite(c.volume) && c.volume >= 0 && Number.isFinite(c.time))
+          .map((c) => ({
+            time: c.time as UTCTimestamp,
+            value: c.volume,
+            color: c.close >= c.open ? 'rgba(38, 166, 154, 0.45)' : 'rgba(239, 83, 80, 0.45)',
+          })),
       );
       this.keep(s);
       const period = p.period ?? 20;
       if (period >= 1) {
         const ma = this.chart.addSeries(
           LineSeries,
-          { ...lineBase(color, width), priceScaleId: 'volume', lastValueVisible: false },
+          { ...lineBase(color, width), priceScaleId: '', lastValueVisible: false },
           0,
         );
-        ma.setData(asLine(smaVolume(data, period)));
+        ma.setData(asLine(smaVolume(data, period).filter((pt) => Number.isFinite(pt.value))));
         this.keep(ma);
       }
     }
@@ -804,20 +814,38 @@ export class IndicatorHost {
           const p2 = { time: swings.second.time, price: swings.second.price };
           const left = Math.min(a.x, b.x);
           const right = width;
-          const levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.618];
+          const extend = item.params.extensions === 'on';
+          const levels = extend
+            ? [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.618]
+            : [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+          const ys: { k: number; y: number; price: number }[] = [];
           for (const k of levels) {
             const price = fibRetracementPrice(p1, p2, k);
             const y = this.candles.priceToCoordinate(price);
-            if (y === null || y < 0 || y > paneH) continue;
-            ctx.strokeStyle = k === 0 || k === 1 || k === 0.618 || k === 1.618 ? 'rgba(38, 166, 154, 0.95)' : 'rgba(120, 123, 134, 0.7)';
-            ctx.lineWidth = k === 0 || k === 1 || k === 0.618 ? 1.4 : 1;
+            if (y === null) continue;
+            ys.push({ k, y, price });
+          }
+          for (let i = 0; i < ys.length - 1; i++) {
+            const y1 = ys[i]!.y;
+            const y2 = ys[i + 1]!.y;
+            const top = Math.min(y1, y2);
+            const h = Math.abs(y2 - y1);
+            if (h < 1) continue;
+            ctx.fillStyle = 'rgba(38, 166, 154, 0.04)';
+            ctx.fillRect(left, top, Math.max(0, right - left), h);
+          }
+          for (const row of ys) {
+            if (row.y < 0 || row.y > paneH) continue;
+            const k = row.k;
+            ctx.strokeStyle = k === 0 || k === 1 || k === 0.618 ? 'rgba(38, 166, 154, 0.85)' : 'rgba(120, 123, 134, 0.45)';
+            ctx.lineWidth = k === 0 || k === 1 || k === 0.618 ? 1.3 : 1;
             ctx.beginPath();
-            ctx.moveTo(left, y);
-            ctx.lineTo(right, y);
+            ctx.moveTo(left, row.y);
+            ctx.lineTo(right, row.y);
             ctx.stroke();
             ctx.fillStyle = 'rgba(224, 227, 234, 0.9)';
             ctx.font = '10px system-ui, sans-serif';
-            ctx.fillText(`${k}`, left + 4, y - 2);
+            ctx.fillText(`${k}`, left + 4, row.y - 2);
           }
         }
       } else if (item.kind === 'footprint') {
