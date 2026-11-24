@@ -23,6 +23,27 @@ async function noHorizontalScroll(page: Page): Promise<void> {
   expect(box.scrollWidth).toBeLessThanOrEqual(box.clientWidth + 1);
 }
 
+
+async function assertSingleRowToolbar(page: Page): Promise<void> {
+  await expect(page.locator('#more-btn')).toBeVisible();
+  const metrics = await page.evaluate(() => {
+    const bar = document.querySelector('header.toolbar') as HTMLElement;
+    const rect = bar.getBoundingClientRect();
+    const tops = [...bar.querySelectorAll('button, select')].flatMap((el) => {
+      const style = getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden') return [];
+      const box = el.getBoundingClientRect();
+      if (box.height < 2 || box.width < 2) return [];
+      if (box.bottom <= rect.top || box.top >= rect.bottom) return [];
+      return [Math.round(box.top)];
+    });
+    return { height: rect.height, uniqueTops: new Set(tops).size };
+  });
+  expect(metrics.height).toBeLessThanOrEqual(64);
+  expect(metrics.uniqueTops).toBe(1);
+  await noHorizontalScroll(page);
+}
+
 async function swipe(page: Page, from: { x: number; y: number }, to: { x: number; y: number }): Promise<void> {
   const session = await page.context().newCDPSession(page);
   await session.send('Input.dispatchTouchEvent', {
@@ -80,7 +101,7 @@ async function runPhoneLayout(page: Page, shotName: string): Promise<void> {
   await page.goto('/');
   await waitReady(page);
   await expect(page.locator('html')).toHaveAttribute('data-layout', 'phone');
-  await noHorizontalScroll(page);
+  await assertSingleRowToolbar(page);
   const share = await page.evaluate(() => {
     const chart = document.querySelector('#chart-wrap')!.getBoundingClientRect();
     return chart.height / window.innerHeight;
@@ -113,6 +134,8 @@ test.describe('phone 390x844', () => {
 
   test('layout, no horizontal scroll, pan and pinch', async ({ page }) => {
     await runPhoneLayout(page, 'telefon-390.png');
+    fs.mkdirSync(SHOT_DIR, { recursive: true });
+    await page.screenshot({ path: path.join(SHOT_DIR, 'telefon-pasek.png'), fullPage: true });
   });
 
   test('watchlist opens as a full-screen panel', async ({ page }) => {

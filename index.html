@@ -19,7 +19,7 @@
       <header class="toolbar">
         <div class="brand" title="OpenCharts">OpenCharts</div>
 
-        <label class="field">
+        <label class="field" id="exchange-field">
           <span data-i18n="toolbar.exchange">Exchange</span>
           <select id="source" data-source></select>
         </label>
@@ -36,7 +36,10 @@
           <button type="button" data-panes="2" title="Two charts" data-i18n-title="toolbar.twoCharts">2</button>
           <button type="button" data-panes="4" title="Four charts" data-i18n-title="toolbar.fourCharts">4</button>
         </div>
-        <button type="button" id="ind-btn" title="Indicators" data-i18n="toolbar.indicators" data-i18n-title="toolbar.indicatorsTitle">fx Indicators</button>
+        <button type="button" id="ind-btn" title="Indicators" data-i18n-title="toolbar.indicatorsTitle" data-i18n-aria="toolbar.indicatorsTitle" aria-label="Indicators">
+          <span class="toolbar-label-full" data-i18n="toolbar.indicators">fx Indicators</span>
+          <span class="toolbar-label-short" aria-hidden="true">fx</span>
+        </button>
         <div class="compare-wrap">
           <button type="button" id="compare-btn" title="Compare symbols in percent" data-i18n="toolbar.compare" data-i18n-title="toolbar.compareTitle" aria-expanded="false" aria-controls="compare-pop">Compare</button>
           <div id="compare-pop" hidden>
@@ -73,6 +76,16 @@
           <select id="lang-select" aria-label="Language" data-i18n-aria="toolbar.language"></select>
         </label>
         <span id="live-status" class="live-status" data-live="off" title="Public Kraken WebSocket (OHLC and ticker)" data-i18n-title="toolbar.liveTitle">Offline</span>
+        <button type="button" id="more-btn" aria-expanded="false" aria-haspopup="dialog" aria-controls="more-pop" title="More" aria-label="More" data-i18n-title="toolbar.more" data-i18n-aria="toolbar.more">
+          <span aria-hidden="true">⋯</span>
+        </button>
+        <div id="more-pop" role="dialog" aria-labelledby="more-title" hidden>
+          <div class="sheet-head">
+            <h2 id="more-title" data-i18n="toolbar.more">More</h2>
+            <button type="button" id="more-close" class="sheet-close" aria-label="Close" data-i18n-aria="mobile.close">×</button>
+          </div>
+          <div id="more-body"></div>
+        </div>
         <div id="interval-hint" class="interval-hint" hidden></div>
         <div id="status" class="status" role="status" data-i18n="toolbar.loading">Loading…</div>
       </header>

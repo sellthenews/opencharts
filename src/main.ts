@@ -745,9 +745,42 @@ function resizeCharts(): void {
 }
 
 const PHONE_MQ = window.matchMedia('(max-width: 900px), (max-height: 500px) and (orientation: landscape)');
+const PORTRAIT_MQ = window.matchMedia('(max-width: 500px)');
+const MORE_ITEM_SELECTORS = ['#exchange-field', '.compare-wrap', '#theme-btn', '.settings-wrap', '.field-lang', '#layout-btns'] as const;
+const moreHomes = new Map<string, Comment>();
 
 function isPhoneLayout(): boolean {
   return PHONE_MQ.matches;
+}
+
+function isPortraitPhone(): boolean {
+  return PORTRAIT_MQ.matches;
+}
+
+function setMoreOpen(open: boolean): void {
+  const pop = document.querySelector<HTMLElement>('#more-pop');
+  const btn = document.querySelector<HTMLButtonElement>('#more-btn');
+  if (!pop || !btn) return;
+  pop.hidden = !open;
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function parkToolbarOverflow(inMore: boolean): void {
+  const body = document.querySelector<HTMLElement>('#more-body');
+  if (!body) return;
+  for (const sel of MORE_ITEM_SELECTORS) {
+    const el = document.querySelector<HTMLElement>(sel);
+    if (!el) continue;
+    if (!moreHomes.has(sel)) {
+      const mark = document.createComment(`toolbar-home:${sel}`);
+      el.parentElement?.insertBefore(mark, el);
+      moreHomes.set(sel, mark);
+    }
+    const home = moreHomes.get(sel)!;
+    if (inMore) body.append(el);
+    else home.parentNode?.insertBefore(el, home.nextSibling);
+  }
+  if (!inMore) setMoreOpen(false);
 }
 
 function sidebarIsOn(): boolean {
@@ -757,6 +790,7 @@ function sidebarIsOn(): boolean {
 
 function syncPhoneLayout(): void {
   document.documentElement.dataset.layout = isPhoneLayout() ? 'phone' : 'desktop';
+  parkToolbarOverflow(isPortraitPhone());
   if (!isPhoneLayout()) {
     appEl.classList.remove('phone-panel');
     appEl.dataset.sidebar = localStorage.getItem(SIDEBAR_KEY) !== 'off' ? 'on' : 'off';
@@ -1232,7 +1266,20 @@ syncPhoneLayout();
 if (!isPhoneLayout()) setSidebar(sidebarIsOn());
 document.querySelector('#sidebar-btn')?.addEventListener('click', () => setSidebar(!sidebarIsOn()));
 document.querySelector('#sidebar-close')?.addEventListener('click', () => setSidebar(false));
+document.querySelector('#more-btn')?.addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  const pop = document.querySelector<HTMLElement>('#more-pop');
+  setMoreOpen(Boolean(pop?.hidden));
+});
+document.querySelector('#more-close')?.addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  setMoreOpen(false);
+});
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape') setMoreOpen(false);
+});
 PHONE_MQ.addEventListener('change', () => syncPhoneLayout());
+PORTRAIT_MQ.addEventListener('change', () => syncPhoneLayout());
 window.addEventListener('resize', () => resizeCharts());
 
 chart.timeScale().subscribeVisibleLogicalRangeChange(() => {

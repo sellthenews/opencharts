@@ -2233,6 +2233,13 @@ html[dir="rtl"] #cursor-dot {
 }
 
 
+
+#more-btn,
+#more-pop,
+.toolbar-label-short {
+  display: none;
+}
+
 /* Phone / narrow-screen layout (browser only; not a PWA). */
 #chart-wrap,
 #chart,
@@ -2557,5 +2564,113 @@ label,
   #scale-btns button {
     min-width: 40px;
     min-height: 40px;
+  }
+}
+
+/* Portrait phones: a single toolbar row, overflow under More. */
+@media (max-width: 500px) {
+  .toolbar {
+    flex-wrap: nowrap;
+    overflow: hidden;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    padding-left: max(8px, env(safe-area-inset-left));
+    padding-right: max(8px, env(safe-area-inset-right));
+  }
+
+  #more-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0;
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .toolbar-label-full {
+    display: none;
+  }
+
+  .toolbar-label-short {
+    display: inline;
+  }
+
+  #pair-btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 34vw;
+  }
+
+  #ind-btn,
+  #sidebar-btn,
+  #more-btn,
+  .interval-menu-btn,
+  .toolbar .interval {
+    flex: 0 0 auto;
+  }
+
+  #more-pop:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    width: auto;
+    margin: 0;
+    border-radius: 0;
+    z-index: 46;
+    background: var(--bar);
+    padding: env(safe-area-inset-top, 0px) 0 12px;
+  }
+
+  #more-pop .sheet-head {
+    display: flex;
+  }
+
+  #more-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    overflow: auto;
+    min-height: 0;
+    flex: 1;
+  }
+
+  #more-body .compare-wrap,
+  #more-body .settings-wrap,
+  #more-body .field,
+  #more-body #theme-btn,
+  #more-body #settings-btn,
+  #more-body #layout-btns,
+  #more-body select,
+  #more-body #compare-btn {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+
+  #more-body #layout-btns {
+    display: flex !important;
+  }
+
+  #more-body .field span {
+    display: inline !important;
+    text-transform: uppercase;
+  }
+
+  #more-body #theme-btn,
+  #more-body #settings-btn,
+  #more-body #compare-btn,
+  #more-body select,
+  #more-body .field {
+    min-height: 44px;
+  }
+
+  #more-body #settings-btn {
+    justify-content: flex-start;
   }
 }
