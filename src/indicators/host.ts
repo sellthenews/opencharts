@@ -125,6 +125,46 @@ function canUpdateLast(prev: PlotPoint[], next: PlotPoint[]): boolean {
   return false;
 }
 
+function valueAtOrBefore(points: PlotPoint[], time: number): number | null {
+  if (!points.length) return null;
+  if (time < (points[0]!.time as number)) return null;
+  let lo = 0;
+  let hi = points.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if ((points[mid]!.time as number) <= time) lo = mid;
+    else hi = mid - 1;
+  }
+  const value = points[lo]!.value;
+  return Number.isFinite(value) ? value : null;
+}
+
+function formatLegendValue(kind: string, value: number): string {
+  if (kind === 'volume' || kind === 'obv' || kind === 'cvd') {
+    const abs = Math.abs(value);
+    const sign = value < 0 ? '-' : '';
+    if (abs >= 1_000_000_000) return `${sign}${(abs / 1_000_000_000).toFixed(2)}B`;
+    if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(2)}M`;
+    if (abs >= 1_000) return `${sign}${(abs / 1_000).toFixed(2)}K`;
+    return value.toFixed(0);
+  }
+  if (
+    kind === 'rsi' ||
+    kind === 'stoch' ||
+    kind === 'stochRsi' ||
+    kind === 'mfi' ||
+    kind === 'adx' ||
+    kind === 'aroon' ||
+    kind === 'cci' ||
+    kind === 'williamsR'
+  ) {
+    return value.toFixed(1);
+  }
+  if (Math.abs(value) >= 1000) return value.toFixed(2);
+  if (Math.abs(value) >= 1) return value.toFixed(4);
+  return value.toFixed(6);
+}
+
 export class IndicatorHost {
   private series: (ISeriesApi<'Line'> | ISeriesApi<'Histogram'>)[] = [];
   private pivotLines: IPriceLine[] = [];
@@ -210,6 +250,25 @@ export class IndicatorHost {
 
   lastApplyInfo(): ApplyTiming {
     return { ...this.lastApply };
+  }
+
+  valuesAt(time: number | null): Record<string, string> {
+    const t = time ?? this.lastData[this.lastData.length - 1]?.time ?? null;
+    const out: Record<string, string> = {};
+    if (t === null) return out;
+    for (const item of this.lastItems) {
+      if (!item.visible) continue;
+      const plots = this.lastPlots.get(item.id);
+      if (!plots?.length) continue;
+      const parts: string[] = [];
+      for (const pts of plots) {
+        const value = valueAtOrBefore(pts, t);
+        if (value === null) continue;
+        parts.push(formatLegendValue(item.kind, value));
+      }
+      if (parts.length) out[item.id] = parts.join('  ');
+    }
+    return out;
   }
 
   requestFullApply(): void {

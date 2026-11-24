@@ -623,6 +623,11 @@ function visibleKinds(): Set<string> {
   return new Set(indicatorItems.filter((i) => i.visible).map((i) => i.kind));
 }
 
+function updateLegendValues(): void {
+  const time = lastCrosshair?.time ?? lastCandles[lastCandles.length - 1]?.time ?? null;
+  indicatorHud?.setValues(indicators.valuesAt(time));
+}
+
 function applyIndicators(): void {
   try {
     indicators.setChartInterval(intervalId);
@@ -637,6 +642,7 @@ function applyIndicators(): void {
   appEl.dataset.macd = kinds.has('macd') ? 'on' : 'off';
   indicatorHud?.setPaneMap(paneMap);
   indicatorHud?.setItems(indicatorItems);
+  updateLegendValues();
   requestAnimationFrame(() => {
     drawings.syncSize();
     indicatorHud?.relayout();
@@ -1289,6 +1295,7 @@ chart.subscribeCrosshairMove((param) => {
   const driven = drawings.getDrivenCrosshair();
   const price = driven?.price ?? series.coordinateToPrice(param.point.y);
   lastCrosshair = price === null ? null : { time: param.time as number, price };
+  updateLegendValues();
 });
 
 window.__opencharts = {

@@ -155,6 +155,7 @@ export function openIndicatorModal(onAdd: (kind: IndicatorKind) => void): void {
 export class IndicatorHud {
   private paneMap: PaneMap = {};
   private openSettingsId: string | null = null;
+  private lastValues: Record<string, string> = {};
 
   constructor(
     private items: IndicatorInstance[],
@@ -175,12 +176,46 @@ export class IndicatorHud {
     });
     this.renderLabels();
     onLangChange(() => this.renderLabels());
+    document.addEventListener('pointerdown', (ev) => {
+      if (!this.openSettingsId) return;
+      const pop = this.labelsRoot.querySelector('.ind-popover');
+      if (!pop) return;
+      const target = ev.target as HTMLElement | null;
+      if (pop.contains(target)) return;
+      if (target?.closest('[data-ind-act="settings"]')) return;
+      this.openSettingsId = null;
+      pop.remove();
+    });
   }
 
   add(kind: IndicatorKind): void {
     const item = createInstance(kind);
+    if (kind === 'sma' || kind === 'ema') {
+      const used = this.items.filter((i) => i.kind === kind);
+      const periods = [20, 50, 200];
+      const period = periods.find((n) => !used.some((i) => i.params.period === n)) ?? 20;
+      const colors =
+        kind === 'ema' ? ['#42a5f5', '#7e57c2', '#ffa726'] : ['#f5d76e', '#26a69a', '#ef5350'];
+      item.params = { ...item.params, period };
+      item.style = { ...item.style, color: colors[used.length % colors.length] };
+    }
     this.commit([...this.items, item]);
     this.hooks.onAdded?.(item);
+  }
+
+  setValues(values: Record<string, string>): void {
+    this.lastValues = values;
+    this.applyValues();
+  }
+
+  private applyValues(): void {
+    for (const el of this.labelsRoot.querySelectorAll<HTMLElement>('.ind-label')) {
+      const id = el.dataset.indId;
+      const span = el.querySelector('.ind-value');
+      if (!span || !id) continue;
+      const value = this.lastValues[id];
+      span.textContent = value ? ` ${value}` : '';
+    }
   }
 
   setItems(items: IndicatorInstance[]): void {
@@ -230,7 +265,7 @@ export class IndicatorHud {
         const eyeTitle = item.visible ? t('ind.hide') : t('ind.show');
         html.push(
           `<div class="ind-label" data-ind-id="${item.id}" data-kind="${item.kind}" data-visible="${vis}">` +
-            `<span class="ind-label-text">${label}</span>` +
+            `<span class="ind-label-text">${label}</span><span class="ind-value"></span>` +
             gear +
             `<button type="button" class="ind-ico" data-ind-act="toggle" data-ind-id="${item.id}" title="${eyeTitle}" aria-label="${eyeTitle}">${item.visible ? '◉' : '○'}</button>` +
             `<button type="button" class="ind-ico" data-ind-act="remove" data-ind-id="${item.id}" title="${t('ind.remove')}" aria-label="${t('ind.remove')}">×</button>` +
@@ -240,6 +275,7 @@ export class IndicatorHud {
       html.push('</div>');
     }
     this.labelsRoot.innerHTML = html.join('');
+    this.applyValues();
     if (keepOpen && this.items.some((i) => i.id === keepOpen)) this.showPopover(keepOpen);
   }
 
