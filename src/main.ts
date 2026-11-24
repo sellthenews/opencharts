@@ -24,6 +24,8 @@ import { lookupSymbol } from './sources/catalog';
 import type { Candle, IntervalId, PairId } from './sources';
 import { initSymbolSearch } from './symbol-search';
 import { initChartMenu } from './chart-menu';
+import { initFibDialog } from './fib-dialog';
+import { fibOptionsOf } from './fib-settings';
 import { initToolRail } from './tool-rail';
 import { loadLayout, saveLayout } from './layout';
 import { MiniChart } from './minichart';
@@ -560,9 +562,13 @@ importFile.addEventListener('change', async () => {
 });
 
 function extendSelectedFib(): void {
-  if (!drawings.toggleExtendRight()) {
-    setStatus('Select a trend-based Fib extension, then click Extend right.');
+  const d = drawings.getSelected();
+  if (drawings.toggleExtendRight()) {
+    const on = d?.type === 'fib' ? (d.fib?.extendLines ?? true) : d?.type === 'fibext' ? (d as { extendRight?: boolean }).extendRight : true;
+    setStatus(on ? 'Extended Fib lines to the right.' : 'Fib lines no longer extend to the right.');
+    return;
   }
+  setStatus('Select a Fib retracement or trend-based Fib extension, then click Extend right.');
 }
 
 fillSources();
@@ -675,6 +681,8 @@ declare global {
   }
 }
 
+let openFibSettings: () => void = () => {};
+
 window.__opencharts = {
   getDrawings: () => drawings.getDrawings(),
   getSelectedId: () => drawings.getSelectedId(),
@@ -723,6 +731,8 @@ initChartMenu(
     exportDrawings: () => exportDrawingsFile(),
     importDrawings: () => importFile.click(),
     extendFib: () => extendSelectedFib(),
+    canOpenSettings: () => drawings.getSelected()?.type === 'fib',
+    openSettings: () => openFibSettings(),
     watchlistLabel: () => formatPairLabel(sourceId, pairId),
     isOnWatchlist: () => watchlist.hasItem(sourceId, pairId),
     toggleWatchlist: () => {
@@ -755,6 +765,7 @@ const drawColor = document.querySelector<HTMLInputElement>('#draw-color');
 const drawWidth = document.querySelector<HTMLSelectElement>('#draw-width');
 const drawLineStyle = document.querySelector<HTMLSelectElement>('#draw-linestyle');
 const drawLock = document.querySelector<HTMLButtonElement>('#draw-lock');
+const drawSettings = document.querySelector<HTMLButtonElement>('#draw-settings');
 const drawDelete = document.querySelector<HTMLButtonElement>('#draw-delete');
 
 function applyCursorAppearance(): void {
@@ -813,6 +824,7 @@ function placeDrawBar(): void {
   if (drawWidth) drawWidth.value = String(d.style?.width ?? 1);
   if (drawLineStyle) drawLineStyle.value = d.style?.lineStyle ?? 'solid';
   if (drawLock) drawLock.textContent = d.style?.locked ? 'Unlock' : 'Lock';
+  if (drawSettings) drawSettings.hidden = d.type !== 'fib';
   const anchor = drawings.selectionAnchor();
   if (anchor) {
     const top = Math.max(8, anchor.y - 40);
@@ -834,6 +846,26 @@ function activateCursorTool(): void {
 
 drawings.setOnToolDone(() => activateCursorTool());
 drawings.setOnSelect(() => placeDrawBar());
+
+const fibDialog = initFibDialog(document.querySelector('#fib-modal')!, {
+  apply: (opts, persist) => {
+    drawings.applyFibOptions(opts, persist);
+  },
+  onStatus: (text) => setStatus(text),
+});
+
+openFibSettings = (): void => {
+  const d = drawings.getSelected();
+  if (!d || d.type !== 'fib') {
+    setStatus('Select a Fib retracement to edit its settings.');
+    return;
+  }
+  fibDialog.open(fibOptionsOf(d));
+};
+
+drawings.setOnEdit((d) => {
+  if (d.type === 'fib') fibDialog.open(fibOptionsOf(d));
+});
 
 toolRail = initToolRail({
   rail: document.querySelector('#tool-rail')!,
@@ -895,6 +927,7 @@ drawLock?.addEventListener('click', () => {
   const d = drawings.getSelected();
   drawings.patchStyle({ locked: !d?.style?.locked });
 });
+drawSettings?.addEventListener('click', () => openFibSettings());
 drawDelete?.addEventListener('click', () => {
   drawings.deleteSelected();
 });

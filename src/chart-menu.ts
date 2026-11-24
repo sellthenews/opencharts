@@ -12,6 +12,8 @@ export interface ChartMenuHandlers {
   watchlistLabel?: () => string;
   isOnWatchlist?: () => boolean;
   toggleWatchlist?: () => void;
+  canOpenSettings?: () => boolean;
+  openSettings?: () => void;
 }
 
 function formatPrice(price: number): string {
@@ -52,6 +54,8 @@ export function initChartMenu(
       const onList = handlers.isOnWatchlist?.() ?? false;
       watchItem.textContent = onList ? `Remove ${symbol} from watchlist` : `Add ${symbol} to watchlist`;
     }
+    const settingsItem = menu.querySelector<HTMLElement>('[data-chart-menu="settings"]');
+    if (settingsItem) settingsItem.hidden = !handlers.canOpenSettings?.();
     menu.hidden = false;
     const pad = 8;
     const w = menu.offsetWidth;
@@ -77,6 +81,7 @@ export function initChartMenu(
     else if (action === 'import') handlers.importDrawings?.();
     else if (action === 'extend') handlers.extendFib?.();
     else if (action === 'watchlist') handlers.toggleWatchlist?.();
+    else if (action === 'settings') handlers.openSettings?.();
     close();
   });
 

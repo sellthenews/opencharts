@@ -15,6 +15,8 @@ import {
 import { TOOLS_POINTS } from './drawings-types';
 import type { Drawing, Point, Tool } from './drawings-types';
 import { interactionOptions } from './chart-options';
+import type { FibOptions } from './fib-settings';
+import { cloneFibOptions, fibOptionsOf, isFibKeyLevel, loadFibDefaults } from './fib-settings';
 
 export type { Drawing, Point, Tool };
 
@@ -105,6 +107,14 @@ function formatSpan(sec: number): string {
 const SELECTED = '#ffcc66';
 const HANDLE = 5;
 const HIT_PX = 7;
+
+function fibEnds(d: Extract<Drawing, { type: 'fib' }>, opts: FibOptions): { p1: Point; p2: Point } {
+  return opts.reverse ? { p1: d.p2, p2: d.p1 } : { p1: d.p1, p2: d.p2 };
+}
+
+function visibleFibLevels(opts: FibOptions): FibOptions['levels'] {
+  return opts.levels.filter((l) => l.visible && Number.isFinite(l.value)).slice().sort((a, b) => a.value - b.value);
+}
 
 function storageKey(sourceId: string, pairId: string): string {
   return `opencharts:drawings:${sourceId}:${pairId}`;
@@ -307,6 +317,7 @@ export class DrawingLayer {
   private layerHidden = false;
   private onToolDone: (() => void) | null = null;
   private onSelect: ((d: Drawing | null) => void) | null = null;
+  private onEdit: ((d: Drawing) => void) | null = null;
   private ro: ResizeObserver;
   private rafId = 0;
   private needsPaint = false;
@@ -328,7 +339,7 @@ export class DrawingLayer {
 
     this.canvas.addEventListener('mousedown', (ev) => this.onPointer(ev, 'down'));
     this.canvas.addEventListener('mousemove', (ev) => this.onPointer(ev, 'move'));
-    this.canvas.addEventListener('dblclick', (ev) => this.onDblClick(ev));
+    this.wrap.addEventListener('dblclick', (ev) => this.onDblClick(ev));
     window.addEventListener('mouseup', (ev) => this.onPointer(ev, 'up'));
     this.wrap.addEventListener('mousemove', (ev) => this.onHoverPassthrough(ev));
     window.addEventListener('keydown', this.onKey);
@@ -407,6 +418,19 @@ export class DrawingLayer {
 
   setOnSelect(cb: (d: Drawing | null) => void): void {
     this.onSelect = cb;
+  }
+
+  setOnEdit(cb: (d: Drawing) => void): void {
+    this.onEdit = cb;
+  }
+
+  applyFibOptions(opts: FibOptions, persist: boolean): boolean {
+    const d = this.getSelected();
+    if (!d || d.type !== 'fib') return false;
+    d.fib = cloneFibOptions(opts);
+    if (persist) this.persist();
+    this.redraw();
+    return true;
   }
 
   getSelected(): Drawing | null {
@@ -510,7 +534,16 @@ export class DrawingLayer {
 
   toggleExtendRight(): boolean {
     const d = this.drawings.find((x) => x.id === this.selectedId);
-    if (!d || d.type !== 'fibext') return false;
+    if (!d) return false;
+    if (d.type === 'fib') {
+      const fib = fibOptionsOf(d);
+      fib.extendLines = !fib.extendLines;
+      d.fib = fib;
+      this.persist();
+      this.redraw();
+      return d.fib.extendLines;
+    }
+    if (d.type !== 'fibext') return false;
     d.extendRight = !d.extendRight;
     this.persist();
     this.redraw();
@@ -659,6 +692,16 @@ export class DrawingLayer {
       return;
     }
     const hit = this.eventPoint(ev);
+    if (phase === 'down' && ev.button !== 0) {
+      if (this.tool === 'cursor' && hit) {
+        const handle = this.hitHandle(hit.x, hit.y);
+        const body = handle ? null : this.hitBody(hit.x, hit.y);
+        this.selectedId = handle?.id ?? body;
+        this.redraw();
+        this.emitSelect();
+      }
+      return;
+    }
     if (this.tool === 'brush') {
       this.onBrushPointer(ev, hit, phase);
       return;
@@ -1049,7 +1092,22 @@ export class DrawingLayer {
 
   private onDblClick(ev: MouseEvent): void {
     ev.preventDefault();
-    if (this.draft && isOpenEnded(this.draft.type) && this.draft.type !== 'brush') this.finishOpenDraft();
+    if (this.draft && isOpenEnded(this.draft.type) && this.draft.type !== 'brush') {
+      this.finishOpenDraft();
+      return;
+    }
+    if (this.tool !== 'cursor') return;
+    const rect = this.canvas.getBoundingClientRect();
+    const x = ev.clientX - rect.left;
+    const y = ev.clientY - rect.top;
+    const handle = this.hitHandle(x, y);
+    const id = handle?.id ?? this.hitBody(x, y);
+    if (!id) return;
+    this.selectedId = id;
+    this.redraw();
+    this.emitSelect();
+    const d = this.getSelected();
+    if (d) this.onEdit?.(d);
   }
 
   private onBrushPointer(ev: MouseEvent, hit: { x: number; y: number; logical: Point } | null, phase: 'down' | 'move' | 'up'): void {
@@ -1212,7 +1270,7 @@ export class DrawingLayer {
       case 'ray':
         return { id, type: 'ray', p1: points[0]!, p2: points[1]! };
       case 'fib':
-        return { id, type: 'fib', p1: points[0]!, p2: points[1]! };
+        return { id, type: 'fib', p1: points[0]!, p2: points[1]!, fib: cloneFibOptions(loadFibDefaults()) };
       case 'channel':
         return { id, type: 'channel', p1: points[0]!, p2: points[1]!, p3: points[2]! };
       case 'abcd':
@@ -1786,10 +1844,29 @@ export class DrawingLayer {
       return Math.min(distPointToSegment(x, y, a.x, a.y, b.x, b.y), distPointToSegment(x, y, c.x, c.y, q.x, q.y));
     }
     if (d.type === 'fib') {
+      const opts = fibOptionsOf(d);
+      const ends = fibEnds(d, opts);
+      const t1 = this.timeToX(ends.p1.time);
+      const t2 = this.timeToX(ends.p2.time);
+      const a = this.pointToXy(d.p1);
+      const b = this.pointToXy(d.p2);
       let best = Infinity;
-      for (const k of FIB_RETRACEMENT) {
-        const yy = this.series.priceToCoordinate(fibRetracementPrice(d.p1, d.p2, k));
-        if (yy !== null) best = Math.min(best, Math.abs(y - yy));
+      if (a && b) best = Math.min(best, distPointToSegment(x, y, a.x, a.y, b.x, b.y));
+      if (t1 !== null && t2 !== null) {
+        const left = Math.min(t1, t2);
+        const right = opts.extendLines ? width : Math.max(t1, t2);
+        const ys: number[] = [];
+        for (const level of visibleFibLevels(opts)) {
+          const yy = this.series.priceToCoordinate(fibRetracementPrice(ends.p1, ends.p2, level.value));
+          if (yy === null) continue;
+          ys.push(yy);
+          if (x >= left - 8 && x <= right + 8) best = Math.min(best, Math.abs(y - yy));
+        }
+        if (ys.length >= 2 && x >= left - 4 && x <= right + 4) {
+          const top = Math.min(...ys);
+          const bottom = Math.max(...ys);
+          if (y >= top && y <= bottom) best = Math.min(best, HIT_PX);
+        }
       }
       return Number.isFinite(best) ? best : null;
     }
@@ -1945,11 +2022,22 @@ export class DrawingLayer {
     ctx.restore();
   }
 
-  private label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color = '#d1d4dc'): void {
+  private label(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    color = '#d1d4dc',
+    size = 11,
+    align: CanvasTextAlign = 'left',
+  ): void {
     ctx.save();
-    ctx.font = '11px system-ui, sans-serif';
+    const light = document.documentElement.getAttribute('data-theme') === 'light';
+    ctx.font = `${size}px system-ui, sans-serif`;
+    ctx.textAlign = align;
+    ctx.textBaseline = size <= 10 ? 'middle' : 'alphabetic';
     ctx.lineWidth = 3;
-    ctx.strokeStyle = 'rgba(13, 15, 20, 0.85)';
+    ctx.strokeStyle = light ? 'rgba(255, 255, 255, 0.88)' : 'rgba(13, 15, 20, 0.85)';
     ctx.fillStyle = color;
     ctx.strokeText(text, x, y);
     ctx.fillText(text, x, y);
@@ -2054,24 +2142,7 @@ export class DrawingLayer {
         ctx.stroke();
       }
     } else if (d.type === 'fib') {
-      const t1 = this.timeToX(d.p1.time);
-      const t2 = this.timeToX(d.p2.time);
-      if (t1 !== null && t2 !== null) {
-        const left = Math.min(t1, t2);
-        const right = Math.max(t1, t2);
-        for (const k of FIB_RETRACEMENT) {
-          const price = fibRetracementPrice(d.p1, d.p2, k);
-          const y = this.series.priceToCoordinate(price);
-          if (y === null) continue;
-          ctx.beginPath();
-          ctx.strokeStyle = selected ? SELECTED : COLOR;
-          ctx.globalAlpha = 0.95;
-          ctx.moveTo(left, y);
-          ctx.lineTo(right, y);
-          ctx.stroke();
-          this.label(ctx, `${k}  ${this.formatPrice(price)}`, right + 4, y - 2);
-        }
-      }
+      this.paintFibRetracement(ctx, d, width, selected);
     } else if (d.type === 'fibext') {
       const a = this.pointToXy(d.a);
       const b = this.pointToXy(d.b);
@@ -2718,6 +2789,82 @@ export class DrawingLayer {
     ctx.lineTo(box.x1, box.y2);
     ctx.stroke();
     this.label(ctx, title, left + 4, top + 14, selected ? SELECTED : '#e0e3ea');
+  }
+
+
+  private paintFibRetracement(
+    ctx: CanvasRenderingContext2D,
+    d: Extract<Drawing, { type: 'fib' }>,
+    width: number,
+    selected: boolean,
+  ): void {
+    const opts = fibOptionsOf(d);
+    const ends = fibEnds(d, opts);
+    const t1 = this.timeToX(ends.p1.time);
+    const t2 = this.timeToX(ends.p2.time);
+    if (t1 === null || t2 === null) return;
+    const left = Math.min(t1, t2);
+    const right = opts.extendLines ? width : Math.max(t1, t2);
+    const a = this.pointToXy(d.p1);
+    const b = this.pointToXy(d.p2);
+    const levels = visibleFibLevels(opts);
+    const placed: { y: number; text: string; color: string }[] = [];
+    if (opts.background && levels.length >= 2) {
+      for (let i = 0; i < levels.length - 1; i++) {
+        const pa = fibRetracementPrice(ends.p1, ends.p2, levels[i]!.value);
+        const pb = fibRetracementPrice(ends.p1, ends.p2, levels[i + 1]!.value);
+        const ya = this.series.priceToCoordinate(pa);
+        const yb = this.series.priceToCoordinate(pb);
+        if (ya === null || yb === null) continue;
+        ctx.globalAlpha = opts.backgroundOpacity;
+        ctx.fillStyle = levels[i]!.color;
+        const top = Math.min(ya, yb);
+        ctx.fillRect(left, top, Math.max(0, right - left), Math.abs(yb - ya));
+      }
+      ctx.globalAlpha = 1;
+    }
+    for (const level of levels) {
+      const price = fibRetracementPrice(ends.p1, ends.p2, level.value);
+      const y = this.series.priceToCoordinate(price);
+      if (y === null) continue;
+      const key = isFibKeyLevel(level.value);
+      ctx.beginPath();
+      ctx.strokeStyle = level.color;
+      ctx.globalAlpha = key ? 1 : 0.72;
+      ctx.lineWidth = (key ? 2 : 1) * (d.style?.width ?? 1);
+      ctx.setLineDash([]);
+      ctx.moveTo(left, y);
+      ctx.lineTo(right, y);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      const parts: string[] = [];
+      if (opts.showLevels) parts.push(String(level.value));
+      if (opts.showPrices) parts.push(this.formatPrice(price));
+      if (parts.length) placed.push({ y, text: parts.join('  '), color: level.color });
+    }
+    ctx.globalAlpha = 1;
+    if (a && b) {
+      ctx.beginPath();
+      ctx.strokeStyle = selected ? SELECTED : 'rgba(209, 212, 220, 0.45)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    placed.sort((p, q) => p.y - q.y);
+    const gap = 11;
+    for (let i = 1; i < placed.length; i++) {
+      if (placed[i]!.y - placed[i - 1]!.y < gap) placed[i]!.y = placed[i - 1]!.y + gap;
+    }
+    const atLeft = opts.labels === 'left';
+    const lx = atLeft ? left - 5 : right + 5;
+    const align: CanvasTextAlign = atLeft ? 'right' : 'left';
+    const light = document.documentElement.getAttribute('data-theme') === 'light';
+    for (const row of placed) {
+      this.label(ctx, row.text, lx, row.y, light ? row.color : row.color, 10, align);
+    }
   }
 
   private paintBadge(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, selected: boolean): void {

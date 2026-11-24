@@ -27,7 +27,7 @@ test('XRP/USD 1D: trend line persists after reload', async ({ page }) => {
   expect(box).toBeTruthy();
   const b = box!;
 
-  await page.locator('[data-tool="trend"]').click();
+  await page.locator('#tool-rail [data-tool="trend"]').click();
   await page.mouse.click(b.x + b.width * 0.28, b.y + b.height * 0.62);
   await page.mouse.click(b.x + b.width * 0.72, b.y + b.height * 0.32);
   await page.waitForTimeout(250);

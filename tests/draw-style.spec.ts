@@ -11,7 +11,7 @@ test('drawing: trend line, change color, Delete', async ({ page }) => {
   expect(box).toBeTruthy();
   const b = box!;
 
-  await page.locator('[data-tool="trend"]').click();
+  await page.locator('#tool-rail [data-tool="trend"]').click();
   await page.mouse.click(b.x + b.width * 0.3, b.y + b.height * 0.65);
   await page.mouse.click(b.x + b.width * 0.7, b.y + b.height * 0.3);
   await page.waitForTimeout(250);

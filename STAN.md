@@ -208,7 +208,7 @@ Zrzut (lokalny, w `.gitignore`): `screenshots-test/stocks-yahoo.png` (XRPN z zam
 
 - Lewy pasek w grupach: kursor, linie, Fibonacci, formacje, prognozy i mierniki, pędzel, tekst, kształty. Na dole: linijka (zakres daty i ceny), zoom (przybliż / oddal / dopasuj), magnes, zablokuj wszystkie rysunki, ukryj wszystkie, kosz (z potwierdzeniem). Klik ikony grupy włącza ostatnio użyte narzędzie w tej grupie (ikona się zmienia, stan w `opencharts:rail-last`); mały trójkąt otwiera menu z nagłówkami sekcji po angielsku (np. FORECASTING / MEASURERS) i gwiazdką przy każdym narzędziu. Esc albo klik poza menu zamyka je.
 - W menu są tylko narzędzia, które działają. Nie ma sekcji VOLUME-BASED (Anchored VWAP, profil wolumenu), Ghost feed ani innych pozycji, których nie implementujemy.
-- Gwiazdka dodaje narzędzie do pływającego paska ulubionych (ciemna pastylka, uchwyt z sześcioma kropkami, przeciąganie). Lista i pozycja są w `opencharts:favorites`. Pusty pasek jest ukryty.
+- Gwiazdka dodaje narzędzie do pływającego paska ulubionych (ciemna pastylka, uchwyt z sześcioma kropkami, przeciąganie). Lista i pozycja są w `opencharts:favorites`. Gdy brak klucza, pasek jest widoczny z domyślnym zestawem narzędzi, wyśrodkowany w górnej części wykresu. Zapisana lista (także pusta po świadomym usunięciu) nie jest nadpisywana. Pusty pasek jest ukryty.
 - Eksport / import rysunków oraz „Extend Fib right” są w menu kontekstowym, nie na lewym pasku.
 
 Zrzuty (lokalne, w `.gitignore`): `screenshots-test/pasek-menu.png`, `screenshots-test/pasek-ulubione.png`. Folder `screenshots-test/ref/` z referencyjnymi zdjęciami też jest ignorowany i nie trafia do repo.
@@ -222,3 +222,11 @@ Zrzuty (lokalne, w `.gitignore`): `screenshots-test/pasek-menu.png`, `screenshot
 - Gdy fetch do Workera lub giełdy się nie uda (np. adblock): czytelny komunikat w pasku statusu. W `index.html` jest `Cache-Control: no-cache, no-store`; GitHub Pages i tak serwuje HTML z `max-age=600`. `version.json` z hashem buildu — przy starcie, jeśli nowszy, jednorazowy reload.
 
 Zrzuty (lokalne, w `.gitignore`): `screenshots-test/watchlist-menu.png`, `screenshots-test/watchlist-lista.png`.
+
+## Fib Retracement i ulubione (24 XI 2026)
+
+- Zniesienie Fibonacciego ma 24 domyślne poziomy (0 … 2.618), wszystkie włączone. Nowe rysunki dostają kopię aktualnych domyślnych (`opencharts:fib-defaults` po „Save as default”, w przeciwnym razie wbudowane). Stare rysunki bez zapisanych poziomów renderują się z nowym wbudowanym zestawem 24 poziomów (nie z późniejszymi domyślnymi użytkownika). Rysunki z własnymi poziomami zostają bez zmian.
+- Własna paleta pod ciemny motyw (czytelna też w jasnym): szaro-niebieski → niebieski / turkus / zieleń (0–1), złoto / pomarańcz dla rozszerzeń (>1). Kluczowe 0.5, 0.61, 0.786, 1, 1.618 są grubsze i w pełnej nieprzezroczystości; pozostałe delikatniejsze. Półprzezroczyste tło między poziomami (domyślnie 8%). Etykiety 10 px, z lekkim rozsuwaniem przy kolizji.
+- Okno Style: dwuklik na rysunku, „Settings…” w menu prawego przycisku oraz koło zębate na pasku stylu. Lista poziomów (checkbox, wartość, kolor, dodaj/usuń), Background, Reverse, Prices, Levels, Labels (lewo/prawo), Extend lines, OK / Cancel / Reset to defaults / Save as default. UI po angielsku. Ustawienia per rysunek zapisują się z rysunkiem.
+
+Zrzuty (lokalne, w `.gitignore`): `screenshots-test/fib-wykres.png`, `screenshots-test/fib-ustawienia.png`, `screenshots-test/ulubione-domyslne.png`.

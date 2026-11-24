@@ -30,7 +30,7 @@ test('stage 2 screenshot: XRP/USD 1D Kraken, RSI, Fib, watchlist', async ({ page
   expect(box).toBeTruthy();
   const b = box!;
   // clicks in the upper (price) pane, not the RSI pane
-  await page.locator('[data-tool="fib"]').click();
+  await page.locator('#tool-rail [data-tool="fib"]').click();
   await page.mouse.click(b.x + b.width * 0.25, b.y + b.height * 0.22);
   await page.mouse.click(b.x + b.width * 0.7, b.y + b.height * 0.48);
   await page.waitForTimeout(250);

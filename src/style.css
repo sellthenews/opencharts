@@ -957,14 +957,16 @@ html[data-theme="light"] #rail-flyout {
   z-index: 9;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   height: 38px;
-  padding: 0 12px 0 8px;
+  max-width: calc(100% - 16px);
+  padding: 0 10px 0 8px;
   border-radius: 19px;
   background: #131722;
   color: #d1d4dc;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
   user-select: none;
+  overflow-x: auto;
 }
 
 #fav-bar[hidden] {
@@ -1001,8 +1003,9 @@ html[data-theme="light"] #rail-flyout {
 }
 
 #fav-bar .fav-btn {
-  width: 28px;
+  width: 26px;
   height: 28px;
+  flex: 0 0 auto;
   padding: 0;
   border: 0;
   border-radius: 4px;
@@ -1356,4 +1359,165 @@ html[data-theme="light"] #rail-flyout {
 #draw-bar button {
   font-size: 12px;
   padding: 3px 6px;
+}
+
+#draw-settings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  color: var(--text);
+}
+
+#draw-settings[hidden] {
+  display: none;
+}
+
+#fib-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+#fib-modal[hidden] {
+  display: none;
+}
+
+.fib-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.fib-modal-box {
+  position: relative;
+  width: min(420px, calc(100% - 32px));
+  max-height: min(84vh, 720px);
+  margin: 6vh auto 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bar);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  outline: none;
+}
+
+.fib-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fib-tabs button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 8px 10px 7px;
+  font-size: 13px;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.fib-tabs button.is-active {
+  color: var(--text);
+  border-bottom-color: #5b9cf6;
+}
+
+.fib-tab-body {
+  padding: 10px 12px 8px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fib-levels {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 38vh;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.fib-level-row {
+  display: grid;
+  grid-template-columns: 18px 1fr 28px 22px;
+  gap: 6px;
+  align-items: center;
+}
+
+.fib-level-row input[type="number"] {
+  min-width: 0;
+  font-size: 12px;
+  padding: 3px 6px;
+}
+
+.fib-level-row input[type="color"] {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+}
+
+.fib-level-remove {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.fib-level-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.fib-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.fib-row input[type="range"] {
+  flex: 1;
+  min-width: 80px;
+}
+
+.fib-row select {
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.fib-modal-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.fib-foot-spacer {
+  flex: 1;
+}
+
+.fib-saved-note {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.fib-modal-foot #fib-ok {
+  font-weight: 600;
 }

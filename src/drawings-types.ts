@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
+import type { FibOptions } from './fib-settings';
+
 export type Tool =
   | 'cursor'
   | 'trend'
@@ -67,7 +69,7 @@ type DrawingShape =
   | { id: string; type: 'rect'; p1: Point; p2: Point }
   | { id: string; type: 'ray'; p1: Point; p2: Point }
   | { id: string; type: 'channel'; p1: Point; p2: Point; p3: Point }
-  | { id: string; type: 'fib'; p1: Point; p2: Point }
+  | { id: string; type: 'fib'; p1: Point; p2: Point; fib?: FibOptions }
   | { id: string; type: 'fibext'; a: Point; b: Point; c: Point; extendRight: boolean }
   | { id: string; type: 'abcd'; a: Point; b: Point; c: Point }
   | { id: string; type: 'text'; p: Point; text: string }

@@ -50,18 +50,17 @@ test('group menu, pick tool, favorites persist after drag and reload', async ({ 
   const drawn = await page.evaluate(() => window.__opencharts.getDrawings());
   expect(drawn.some((d) => d.type === 'pricerange')).toBeTruthy();
 
+  await expect(page.locator('#fav-bar')).toBeVisible();
+  await expect(page.locator('#fav-bar [data-tool="trend"]')).toBeVisible();
+
   await page.locator('[data-rail-caret="lines"]').click();
   await expect(flyout.locator('.fly-h', { hasText: 'LINES' })).toBeVisible();
   await expect(flyout.locator('.fly-h', { hasText: 'CHANNELS' })).toBeVisible();
-  await flyout.locator('[data-star="trend"]').click();
   await flyout.locator('[data-star="hline"]').click();
-  await flyout.locator('[data-star="ray"]').click();
+  await flyout.locator('[data-star="extline"]').click();
   await expect(flyout).toBeVisible();
-  await page.locator('[data-rail-caret="text"]').click();
-  await flyout.locator('[data-star="text"]').click();
-  await flyout.locator('[data-star="note"]').click();
-  await page.locator('[data-rail-caret="shapes"]').click();
-  await flyout.locator('[data-star="rect"]').click();
+  await page.locator('[data-rail-caret="forecast"]').click();
+  await flyout.locator('[data-star="shortpos"]').click();
   await page.keyboard.press('Escape');
   await expect(flyout).toBeHidden();
 
@@ -75,7 +74,8 @@ test('group menu, pick tool, favorites persist after drag and reload', async ({ 
   const fav = page.locator('#fav-bar');
   await expect(fav).toBeVisible();
   await expect(fav.locator('[data-tool="trend"]')).toBeVisible();
-  await expect(fav.locator('[data-tool="note"]')).toBeVisible();
+  await expect(fav.locator('[data-tool="hline"]')).toBeVisible();
+  await expect(fav.locator('[data-tool="shortpos"]')).toBeVisible();
 
   const before = await fav.boundingBox();
   expect(before).toBeTruthy();
@@ -95,7 +95,7 @@ test('group menu, pick tool, favorites persist after drag and reload', async ({ 
   await page.screenshot({ path: FAV_SHOT, fullPage: true });
 
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('opencharts:favorites') ?? 'null'));
-  expect(stored?.tools).toEqual(expect.arrayContaining(['trend', 'hline', 'ray', 'text', 'note', 'rect']));
+  expect(stored?.tools).toEqual(expect.arrayContaining(['trend', 'hline', 'extline', 'shortpos']));
 
   await page.reload();
   await waitReady(page);
@@ -105,4 +105,41 @@ test('group menu, pick tool, favorites persist after drag and reload', async ({ 
   expect(again).toBeTruthy();
   expect(Math.abs(again!.x - after!.x)).toBeLessThan(4);
   expect(Math.abs(again!.y - after!.y)).toBeLessThan(4);
+});
+
+test('clean localStorage shows the default favorites bar', async ({ page }) => {
+  await page.addInitScript(() => localStorage.clear());
+  await page.goto('/');
+  await waitReady(page);
+  const fav = page.locator('#fav-bar');
+  await expect(fav).toBeVisible();
+  for (const tool of ['brush', 'channel', 'fib', 'xabcd', 'fibext', 'callout', 'trend', 'rect', 'path', 'ray', 'abcd', 'longpos', 'text', 'note']) {
+    await expect(fav.locator(`[data-tool="${tool}"]`)).toBeVisible();
+  }
+  await expect(fav.locator('[data-tool="hline"]')).toHaveCount(0);
+  const stored = await page.evaluate(() => localStorage.getItem('opencharts:favorites'));
+  expect(stored).toBeNull();
+  fs.mkdirSync(path.dirname(path.resolve('screenshots-test/ulubione-domyslne.png')), { recursive: true });
+  await page.screenshot({ path: path.resolve('screenshots-test/ulubione-domyslne.png'), fullPage: true });
+});
+
+test('a stored favorites list is left unchanged', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('opencharts:favorites', JSON.stringify({ v: 1, tools: ['hline'], x: 24, y: 96 }));
+  });
+  await page.goto('/');
+  await waitReady(page);
+  const fav = page.locator('#fav-bar');
+  await expect(fav).toBeVisible();
+  await expect(fav.locator('[data-tool="hline"]')).toBeVisible();
+  await expect(fav.locator('[data-tool="trend"]')).toHaveCount(0);
+  await expect(fav.locator('[data-tool="fib"]')).toHaveCount(0);
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('opencharts:favorites') ?? 'null'));
+  expect(stored?.tools).toEqual(['hline']);
+  const box = await fav.boundingBox();
+  expect(box).toBeTruthy();
+  const wrap = await page.locator('#chart-wrap').boundingBox();
+  expect(wrap).toBeTruthy();
+  expect(Math.abs(box!.x - (wrap!.x + 24))).toBeLessThan(6);
+  expect(Math.abs(box!.y - (wrap!.y + 96))).toBeLessThan(6);
 });

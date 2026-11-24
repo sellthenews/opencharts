@@ -72,6 +72,34 @@ export interface RailGroup {
 
 const FAV_KEY = 'opencharts:favorites';
 const LAST_KEY = 'opencharts:rail-last';
+const DEFAULT_FAV_TOP = 48;
+
+/** Shown when opencharts:favorites is missing. An existing key, even with tools: [], is left alone. */
+export const DEFAULT_FAV_TOOLS: Tool[] = [
+  'brush',
+  'channel',
+  'fib',
+  'xabcd',
+  'fibext',
+  'callout',
+  'trend',
+  'rect',
+  'path',
+  'ray',
+  'abcd',
+  'pricerange',
+  'daterange',
+  'hray',
+  'elliottimp',
+  'ellipse',
+  'elliottabc',
+  'flag',
+  'longpos',
+  'arrow',
+  'datepricerange',
+  'text',
+  'note',
+];
 
 export const TOOL_DEFS: Record<Tool, ToolDef> = {
   cursor: { id: 'cursor', name: 'Cursor', title: 'Cursor' },
@@ -210,24 +238,33 @@ export interface ToolRailOptions {
   isHidden: () => boolean;
 }
 
-function loadFav(): FavState {
+function isToolId(id: unknown): id is Tool {
+  return typeof id === 'string' && id in TOOL_DEFS && id !== 'cursor';
+}
+
+function loadFav(): { state: FavState; stored: boolean; placed: boolean } {
   try {
     const raw = localStorage.getItem(FAV_KEY);
     if (raw) {
       const p = JSON.parse(raw) as Partial<FavState>;
       if (Array.isArray(p.tools)) {
+        const placed = typeof p.x === 'number' && typeof p.y === 'number';
         return {
-          v: 1,
-          tools: p.tools.filter((id): id is Tool => id in TOOL_DEFS),
-          x: typeof p.x === 'number' ? p.x : 56,
-          y: typeof p.y === 'number' ? p.y : 220,
+          state: {
+            v: 1,
+            tools: p.tools.filter(isToolId),
+            x: typeof p.x === 'number' ? p.x : 0,
+            y: typeof p.y === 'number' ? p.y : DEFAULT_FAV_TOP,
+          },
+          stored: true,
+          placed,
         };
       }
     }
   } catch {
     /* ignore */
   }
-  return { v: 1, tools: [], x: 56, y: 220 };
+  return { state: { v: 1, tools: [...DEFAULT_FAV_TOOLS], x: 0, y: DEFAULT_FAV_TOP }, stored: false, placed: false };
 }
 
 function saveFav(state: FavState): void {
@@ -269,7 +306,9 @@ const STAR = '<svg class="star-icon" viewBox="0 0 16 16" aria-hidden="true"><pat
 
 export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) => void; refreshActions: () => void; closeFlyout: () => void } {
   const last = { ...Object.fromEntries(RAIL_GROUPS.map((g) => [g.id, g.defaultTool])), ...loadLast() };
-  let fav = loadFav();
+  const loadedFav = loadFav();
+  let fav = loadedFav.state;
+  let favPlaced = loadedFav.placed;
   let active: Tool = 'cursor';
   let openMenu: string | null = null;
 
@@ -324,6 +363,22 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
       </div>`;
   }
 
+  function persistFav(): void {
+    favPlaced = true;
+    saveFav(fav);
+  }
+
+  function centerFavIfNeeded(): void {
+    if (favPlaced || opts.favBar.hidden || !fav.tools.length) return;
+    const parent = opts.favBar.offsetParent as HTMLElement | null;
+    const pw = parent?.clientWidth ?? opts.favBar.parentElement?.clientWidth ?? window.innerWidth;
+    const maxX = Math.max(0, pw - opts.favBar.offsetWidth);
+    fav.x = Math.round(maxX / 2);
+    fav.y = DEFAULT_FAV_TOP;
+    opts.favBar.style.left = `${fav.x}px`;
+    opts.favBar.style.top = `${fav.y}px`;
+  }
+
   function renderFav(): void {
     if (!fav.tools.length) {
       opts.favBar.hidden = true;
@@ -331,8 +386,10 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
       return;
     }
     opts.favBar.hidden = false;
-    opts.favBar.style.left = `${fav.x}px`;
-    opts.favBar.style.top = `${fav.y}px`;
+    if (favPlaced) {
+      opts.favBar.style.left = `${fav.x}px`;
+      opts.favBar.style.top = `${fav.y}px`;
+    }
     const items = fav.tools
       .map((id) => {
         const def = TOOL_DEFS[id];
@@ -343,6 +400,7 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
     opts.favBar.innerHTML = `<button type="button" class="fav-handle" id="fav-handle" title="Drag favorites bar" aria-label="Drag favorites bar">
         <span></span><span></span><span></span><span></span><span></span><span></span>
       </button><div class="fav-items">${items}</div>`;
+    if (!favPlaced) requestAnimationFrame(() => centerFavIfNeeded());
   }
 
   function closeFlyout(): void {
@@ -437,7 +495,7 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
     const i = fav.tools.indexOf(tool);
     if (i >= 0) fav.tools.splice(i, 1);
     else fav.tools.push(tool);
-    saveFav(fav);
+    persistFav();
     renderFav();
     if (openMenu) {
       const caret = opts.rail.querySelector<HTMLElement>(`[data-rail-caret="${openMenu}"]`);
@@ -565,7 +623,7 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
   window.addEventListener('mouseup', () => {
     if (!drag) return;
     drag = null;
-    saveFav(fav);
+    persistFav();
   });
 
   document.addEventListener('mousedown', (ev) => {
@@ -579,6 +637,10 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
       ev.preventDefault();
       closeFlyout();
     }
+  });
+
+  window.addEventListener('resize', () => {
+    if (!favPlaced) centerFavIfNeeded();
   });
 
   renderRail();

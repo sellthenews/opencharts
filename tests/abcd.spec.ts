@@ -11,7 +11,7 @@ test('AB=CD: computes D and recalculates after dragging C', async ({ page }) => 
   expect(box).toBeTruthy();
   const b = box!;
 
-  await page.locator('[data-tool="abcd"]').click();
+  await page.locator('#tool-rail [data-tool="abcd"]').click();
   await page.mouse.click(b.x + b.width * 0.3, b.y + b.height * 0.55);
   await page.mouse.click(b.x + b.width * 0.45, b.y + b.height * 0.35);
   await page.mouse.click(b.x + b.width * 0.55, b.y + b.height * 0.5);
@@ -30,7 +30,7 @@ test('AB=CD: computes D and recalculates after dragging C', async ({ page }) => 
   expect(before!.c.time + (before!.b.time - before!.a.time)).toBeCloseTo(expectedD.time, 8);
   expect(before!.c.price + (before!.b.price - before!.a.price)).toBeCloseTo(expectedD.price, 8);
 
-  await page.locator('[data-tool="cursor"]').click();
+  await page.locator('#tool-rail [data-tool="cursor"], #cursor-tool').click();
   await page.evaluate(() => document.querySelector('#draw-overlay')?.classList.remove('passthrough'));
 
   const screen = await page.evaluate(() => window.__opencharts.getAbcdScreen());
