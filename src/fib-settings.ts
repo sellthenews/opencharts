@@ -2,6 +2,7 @@
 // Copyright (C) 2026 OpenCharts contributors
 
 export const FIB_DEFAULTS_KEY = 'opencharts:fib-defaults';
+export const FIBEXT_DEFAULTS_KEY = 'opencharts:fibext-defaults';
 
 export const FIB_KEY_LEVELS = [0.5, 0.61, 0.786, 1, 1.618] as const;
 
@@ -55,6 +56,10 @@ export interface FibLevel {
   color: string;
 }
 
+export type FibLabelVAlign = 'top' | 'middle' | 'bottom';
+export type FibTrendStyle = 'solid' | 'dashed' | 'dotted';
+export type FibToolKind = 'fib' | 'fibext';
+
 export interface FibOptions {
   levels: FibLevel[];
   background: boolean;
@@ -63,7 +68,10 @@ export interface FibOptions {
   showPrices: boolean;
   showLevels: boolean;
   labels: 'left' | 'right';
+  labelVAlign: FibLabelVAlign;
   extendLines: boolean;
+  showTrend: boolean;
+  trendStyle: FibTrendStyle;
 }
 
 export function nearlyEqual(a: number, b: number, eps = 1e-4): boolean {
@@ -129,7 +137,10 @@ export function builtInFibOptions(): FibOptions {
     showPrices: true,
     showLevels: true,
     labels: 'right',
+    labelVAlign: 'middle',
     extendLines: false,
+    showTrend: true,
+    trendStyle: 'dashed',
   };
 }
 
@@ -178,7 +189,10 @@ export function sanitizeFibOptions(raw: unknown, fallback: FibOptions = builtInF
     showPrices: asBoolean(o.showPrices, fallback.showPrices),
     showLevels: asBoolean(o.showLevels, fallback.showLevels),
     labels: asLabelSide(o.labels, fallback.labels),
+    labelVAlign: o.labelVAlign === 'top' || o.labelVAlign === 'bottom' || o.labelVAlign === 'middle' ? o.labelVAlign : fallback.labelVAlign,
     extendLines: asBoolean(o.extendLines, fallback.extendLines),
+    showTrend: asBoolean(o.showTrend, fallback.showTrend),
+    trendStyle: o.trendStyle === 'solid' || o.trendStyle === 'dashed' || o.trendStyle === 'dotted' ? o.trendStyle : fallback.trendStyle,
   };
 }
 
@@ -207,4 +221,158 @@ export function fibOptionsOf(drawing: { fib?: unknown }): FibOptions {
     if (levels.length) return sanitizeFibOptions(drawing.fib);
   }
   return builtInFibOptions();
+}
+
+/** Unique levels from the TV screenshot (duplicate 1.061 / 1.414 rows omitted). 2.618 and 4.236 were not on that list. */
+export const FIBEXT_DEFAULT_LEVELS: ReadonlyArray<{ value: number; visible: boolean }> = [
+  { value: 0, visible: true },
+  { value: 0.5, visible: false },
+  { value: 0.618, visible: false },
+  { value: 0.9, visible: true },
+  { value: 1, visible: true },
+  { value: 1.061, visible: true },
+  { value: 1.155, visible: true },
+  { value: 1.21, visible: false },
+  { value: 1.272, visible: true },
+  { value: 1.414, visible: true },
+  { value: 1.618, visible: true },
+  { value: 2, visible: false },
+  { value: 2.414, visible: false },
+  { value: 3, visible: false },
+  { value: 3.272, visible: false },
+  { value: 3.414, visible: false },
+  { value: 3.618, visible: false },
+  { value: 4, visible: false },
+  { value: 4.272, visible: false },
+  { value: 4.414, visible: false },
+  { value: 4.618, visible: false },
+  { value: 4.764, visible: false },
+];
+
+const FIBEXT_COLORS: Record<string, string> = {
+  '0': '#7d889c',
+  '0.5': '#6286b0',
+  '0.618': '#4b90c4',
+  '0.9': '#2ab0c8',
+  '1': '#3a8af0',
+  '1.061': '#6aa8c0',
+  '1.155': '#2dbe88',
+  '1.21': '#4a8ad0',
+  '1.272': '#26c070',
+  '1.414': '#1cb8a4',
+  '1.618': '#e59a18',
+  '2': '#e08624',
+  '2.414': '#d47020',
+  '3': '#cc5c28',
+  '3.272': '#c45440',
+  '3.414': '#bc4860',
+  '3.618': '#a44c88',
+  '4': '#9450a0',
+  '4.272': '#8450a8',
+  '4.414': '#b06050',
+  '4.618': '#c47830',
+  '4.764': '#d09028',
+};
+
+const FIBEXT_STOPS: ReadonlyArray<readonly [number, string]> = [
+  [0, '#7d889c'],
+  [0.9, '#2ab0c8'],
+  [1, '#3a8af0'],
+  [1.272, '#26c070'],
+  [1.618, '#e59a18'],
+  [2.414, '#d47020'],
+  [3.618, '#a44c88'],
+  [4.764, '#d09028'],
+];
+
+export function isFibExtKeyLevel(value: number): boolean {
+  return nearlyEqual(value, 1) || nearlyEqual(value, 1.618);
+}
+
+function lerpHex(a: string, b: string, t: number): string {
+  const parse = (hex: string): [number, number, number] | null => {
+    const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
+    if (!m) return null;
+    const n = Number.parseInt(m[1]!, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  };
+  const ca = parse(a);
+  const cb = parse(b);
+  if (!ca || !cb) return a;
+  const h = (v: number) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+  return `#${h(ca[0] + (cb[0] - ca[0]) * t)}${h(ca[1] + (cb[1] - ca[1]) * t)}${h(ca[2] + (cb[2] - ca[2]) * t)}`;
+}
+
+export function colorForFibExtValue(value: number): string {
+  const key = formatFibLevel(value);
+  const named = FIBEXT_COLORS[key];
+  if (named) return named;
+  if (!Number.isFinite(value)) return '#7d889c';
+  if (value <= FIBEXT_STOPS[0]![0]) return FIBEXT_STOPS[0]![1];
+  const last = FIBEXT_STOPS[FIBEXT_STOPS.length - 1]!;
+  if (value >= last[0]) return last[1];
+  for (let i = 1; i < FIBEXT_STOPS.length; i++) {
+    const a = FIBEXT_STOPS[i - 1]!;
+    const b = FIBEXT_STOPS[i]!;
+    if (value <= b[0]) return lerpHex(a[1], b[1], (value - a[0]) / (b[0] - a[0] || 1));
+  }
+  return last[1];
+}
+
+export function builtInFibExtOptions(): FibOptions {
+  return {
+    levels: FIBEXT_DEFAULT_LEVELS.map((row) => ({
+      value: row.value,
+      visible: row.visible,
+      color: colorForFibExtValue(row.value),
+    })),
+    background: true,
+    backgroundOpacity: 0.08,
+    reverse: false,
+    showPrices: false,
+    showLevels: true,
+    labels: 'left',
+    labelVAlign: 'middle',
+    extendLines: true,
+    showTrend: true,
+    trendStyle: 'dotted',
+  };
+}
+
+export function loadFibExtDefaults(): FibOptions {
+  try {
+    const raw = localStorage.getItem(FIBEXT_DEFAULTS_KEY);
+    if (!raw) return builtInFibExtOptions();
+    return sanitizeFibOptions(JSON.parse(raw), builtInFibExtOptions());
+  } catch {
+    return builtInFibExtOptions();
+  }
+}
+
+export function saveFibExtDefaults(opts: FibOptions): void {
+  try {
+    localStorage.setItem(FIBEXT_DEFAULTS_KEY, JSON.stringify(sanitizeFibOptions(opts, builtInFibExtOptions())));
+  } catch {
+    /* quota */
+  }
+}
+
+/** Legacy extensions without stored levels use the built-in TV-style set, not a later "Save as default". */
+export function fibExtOptionsOf(drawing: { fib?: unknown; extendRight?: boolean }): FibOptions {
+  const fallback = builtInFibExtOptions();
+  if (drawing.fib && typeof drawing.fib === 'object' && Array.isArray((drawing.fib as { levels?: unknown }).levels)) {
+    const levels = (drawing.fib as { levels: unknown[] }).levels;
+    if (levels.length) return sanitizeFibOptions(drawing.fib, fallback);
+  }
+  const opts = cloneFibOptions(fallback);
+  if (drawing.extendRight === false) opts.extendLines = false;
+  return opts;
+}
+
+export function defaultsOf(kind: FibToolKind): FibOptions {
+  return kind === 'fibext' ? loadFibExtDefaults() : loadFibDefaults();
+}
+
+export function builtInOf(kind: FibToolKind): FibOptions {
+  return kind === 'fibext' ? builtInFibExtOptions() : builtInFibOptions();
 }

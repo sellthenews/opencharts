@@ -25,7 +25,7 @@ import type { Candle, IntervalId, PairId } from './sources';
 import { initSymbolSearch } from './symbol-search';
 import { initChartMenu } from './chart-menu';
 import { initFibDialog } from './fib-dialog';
-import { fibOptionsOf } from './fib-settings';
+import { fibExtOptionsOf, fibOptionsOf } from './fib-settings';
 import { fibExtensionPrice, fibRetracementPrice } from './drawings-math';
 import { initToolRail } from './tool-rail';
 import { loadLayout, saveLayout } from './layout';
@@ -701,7 +701,7 @@ window.__opencharts = {
     const selected = drawings.getSelected();
     const d = selected?.type === 'fibext' ? selected : list.find((x) => x.type === 'fibext');
     if (!d || d.type !== 'fibext') return null;
-    return fibExtensionPrice(d.a, d.b, d.c, k);
+    return fibExtensionPrice(d.a, d.b, d.c, k, fibExtOptionsOf(d).reverse);
   },
   getAbcdScreen: () => drawings.getAbcdScreen(),
   exportDrawings: () => drawings.exportJson(),
@@ -748,7 +748,10 @@ initChartMenu(
     exportDrawings: () => exportDrawingsFile(),
     importDrawings: () => importFile.click(),
     extendFib: () => extendSelectedFib(),
-    canOpenSettings: () => drawings.getSelected()?.type === 'fib',
+    canOpenSettings: () => {
+      const t = drawings.getSelected()?.type;
+      return t === 'fib' || t === 'fibext';
+    },
     openSettings: () => openFibSettings(),
     watchlistLabel: () => formatPairLabel(sourceId, pairId),
     isOnWatchlist: () => watchlist.hasItem(sourceId, pairId),
@@ -841,7 +844,7 @@ function placeDrawBar(): void {
   if (drawWidth) drawWidth.value = String(d.style?.width ?? 1);
   if (drawLineStyle) drawLineStyle.value = d.style?.lineStyle ?? 'solid';
   if (drawLock) drawLock.textContent = d.style?.locked ? 'Unlock' : 'Lock';
-  if (drawSettings) drawSettings.hidden = d.type !== 'fib';
+  if (drawSettings) drawSettings.hidden = d.type !== 'fib' && d.type !== 'fibext';
   const anchor = drawings.selectionAnchor();
   if (anchor) {
     const top = Math.max(8, anchor.y - 40);
@@ -873,15 +876,20 @@ const fibDialog = initFibDialog(document.querySelector('#fib-modal')!, {
 
 openFibSettings = (): void => {
   const d = drawings.getSelected();
-  if (!d || d.type !== 'fib') {
-    setStatus('Select a Fib retracement to edit its settings.');
+  if (d?.type === 'fib') {
+    fibDialog.open(fibOptionsOf(d), 'fib');
     return;
   }
-  fibDialog.open(fibOptionsOf(d));
+  if (d?.type === 'fibext') {
+    fibDialog.open(fibExtOptionsOf(d), 'fibext');
+    return;
+  }
+  setStatus('Select a Fib retracement or trend-based Fib extension to edit its settings.');
 };
 
 drawings.setOnEdit((d) => {
-  if (d.type === 'fib') fibDialog.open(fibOptionsOf(d));
+  if (d.type === 'fib') fibDialog.open(fibOptionsOf(d), 'fib');
+  else if (d.type === 'fibext') fibDialog.open(fibExtOptionsOf(d), 'fibext');
 });
 
 toolRail = initToolRail({

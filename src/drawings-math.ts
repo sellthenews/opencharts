@@ -23,9 +23,10 @@ export function abcdProject(a: Point, b: Point, c: Point, k: number): Point {
   };
 }
 
-/** Trend-based fib extension price: 0 at C, 1 at C + (B − A). */
-export function fibExtensionPrice(a: Point, b: Point, c: Point, k: number): number {
-  return c.price + (b.price - a.price) * k;
+/** Trend-based fib extension price: 0 at C, k at C + k*(B − A). Reverse uses (A − B). */
+export function fibExtensionPrice(a: Point, b: Point, c: Point, k: number, reverse = false): number {
+  const delta = reverse ? a.price - b.price : b.price - a.price;
+  return c.price + delta * k;
 }
 
 /**

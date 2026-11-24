@@ -234,3 +234,7 @@ Zrzuty (lokalne, w `.gitignore`): `screenshots-test/fib-wykres.png`, `screenshot
 - Kierunek zniesienia (24 XI 2026, poprawka): jak w TradingView — pierwszy punkt to poziom 1, drugi to poziom 0, poziomy >1 za pierwszym punktem. Reverse odwraca to (0 na pierwszym punkcie). Stare rysunki bez Reverse przechodzą na nowy kierunek. Extension: 0 na C, 1 = C+(B−A) — wzór już był poprawny.
 
 Zrzut (lokalny, w `.gitignore`): `screenshots-test/fib-kierunek.png`.
+
+- Trend-based Fib Extension (24 XI 2026): osobny zestaw poziomów z zrzutu TV Mateusza (włączone: 0, 0.9, 1, 1.061, 1.155, 1.272, 1.414, 1.618; pozostałe na liście wyłączone). Domyślnie linia trendu kropkowana, Extend right, Background, Prices wyłączone, etykiety Values po lewej na środku. Paleta z tej samej rodziny co zniesienie, ale inna; 1 i 1.618 grubsze. Zapis `opencharts:fibext-defaults`. Na zrzucie TV nie było 2.618 ani 4.236 — nie dodałem ich. Duplikaty 1.061 i 1.414 z TV sprowadzone do jednego wpisu (włączonego).
+
+Zrzuty (lokalne, w `.gitignore`): `screenshots-test/fib-extension-domyslne.png`, `screenshots-test/fib-extension.png` (z włączonymi cenami).

@@ -70,7 +70,7 @@ type DrawingShape =
   | { id: string; type: 'ray'; p1: Point; p2: Point }
   | { id: string; type: 'channel'; p1: Point; p2: Point; p3: Point }
   | { id: string; type: 'fib'; p1: Point; p2: Point; fib?: FibOptions }
-  | { id: string; type: 'fibext'; a: Point; b: Point; c: Point; extendRight: boolean }
+  | { id: string; type: 'fibext'; a: Point; b: Point; c: Point; extendRight: boolean; fib?: FibOptions }
   | { id: string; type: 'abcd'; a: Point; b: Point; c: Point }
   | { id: string; type: 'text'; p: Point; text: string }
   | { id: string; type: 'longpos'; entry: Point; stop: Point; target: Point }

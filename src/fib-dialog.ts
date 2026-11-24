@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
-import type { FibOptions } from './fib-settings';
+import type { FibOptions, FibToolKind } from './fib-settings';
 import {
-  builtInFibOptions,
+  builtInOf,
   cloneFibOptions,
+  colorForFibExtValue,
   colorForFibValue,
   formatFibLevel,
   saveFibDefaults,
+  saveFibExtDefaults,
   sanitizeFibOptions,
 } from './fib-settings';
 
@@ -19,7 +21,8 @@ export interface FibDialogHandlers {
 export function initFibDialog(
   root: HTMLElement,
   handlers: FibDialogHandlers,
-): { open: (opts: FibOptions) => void; close: (revert?: boolean) => void; isOpen: () => boolean } {
+): { open: (opts: FibOptions, kind?: FibToolKind) => void; close: (revert?: boolean) => void; isOpen: () => boolean } {
+  const title = root.querySelector('#fib-modal-title')!;
   const list = root.querySelector('#fib-levels')!;
   const bg = root.querySelector<HTMLInputElement>('#fib-bg')!;
   const bgOpacity = root.querySelector<HTMLInputElement>('#fib-bg-opacity')!;
@@ -28,12 +31,20 @@ export function initFibDialog(
   const prices = root.querySelector<HTMLInputElement>('#fib-prices')!;
   const showLevels = root.querySelector<HTMLInputElement>('#fib-show-levels')!;
   const labels = root.querySelector<HTMLSelectElement>('#fib-labels')!;
+  const labelVAlign = root.querySelector<HTMLSelectElement>('#fib-label-valign')!;
+  const trend = root.querySelector<HTMLInputElement>('#fib-trend')!;
+  const trendStyle = root.querySelector<HTMLSelectElement>('#fib-trend-style')!;
   const extend = root.querySelector<HTMLInputElement>('#fib-extend')!;
   const savedNote = root.querySelector('#fib-saved-note')!;
 
   let snapshot: FibOptions | null = null;
-  let current: FibOptions = builtInFibOptions();
+  let current: FibOptions = builtInOf('fib');
+  let kind: FibToolKind = 'fib';
   let applying = false;
+
+  function colorOf(value: number): string {
+    return kind === 'fibext' ? colorForFibExtValue(value) : colorForFibValue(value);
+  }
 
   function emit(persist: boolean): void {
     handlers.apply(cloneFibOptions(current), persist);
@@ -47,12 +58,15 @@ export function initFibDialog(
     current.showPrices = prices.checked;
     current.showLevels = showLevels.checked;
     current.labels = labels.value === 'left' ? 'left' : 'right';
+    current.labelVAlign = labelVAlign.value === 'top' || labelVAlign.value === 'bottom' ? labelVAlign.value : 'middle';
+    current.showTrend = trend.checked;
+    current.trendStyle = trendStyle.value === 'dashed' || trendStyle.value === 'dotted' ? trendStyle.value : 'solid';
     current.extendLines = extend.checked;
     current.levels = [...list.querySelectorAll<HTMLElement>('.fib-level-row')].flatMap((row) => {
       const value = Number(row.querySelector<HTMLInputElement>('.fib-level-value')?.value);
       if (!Number.isFinite(value)) return [];
       const visible = row.querySelector<HTMLInputElement>('.fib-level-on')?.checked !== false;
-      const color = row.querySelector<HTMLInputElement>('.fib-level-color')?.value || colorForFibValue(value);
+      const color = row.querySelector<HTMLInputElement>('.fib-level-color')?.value || colorOf(value);
       return [{ value, visible, color }];
     });
     bgOpacityVal.textContent = `${Math.round(current.backgroundOpacity * 100)}%`;
@@ -75,7 +89,7 @@ export function initFibDialog(
 
   function fillForm(opts: FibOptions): void {
     applying = true;
-    current = cloneFibOptions(sanitizeFibOptions(opts));
+    current = cloneFibOptions(sanitizeFibOptions(opts, builtInOf(kind)));
     bg.checked = current.background;
     bgOpacity.value = String(Math.round(current.backgroundOpacity * 100));
     bgOpacityVal.textContent = `${Math.round(current.backgroundOpacity * 100)}%`;
@@ -83,13 +97,18 @@ export function initFibDialog(
     prices.checked = current.showPrices;
     showLevels.checked = current.showLevels;
     labels.value = current.labels;
+    labelVAlign.value = current.labelVAlign;
+    trend.checked = current.showTrend;
+    trendStyle.value = current.trendStyle;
     extend.checked = current.extendLines;
     renderLevels();
     applying = false;
   }
 
-  function open(opts: FibOptions): void {
-    snapshot = cloneFibOptions(sanitizeFibOptions(opts));
+  function open(opts: FibOptions, nextKind: FibToolKind = 'fib'): void {
+    kind = nextKind;
+    title.textContent = kind === 'fibext' ? 'Trend-Based Fib Extension' : 'Fib Retracement';
+    snapshot = cloneFibOptions(sanitizeFibOptions(opts, builtInOf(kind)));
     savedNote.textContent = '';
     fillForm(snapshot);
     root.hidden = false;
@@ -118,7 +137,7 @@ export function initFibDialog(
     emit(false);
   });
 
-  for (const el of [bg, bgOpacity, reverse, prices, showLevels, labels, extend]) {
+  for (const el of [bg, bgOpacity, reverse, prices, showLevels, labels, labelVAlign, trend, trendStyle, extend]) {
     el.addEventListener('input', () => readForm());
     el.addEventListener('change', () => readForm());
   }
@@ -126,23 +145,24 @@ export function initFibDialog(
   root.querySelector('#fib-add-level')?.addEventListener('click', () => {
     const last = current.levels[current.levels.length - 1];
     const value = last ? Math.round((last.value + 0.1) * 1000) / 1000 : 0;
-    current.levels.push({ value, visible: true, color: colorForFibValue(value) });
+    current.levels.push({ value, visible: true, color: colorOf(value) });
     current.levels.sort((a, b) => a.value - b.value);
     renderLevels();
     emit(false);
   });
 
   root.querySelector('#fib-reset')?.addEventListener('click', () => {
-    fillForm(builtInFibOptions());
+    fillForm(builtInOf(kind));
     savedNote.textContent = '';
     emit(false);
   });
 
   root.querySelector('#fib-save-default')?.addEventListener('click', () => {
     readForm();
-    saveFibDefaults(current);
+    if (kind === 'fibext') saveFibExtDefaults(current);
+    else saveFibDefaults(current);
     savedNote.textContent = 'Saved as default for new drawings.';
-    handlers.onStatus?.('Saved Fib defaults for new drawings.');
+    handlers.onStatus?.(kind === 'fibext' ? 'Saved Fib extension defaults for new drawings.' : 'Saved Fib defaults for new drawings.');
   });
 
   root.querySelector('#fib-ok')?.addEventListener('click', () => {
