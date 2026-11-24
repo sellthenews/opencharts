@@ -23,13 +23,20 @@ export function abcdProject(a: Point, b: Point, c: Point, k: number): Point {
   };
 }
 
-/** Trend-based fib extension price: C + (B - A) * k. */
+/** Trend-based fib extension price: 0 at C, 1 at C + (B − A). */
 export function fibExtensionPrice(a: Point, b: Point, c: Point, k: number): number {
   return c.price + (b.price - a.price) * k;
 }
 
-export function fibRetracementPrice(p1: Point, p2: Point, k: number): number {
-  return p1.price + (p2.price - p1.price) * k;
+/**
+ * Fib retracement price in TradingView order: level 1 is the first point,
+ * level 0 is the second. Levels k > 1 continue past the first point, away from 0.
+ * Pass reverse=true to put 0 on the first point instead.
+ */
+export function fibRetracementPrice(p1: Point, p2: Point, k: number, reverse = false): number {
+  const start = reverse ? p2 : p1;
+  const end = reverse ? p1 : p2;
+  return end.price + (start.price - end.price) * k;
 }
 
 export function translatePoint(p: Point, dTime: number, dPrice: number): Point {

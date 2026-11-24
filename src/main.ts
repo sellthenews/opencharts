@@ -26,6 +26,7 @@ import { initSymbolSearch } from './symbol-search';
 import { initChartMenu } from './chart-menu';
 import { initFibDialog } from './fib-dialog';
 import { fibOptionsOf } from './fib-settings';
+import { fibExtensionPrice, fibRetracementPrice } from './drawings-math';
 import { initToolRail } from './tool-rail';
 import { loadLayout, saveLayout } from './layout';
 import { MiniChart } from './minichart';
@@ -671,6 +672,8 @@ declare global {
     __opencharts: {
       getDrawings: () => ReturnType<DrawingLayer['getDrawings']>;
       getSelectedId: () => string | null;
+      fibLevelPrice: (k: number) => number | null;
+      fibExtensionLevelPrice: (k: number) => number | null;
       getAbcdScreen: () => ReturnType<DrawingLayer['getAbcdScreen']>;
       exportDrawings: () => string;
       importDrawings: (raw: string) => void;
@@ -686,6 +689,20 @@ let openFibSettings: () => void = () => {};
 window.__opencharts = {
   getDrawings: () => drawings.getDrawings(),
   getSelectedId: () => drawings.getSelectedId(),
+  fibLevelPrice: (k) => {
+    const list = drawings.getDrawings();
+    const selected = drawings.getSelected();
+    const d = selected?.type === 'fib' ? selected : list.find((x) => x.type === 'fib');
+    if (!d || d.type !== 'fib') return null;
+    return fibRetracementPrice(d.p1, d.p2, k, fibOptionsOf(d).reverse);
+  },
+  fibExtensionLevelPrice: (k) => {
+    const list = drawings.getDrawings();
+    const selected = drawings.getSelected();
+    const d = selected?.type === 'fibext' ? selected : list.find((x) => x.type === 'fibext');
+    if (!d || d.type !== 'fibext') return null;
+    return fibExtensionPrice(d.a, d.b, d.c, k);
+  },
   getAbcdScreen: () => drawings.getAbcdScreen(),
   exportDrawings: () => drawings.exportJson(),
   importDrawings: (raw) => drawings.importJson(raw),

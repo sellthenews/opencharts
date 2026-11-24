@@ -124,6 +124,7 @@ export function builtInFibOptions(): FibOptions {
     })),
     background: true,
     backgroundOpacity: 0.08,
+    // false = TradingView order (level 1 at the first point, 0 at the second).
     reverse: false,
     showPrices: true,
     showLevels: true,

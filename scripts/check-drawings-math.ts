@@ -1,4 +1,4 @@
-import { abcdPointD, abcdProject, fibExtensionPrice, FIB_EXTENSION } from '../src/drawings-math.ts';
+import { abcdPointD, abcdProject, fibExtensionPrice, fibRetracementPrice, FIB_EXTENSION } from '../src/drawings-math.ts';
 
 function assert(cond: boolean, msg: string): void {
   if (!cond) throw new Error(msg);
@@ -26,5 +26,13 @@ assert(almost(prices[0]!, 12), 'k=0 is C');
 assert(almost(prices[3]!, 18), 'k=1 is C+(B-A)');
 assert(almost(prices[5]!, 12 + 6 * 1.618), 'k=1.618');
 assert(almost(prices[7]!, 12 + 6 * 2.618), 'k=2.618');
+
+const p1 = { time: 10, price: 100 };
+const p2 = { time: 20, price: 80 };
+assert(almost(fibRetracementPrice(p1, p2, 0), 80), 'retracement 0 is point 2');
+assert(almost(fibRetracementPrice(p1, p2, 1), 100), 'retracement 1 is point 1');
+assert(almost(fibRetracementPrice(p1, p2, 1.5), 110), 'k>1 continues past point 1');
+assert(almost(fibRetracementPrice(p1, p2, 0, true), 100), 'reverse: 0 is point 1');
+assert(almost(fibRetracementPrice(p1, p2, 1, true), 80), 'reverse: 1 is point 2');
 
 console.log('drawings-math ok', { d, p1272, p1618, prices });

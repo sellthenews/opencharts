@@ -108,8 +108,8 @@ const SELECTED = '#ffcc66';
 const HANDLE = 5;
 const HIT_PX = 7;
 
-function fibEnds(d: Extract<Drawing, { type: 'fib' }>, opts: FibOptions): { p1: Point; p2: Point } {
-  return opts.reverse ? { p1: d.p2, p2: d.p1 } : { p1: d.p1, p2: d.p2 };
+function fibEnds(d: Extract<Drawing, { type: 'fib' }>): { p1: Point; p2: Point } {
+  return { p1: d.p1, p2: d.p2 };
 }
 
 function visibleFibLevels(opts: FibOptions): FibOptions['levels'] {
@@ -1845,7 +1845,7 @@ export class DrawingLayer {
     }
     if (d.type === 'fib') {
       const opts = fibOptionsOf(d);
-      const ends = fibEnds(d, opts);
+      const ends = fibEnds(d);
       const t1 = this.timeToX(ends.p1.time);
       const t2 = this.timeToX(ends.p2.time);
       const a = this.pointToXy(d.p1);
@@ -1857,7 +1857,7 @@ export class DrawingLayer {
         const right = opts.extendLines ? width : Math.max(t1, t2);
         const ys: number[] = [];
         for (const level of visibleFibLevels(opts)) {
-          const yy = this.series.priceToCoordinate(fibRetracementPrice(ends.p1, ends.p2, level.value));
+          const yy = this.series.priceToCoordinate(fibRetracementPrice(ends.p1, ends.p2, level.value, opts.reverse));
           if (yy === null) continue;
           ys.push(yy);
           if (x >= left - 8 && x <= right + 8) best = Math.min(best, Math.abs(y - yy));
@@ -2799,7 +2799,7 @@ export class DrawingLayer {
     selected: boolean,
   ): void {
     const opts = fibOptionsOf(d);
-    const ends = fibEnds(d, opts);
+    const ends = fibEnds(d);
     const t1 = this.timeToX(ends.p1.time);
     const t2 = this.timeToX(ends.p2.time);
     if (t1 === null || t2 === null) return;
@@ -2811,8 +2811,8 @@ export class DrawingLayer {
     const placed: { y: number; text: string; color: string }[] = [];
     if (opts.background && levels.length >= 2) {
       for (let i = 0; i < levels.length - 1; i++) {
-        const pa = fibRetracementPrice(ends.p1, ends.p2, levels[i]!.value);
-        const pb = fibRetracementPrice(ends.p1, ends.p2, levels[i + 1]!.value);
+        const pa = fibRetracementPrice(ends.p1, ends.p2, levels[i]!.value, opts.reverse);
+        const pb = fibRetracementPrice(ends.p1, ends.p2, levels[i + 1]!.value, opts.reverse);
         const ya = this.series.priceToCoordinate(pa);
         const yb = this.series.priceToCoordinate(pb);
         if (ya === null || yb === null) continue;
@@ -2824,7 +2824,7 @@ export class DrawingLayer {
       ctx.globalAlpha = 1;
     }
     for (const level of levels) {
-      const price = fibRetracementPrice(ends.p1, ends.p2, level.value);
+      const price = fibRetracementPrice(ends.p1, ends.p2, level.value, opts.reverse);
       const y = this.series.priceToCoordinate(price);
       if (y === null) continue;
       const key = isFibKeyLevel(level.value);

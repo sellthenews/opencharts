@@ -230,3 +230,7 @@ Zrzuty (lokalne, w `.gitignore`): `screenshots-test/watchlist-menu.png`, `screen
 - Okno Style: dwuklik na rysunku, „Settings…” w menu prawego przycisku oraz koło zębate na pasku stylu. Lista poziomów (checkbox, wartość, kolor, dodaj/usuń), Background, Reverse, Prices, Levels, Labels (lewo/prawo), Extend lines, OK / Cancel / Reset to defaults / Save as default. UI po angielsku. Ustawienia per rysunek zapisują się z rysunkiem.
 
 Zrzuty (lokalne, w `.gitignore`): `screenshots-test/fib-wykres.png`, `screenshots-test/fib-ustawienia.png`, `screenshots-test/ulubione-domyslne.png`.
+
+- Kierunek zniesienia (24 XI 2026, poprawka): jak w TradingView — pierwszy punkt to poziom 1, drugi to poziom 0, poziomy >1 za pierwszym punktem. Reverse odwraca to (0 na pierwszym punkcie). Stare rysunki bez Reverse przechodzą na nowy kierunek. Extension: 0 na C, 1 = C+(B−A) — wzór już był poprawny.
+
+Zrzut (lokalny, w `.gitignore`): `screenshots-test/fib-kierunek.png`.
