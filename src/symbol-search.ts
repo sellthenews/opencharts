@@ -101,8 +101,7 @@ export function initSymbolSearch(opts: {
 
   function yahooSearchEnabled(): boolean {
     if (!getStocksProxyUrl()) return false;
-    if (category === 'crypto') return false;
-    if (filter !== 'all' && filter !== 'yahoo') return false;
+    if (category !== 'stocks' && filter !== 'yahoo') return false;
     return opts.input.value.trim().length >= 1;
   }
 

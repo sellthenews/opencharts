@@ -29,5 +29,6 @@ cd /workspace/wykresy-strona/worker
 npx wrangler deploy
 ```
 
-The command prints a `https://opencharts-proxy.<account>.workers.dev` URL. Put
-that URL into `VITE_STOCKS_PROXY` / `src/config.ts` and ship a new Pages build.
+Live Worker: `https://opencharts-proxy.opencharts.workers.dev`
+(account workers.dev subdomain `opencharts`). The app default in `src/config.ts`
+points at this URL.

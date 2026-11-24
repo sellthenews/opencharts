@@ -50,6 +50,9 @@ function mockChart(symbol: string, last: number) {
 }
 
 test('without a stocks proxy, Stocks shows a configuration message', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('opencharts:stocks-proxy', 'off');
+  });
   await page.goto('/');
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
 
