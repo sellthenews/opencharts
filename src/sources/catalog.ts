@@ -9,6 +9,8 @@ import { PAIR_LABELS } from './types';
 export const SOURCE_FILTERS = ['all', 'kraken', 'binance', 'coinbase', 'bitstamp'] as const;
 export type SourceFilter = (typeof SOURCE_FILTERS)[number];
 
+export type AssetKind = 'crypto' | 'stock';
+
 export interface SymbolInfo {
   sourceId: string;
   id: string;
@@ -17,13 +19,15 @@ export interface SymbolInfo {
   quote: string;
   label: string;
   wsname?: string;
+  kind: AssetKind;
   search: string;
 }
 
 const TTL_MS = 24 * 60 * 60 * 1000;
-const CACHE_VER = 1;
+const CACHE_VER = 2;
 
-type CacheRow = [string, string, string, string, string?];
+/** [id, native, base, quote, wsname, kind] — kind is 's' for stock, omitted/empty for crypto. */
+type CacheRow = [string, string, string, string, string?, string?];
 
 interface CachePayload {
   v: number;
@@ -71,18 +75,22 @@ function makeInfo(
   base: string,
   quote: string,
   wsname?: string,
+  kind: AssetKind = 'crypto',
 ): SymbolInfo {
   const label = `${base}/${quote}`;
-  const search = `${id} ${native} ${base}${quote} ${label} ${wsname ?? ''}`.toLowerCase();
-  return { sourceId, id, native, base, quote, label, wsname, search };
+  const extra = kind === 'stock' ? ' stock xstock equity shares' : '';
+  const search = `${id} ${native} ${base}${quote} ${label} ${wsname ?? ''}${extra}`.toLowerCase();
+  return { sourceId, id, native, base, quote, label, wsname, kind, search };
 }
 
 function rowToInfo(sourceId: string, row: CacheRow): SymbolInfo {
-  return makeInfo(sourceId, row[0], row[1], row[2], row[3], row[4]);
+  const kind: AssetKind = row[5] === 's' ? 'stock' : 'crypto';
+  return makeInfo(sourceId, row[0], row[1], row[2], row[3], row[4], kind);
 }
 
 function infoToRow(item: SymbolInfo): CacheRow {
-  return item.wsname ? [item.id, item.native, item.base, item.quote, item.wsname] : [item.id, item.native, item.base, item.quote];
+  const kind = item.kind === 'stock' ? 's' : '';
+  return [item.id, item.native, item.base, item.quote, item.wsname ?? '', kind];
 }
 
 function readCache(sourceId: string): SymbolInfo[] | null {
@@ -157,7 +165,9 @@ export function fallbackNative(sourceId: string, pairId: string): string {
   if (sourceId === 'bitstamp') return pairId.toLowerCase().replace(/[-/]/g, '');
   if (sourceId === 'kraken') {
     if (pairId === 'BTCUSD') return 'XBTUSD';
-    return pairId.toUpperCase().replace(/[-/]/g, '');
+    const compact = pairId.replace(/[-/]/g, '');
+    if (isXStockNative(compact)) return compact;
+    return compact.toUpperCase();
   }
   return pairId;
 }
@@ -170,6 +180,17 @@ export function nativeSymbol(source: DataSource, pairId: string): string {
   return fallbackNative(source.id, pairId);
 }
 
+/** True for Kraken xStock tickers such as AAPLxUSD. */
+export function isXStockNative(symbol: string): boolean {
+  return /x(USD|EUR|GBP|USDT|USDC)$/.test(symbol.replace(/[-/]/g, ''));
+}
+
+export function isKrakenTokenized(pairId: string): boolean {
+  const hit = lookupSymbol('kraken', pairId);
+  if (hit) return hit.kind === 'stock';
+  return isXStockNative(pairId);
+}
+
 export function krakenWsName(pairId: string): string | undefined {
   const hit = lookupSymbol('kraken', pairId);
   if (hit?.wsname) return hit.wsname;
@@ -178,13 +199,12 @@ export function krakenWsName(pairId: string): string | undefined {
   return label.includes('/') ? label : undefined;
 }
 
-async function fetchKraken(): Promise<SymbolInfo[]> {
-  const data = await fetchJson<{ error?: string[]; result?: Record<string, Record<string, unknown>> }>(
-    'https://api.kraken.com/0/public/AssetPairs',
-  );
-  if (data.error?.length) throw new Error(data.error.join(', '));
+function parseKrakenPairs(
+  result: Record<string, Record<string, unknown>> | undefined,
+  kind: AssetKind,
+): SymbolInfo[] {
   const items: SymbolInfo[] = [];
-  for (const [key, row] of Object.entries(data.result ?? {})) {
+  for (const [key, row] of Object.entries(result ?? {})) {
     if (key.endsWith('.d')) continue;
     const status = String(row.status ?? 'online');
     if (status && status !== 'online') continue;
@@ -201,8 +221,29 @@ async function fetchKraken(): Promise<SymbolInfo[]> {
       quote = krakenAsset(String(row.quote ?? ''));
     }
     if (!base || !quote) continue;
-    const id = base === 'BTC' && altname.startsWith('XBT') ? altname.replace(/^XBT/, 'BTC') : altname;
-    items.push(makeInfo('kraken', id, altname, base, quote, wsname ?? `${base}/${quote}`));
+    if (kind === 'stock') {
+      // Keep tradable xStocks (AAPLx). Skip parallel *SPV listings that duplicate the same name.
+      if (!base.endsWith('x') || base.endsWith('SPV') || /SPV$/i.test(altname)) continue;
+    }
+    const id = kind === 'crypto' && base === 'BTC' && altname.startsWith('XBT') ? altname.replace(/^XBT/, 'BTC') : altname;
+    items.push(makeInfo('kraken', id, altname, base, quote, wsname ?? `${base}/${quote}`, kind));
+  }
+  return items;
+}
+
+async function fetchKraken(): Promise<SymbolInfo[]> {
+  const spot = await fetchJson<{ error?: string[]; result?: Record<string, Record<string, unknown>> }>(
+    'https://api.kraken.com/0/public/AssetPairs',
+  );
+  if (spot.error?.length) throw new Error(spot.error.join(', '));
+  const items = parseKrakenPairs(spot.result, 'crypto');
+  try {
+    const stocks = await fetchJson<{ error?: string[]; result?: Record<string, Record<string, unknown>> }>(
+      'https://api.kraken.com/0/public/AssetPairs?aclass_base=tokenized_asset',
+    );
+    if (!stocks.error?.length) items.push(...parseKrakenPairs(stocks.result, 'stock'));
+  } catch {
+    // Tokenized list is optional: a failure must not hide spot pairs.
   }
   return items;
 }
@@ -327,9 +368,19 @@ export function cachedCounts(): Record<string, number> {
   return counts;
 }
 
-export function searchSymbols(query: string, filter: SourceFilter, items: SymbolInfo[], limit = 100): SymbolInfo[] {
+export type CategoryFilter = 'all' | 'crypto' | 'stocks';
+
+export function searchSymbols(
+  query: string,
+  filter: SourceFilter,
+  items: SymbolInfo[],
+  limit = 100,
+  category: CategoryFilter = 'all',
+): SymbolInfo[] {
   const q = query.trim().toLowerCase().replace(/[-_/]/g, '');
-  const pool = filter === 'all' ? items : items.filter((s) => s.sourceId === filter);
+  let pool = filter === 'all' ? items : items.filter((s) => s.sourceId === filter);
+  if (category === 'crypto') pool = pool.filter((s) => s.kind !== 'stock');
+  if (category === 'stocks') pool = pool.filter((s) => s.kind === 'stock');
   if (!q) return pool.slice(0, limit);
   const ranked: { item: SymbolInfo; rank: number; baseHits: boolean }[] = [];
   for (const item of pool) {

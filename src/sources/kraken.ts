@@ -5,7 +5,7 @@ import { aggregateCandles, sortDedup } from './aggregate';
 import { changePct, fetchJson } from './http';
 import type { Candle, DataSource, IntervalId, PairId, Ticker } from './types';
 import { pairsFromNative } from './types';
-import { nativeSymbol } from './catalog';
+import { isKrakenTokenized, nativeSymbol } from './catalog';
 
 const NATIVE: Record<Exclude<IntervalId, '1M'>, number> = {
   '1h': 60,
@@ -19,8 +19,12 @@ interface KrakenOhlcResponse {
   result?: Record<string, unknown>;
 }
 
+function tokenizedQuery(pair: string): string {
+  return isKrakenTokenized(pair) ? '&asset_class=tokenized_asset' : '';
+}
+
 async function fetchInterval(pair: string, interval: number): Promise<Candle[]> {
-  const url = `https://api.kraken.com/0/public/OHLC?pair=${encodeURIComponent(pair)}&interval=${interval}`;
+  const url = `https://api.kraken.com/0/public/OHLC?pair=${encodeURIComponent(pair)}&interval=${interval}${tokenizedQuery(pair)}`;
   const data = await fetchJson<KrakenOhlcResponse>(url);
   if (data.error?.length) throw new Error(`Kraken: ${data.error.join(', ')}`);
   const result = data.result ?? {};
@@ -61,7 +65,7 @@ export const kraken: DataSource = {
   },
   async fetchTicker(pairId: PairId): Promise<Ticker> {
     const symbol = nativeSymbol(this, pairId);
-    const url = `https://api.kraken.com/0/public/Ticker?pair=${encodeURIComponent(symbol)}`;
+    const url = `https://api.kraken.com/0/public/Ticker?pair=${encodeURIComponent(symbol)}${tokenizedQuery(symbol)}`;
     const data = await fetchJson<{ error: string[]; result?: Record<string, Record<string, unknown>> }>(url);
     if (data.error?.length) throw new Error(`Kraken: ${data.error.join(', ')}`);
     const result = data.result ?? {};

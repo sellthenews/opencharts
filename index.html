@@ -174,13 +174,20 @@
             <h2 id="sym-modal-title">Search symbol</h2>
             <button type="button" id="sym-modal-close" aria-label="Close">×</button>
           </div>
-          <input id="sym-search" type="search" placeholder="Name or ticker, e.g. sol" autocomplete="off" />
-          <div id="sym-filters" class="sym-filters" role="group" aria-label="Exchange">
-            <button type="button" data-sym-filter="all" class="is-active">All</button>
-            <button type="button" data-sym-filter="kraken">Kraken</button>
-            <button type="button" data-sym-filter="binance">Binance</button>
-            <button type="button" data-sym-filter="coinbase">Coinbase</button>
-            <button type="button" data-sym-filter="bitstamp">Bitstamp</button>
+          <input id="sym-search" type="search" placeholder="Name or ticker, e.g. sol or aapl" autocomplete="off" />
+          <div class="sym-filter-rows">
+            <div id="sym-cats" class="sym-filters" role="group" aria-label="Asset type">
+              <button type="button" data-sym-cat="all" class="is-active">All</button>
+              <button type="button" data-sym-cat="crypto">Crypto</button>
+              <button type="button" data-sym-cat="stocks">Stocks</button>
+            </div>
+            <div id="sym-filters" class="sym-filters" role="group" aria-label="Exchange">
+              <button type="button" data-sym-filter="all" class="is-active">All</button>
+              <button type="button" data-sym-filter="kraken">Kraken</button>
+              <button type="button" data-sym-filter="binance">Binance</button>
+              <button type="button" data-sym-filter="coinbase">Coinbase</button>
+              <button type="button" data-sym-filter="bitstamp">Bitstamp</button>
+            </div>
           </div>
           <div id="sym-results" class="sym-results"></div>
         </div>

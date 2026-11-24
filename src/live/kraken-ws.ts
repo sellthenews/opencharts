@@ -2,7 +2,7 @@
 // Copyright (C) 2026 OpenCharts contributors
 
 import type { Candle, IntervalId, PairId, Ticker } from '../sources/types';
-import { krakenWsName } from '../sources/catalog';
+import { isKrakenTokenized, krakenWsName } from '../sources/catalog';
 import { isoToUnix } from './merge';
 
 export const KRAKEN_WS_URL = 'wss://ws.kraken.com/v2';
@@ -18,6 +18,7 @@ const SYMBOL_TO_PAIR: Record<string, PairId> = Object.fromEntries(
 );
 
 function wsSymbol(pair: string): string | undefined {
+  if (isKrakenTokenized(pair)) return undefined;
   const named = KRAKEN_WS_SYMBOL[pair] ?? krakenWsName(pair);
   if (!named) return undefined;
   KRAKEN_WS_SYMBOL[pair] = named;

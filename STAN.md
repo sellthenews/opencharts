@@ -194,3 +194,9 @@ Zrzuty (lokalne, w `.gitignore`): `screenshots-test/wyszukiwarka-par.png`, `scre
 Aplikacja nosi nazwę **OpenCharts** (tytuł, logo, meta, `package.json`, README, CONTRIBUTING, THIRD_PARTY, nagłówki copyright „OpenCharts contributors”). UI, komunikaty, etykiety, aria-label, nazwy narzędzi i miesięcy oraz locale LWC/`Intl` są po angielsku (`en-US`), `html lang="en"`.
 
 Klucze `localStorage` / `sessionStorage` mają prefiks `opencharts:`. Przy starcie jednorazowo kopiowane są stare klucze `wykresy:` oraz ewentualne `opencandle:`, o ile nowy klucz jeszcze nie istnieje (rysunki, wskaźniki, layout, sidebar, listy, alerty, kursor, magnes, motyw, cache par i świec). Dane użytkownika nie są nadpisywane ani usuwane.
+
+## Akcje i xStocks (24 XI 2026)
+
+- Wyszukiwarka ma filtr **Crypto / Stocks** obok filtra giełdy; przy każdym wyniku widać źródło danych.
+- Kraken xStocks: **177** par `*x/USD` online (np. AAPLx/USD) z publicznego `AssetPairs?aclass_base=tokenized_asset` (CORS działa w przeglądarce). Świece i ticker wymagają `asset_class=tokenized_asset`. Wyszukiwarka pokazuje wariant `*x`, bez równoległych listingów `*SPV`.
+- XRPN (Evernorth, Nasdaq) nie jest na Krakenie jako xStock. Yahoo Finance ma ten ticker, ale API Yahoo/Stooq/Nasdaq są blokowane przez CORS w przeglądarce — bez backendu nie da się ich dodać.

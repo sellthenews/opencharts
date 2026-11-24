@@ -878,6 +878,13 @@ button.danger:hover {
   font: inherit;
 }
 
+.sym-filter-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+
 .sym-filters {
   display: flex;
   flex-wrap: wrap;

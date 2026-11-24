@@ -2,6 +2,7 @@
 // Copyright (C) 2026 OpenCharts contributors
 
 import {
+  type CategoryFilter,
   type SourceFilter,
   type SymbolInfo,
   formatPairLabel,
@@ -31,6 +32,7 @@ export function initSymbolSearch(opts: {
 }): { open: (query?: string) => void; close: () => void; setCurrent: (sourceId: string, pairId: string) => void; ready: Promise<void> } {
   let items: SymbolInfo[] = [];
   let filter: SourceFilter = 'all';
+  let category: CategoryFilter = 'all';
   let active = 0;
   let visible: SymbolInfo[] = [];
   let current = { sourceId: 'kraken', pairId: 'XRPUSD' };
@@ -78,7 +80,7 @@ export function initSymbolSearch(opts: {
   }
 
   function render(): void {
-    visible = searchSymbols(opts.input.value, filter, items, 100);
+    visible = searchSymbols(opts.input.value, filter, items, 100, category);
     if (active >= visible.length) active = 0;
     if (!visible.length) {
       opts.results.innerHTML = `<p class="sym-empty">${items.length ? 'No results.' : 'Loading pairs…'}</p>`;
@@ -115,6 +117,18 @@ export function initSymbolSearch(opts: {
     if (!btn) return;
     filter = (btn.dataset.symFilter as SourceFilter) ?? 'all';
     opts.filters.querySelectorAll('[data-sym-filter]').forEach((el) => {
+      el.classList.toggle('is-active', el === btn);
+    });
+    active = 0;
+    render();
+    opts.input.focus();
+  });
+
+  opts.modal.querySelector('#sym-cats')?.addEventListener('click', (ev) => {
+    const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-sym-cat]');
+    if (!btn) return;
+    category = (btn.dataset.symCat as CategoryFilter) ?? 'all';
+    opts.modal.querySelectorAll('[data-sym-cat]').forEach((el) => {
       el.classList.toggle('is-active', el === btn);
     });
     active = 0;
