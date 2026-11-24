@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
+import { STOCKS_PROXY_UNCONFIGURED, getStocksProxyUrl } from './config';
 import {
   type CategoryFilter,
   type SourceFilter,
@@ -8,10 +9,20 @@ import {
   formatPairLabel,
   loadAllSymbols,
   searchSymbols,
+  symbolFromYahooQuote,
 } from './sources/catalog';
+import { searchYahooQuotes } from './sources/yahoo';
 import { sources } from './sources';
 
 const SOURCE_NAME: Record<string, string> = Object.fromEntries(sources.map((s) => [s.id, s.name]));
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
 
 function isTextField(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
@@ -79,23 +90,102 @@ export function initSymbolSearch(opts: {
     opts.onSelect(item.sourceId, item.id);
   }
 
-  function render(): void {
-    visible = searchSymbols(opts.input.value, filter, items, 100, category);
-    if (active >= visible.length) active = 0;
-    if (!visible.length) {
-      opts.results.innerHTML = `<p class="sym-empty">${items.length ? 'No results.' : 'Loading pairs…'}</p>`;
+  let yahooHits: SymbolInfo[] = [];
+  let yahooTimer: ReturnType<typeof setTimeout> | undefined;
+  let yahooAbort: AbortController | null = null;
+  let yahooFor = '';
+
+  function needsProxyHint(): boolean {
+    return !getStocksProxyUrl() && (category === 'stocks' || filter === 'yahoo');
+  }
+
+  function yahooSearchEnabled(): boolean {
+    if (!getStocksProxyUrl()) return false;
+    if (category === 'crypto') return false;
+    if (filter !== 'all' && filter !== 'yahoo') return false;
+    return opts.input.value.trim().length >= 1;
+  }
+
+  function mergeHits(local: SymbolInfo[], remote: SymbolInfo[]): SymbolInfo[] {
+    const seen = new Set(local.map((s) => `${s.sourceId}:${s.id.toLowerCase()}`));
+    const extra: SymbolInfo[] = [];
+    for (const item of remote) {
+      const key = `${item.sourceId}:${item.id.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      extra.push(item);
+    }
+    return [...local, ...extra].slice(0, 100);
+  }
+
+  function scheduleYahooSearch(): void {
+    if (yahooTimer !== undefined) clearTimeout(yahooTimer);
+    yahooAbort?.abort();
+    yahooAbort = null;
+    if (!yahooSearchEnabled()) {
+      yahooHits = [];
+      yahooFor = '';
       return;
     }
-    opts.results.innerHTML = visible
-      .map((item, i) => {
-        const currentCls = item.sourceId === current.sourceId && item.id === current.pairId ? ' is-current' : '';
-        const activeCls = i === active ? ' is-active' : '';
-        return `<button type="button" class="sym-row${currentCls}${activeCls}" data-sym-index="${i}">
-          <span class="sym-label">${item.label}</span>
-          <span class="sym-ex">${SOURCE_NAME[item.sourceId] ?? item.sourceId}</span>
+    const q = opts.input.value.trim();
+    yahooTimer = setTimeout(() => {
+      void runYahooSearch(q);
+    }, 300);
+  }
+
+  async function runYahooSearch(q: string): Promise<void> {
+    yahooAbort?.abort();
+    const ac = new AbortController();
+    yahooAbort = ac;
+    try {
+      const quotes = await searchYahooQuotes(q);
+      if (ac.signal.aborted) return;
+      yahooHits = quotes
+        .filter((row) => row.symbol)
+        .map((row) => symbolFromYahooQuote(row.symbol!, row.shortname || row.longname));
+      yahooFor = q;
+      if (open && opts.input.value.trim() === q) renderResults();
+    } catch {
+      if (ac.signal.aborted) return;
+      yahooHits = [];
+      yahooFor = q;
+      if (open && opts.input.value.trim() === q) renderResults();
+    }
+  }
+
+  function render(): void {
+    if (!yahooSearchEnabled()) {
+      yahooHits = [];
+      yahooFor = '';
+    }
+    renderResults();
+    scheduleYahooSearch();
+  }
+
+  function renderResults(): void {
+    const local = searchSymbols(opts.input.value, filter, items, 100, category);
+    const remote = yahooFor === opts.input.value.trim() ? yahooHits : [];
+    visible = mergeHits(local, remote);
+    if (active >= visible.length) active = 0;
+    const banner = needsProxyHint() ? `<p class="sym-banner" role="status">${STOCKS_PROXY_UNCONFIGURED}</p>` : '';
+    if (!visible.length) {
+      opts.results.innerHTML = `${banner}<p class="sym-empty">${items.length ? 'No results.' : 'Loading pairs…'}</p>`;
+      return;
+    }
+    opts.results.innerHTML =
+      banner +
+      visible
+        .map((item, i) => {
+          const currentCls = item.sourceId === current.sourceId && item.id === current.pairId ? ' is-current' : '';
+          const activeCls = i === active ? ' is-active' : '';
+          const sourceLabel = item.sourceId === 'yahoo' ? 'Yahoo' : (SOURCE_NAME[item.sourceId] ?? item.sourceId);
+          const name = item.name ? `<span class="sym-name">${escapeHtml(item.name)}</span>` : '';
+          return `<button type="button" class="sym-row${currentCls}${activeCls}" data-sym-index="${i}">
+          <span class="sym-label">${escapeHtml(item.label)}${name}</span>
+          <span class="sym-ex">${escapeHtml(sourceLabel)}</span>
         </button>`;
-      })
-      .join('');
+        })
+        .join('');
   }
 
   function show(query?: string): void {

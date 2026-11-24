@@ -18,7 +18,9 @@ import type { PaneMap } from './indicators/host';
 import { loadIndicatorSettings, saveIndicatorSettings } from './indicators/settings';
 import { IndicatorHud, initIndicatorModal } from './indicators/ui';
 import type { IndicatorInstance } from './indicators/types';
+import { STOCKS_PROXY_UNCONFIGURED } from './config';
 import { INTERVALS, formatPairLabel, getSource, sources } from './sources';
+import { lookupSymbol } from './sources/catalog';
 import type { Candle, IntervalId, PairId } from './sources';
 import { initSymbolSearch } from './symbol-search';
 import { initChartMenu } from './chart-menu';
@@ -501,13 +503,18 @@ async function loadChart(): Promise<void> {
     }
     syncLiveChart();
     const message = err instanceof Error ? err.message : String(err);
-    setStatus(`Failed to load data from ${src.name}: ${message}`, true);
+    if (message === STOCKS_PROXY_UNCONFIGURED) setStatus(STOCKS_PROXY_UNCONFIGURED, true);
+    else setStatus(`Failed to load data from ${src.name}: ${message}`, true);
     setChartLoading('off');
   }
 }
 
 sourceEl.addEventListener('change', () => {
   sourceId = sourceEl.value;
+  const src = getSource(sourceId);
+  if (src && !src.pairs.some((p) => p.id === pairId) && !lookupSymbol(src.id, pairId)) {
+    pairId = src.pairs[0]?.id ?? pairId;
+  }
   fillPairs();
   persistLayout();
   watchlist?.highlight(sourceId, pairId);

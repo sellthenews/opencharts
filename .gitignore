@@ -8,3 +8,8 @@ blob-report/
 playwright/.cache/
 *.log
 .DS_Store
+
+.wrangler/
+**/.wrangler/
+.dev.vars
+worker/.dev.vars

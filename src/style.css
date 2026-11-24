@@ -1194,9 +1194,24 @@ html[data-theme="light"] #rail-flyout {
   font-size: 12px;
 }
 
+.sym-name {
+  margin-left: 8px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
 .sym-empty {
   margin: 16px 8px;
   color: var(--muted);
+}
+
+.sym-banner {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--btn-hover);
+  color: var(--heading);
+  font-size: 13px;
 }
 
 #sym-modal-close {

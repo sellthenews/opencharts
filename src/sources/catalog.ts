@@ -5,8 +5,9 @@ import '../storage';
 import { fetchJson } from './http';
 import type { DataSource } from './types';
 import { PAIR_LABELS } from './types';
+import { YAHOO_STOCKS } from './yahoo';
 
-export const SOURCE_FILTERS = ['all', 'kraken', 'binance', 'coinbase', 'bitstamp'] as const;
+export const SOURCE_FILTERS = ['all', 'kraken', 'binance', 'coinbase', 'bitstamp', 'yahoo'] as const;
 export type SourceFilter = (typeof SOURCE_FILTERS)[number];
 
 export type AssetKind = 'crypto' | 'stock';
@@ -21,13 +22,14 @@ export interface SymbolInfo {
   wsname?: string;
   kind: AssetKind;
   search: string;
+  name?: string;
 }
 
 const TTL_MS = 24 * 60 * 60 * 1000;
 const CACHE_VER = 2;
 
 /** [id, native, base, quote, wsname, kind] — kind is 's' for stock, omitted/empty for crypto. */
-type CacheRow = [string, string, string, string, string?, string?];
+type CacheRow = [string, string, string, string, string?, string?, string?];
 
 interface CachePayload {
   v: number;
@@ -76,21 +78,25 @@ function makeInfo(
   quote: string,
   wsname?: string,
   kind: AssetKind = 'crypto',
+  name?: string,
+  labelOverride?: string,
 ): SymbolInfo {
-  const label = `${base}/${quote}`;
+  const label = labelOverride ?? `${base}/${quote}`;
   const extra = kind === 'stock' ? ' stock xstock equity shares' : '';
-  const search = `${id} ${native} ${base}${quote} ${label} ${wsname ?? ''}${extra}`.toLowerCase();
-  return { sourceId, id, native, base, quote, label, wsname, kind, search };
+  const search = `${id} ${native} ${base}${quote} ${label} ${wsname ?? ''} ${name ?? ''}${extra}`.toLowerCase();
+  return { sourceId, id, native, base, quote, label, wsname, kind, search, name };
 }
 
 function rowToInfo(sourceId: string, row: CacheRow): SymbolInfo {
   const kind: AssetKind = row[5] === 's' ? 'stock' : 'crypto';
-  return makeInfo(sourceId, row[0], row[1], row[2], row[3], row[4], kind);
+  const name = row[6] || undefined;
+  const labelOverride = sourceId === 'yahoo' ? row[0] : undefined;
+  return makeInfo(sourceId, row[0], row[1], row[2], row[3], row[4], kind, name, labelOverride);
 }
 
 function infoToRow(item: SymbolInfo): CacheRow {
   const kind = item.kind === 'stock' ? 's' : '';
-  return [item.id, item.native, item.base, item.quote, item.wsname ?? '', kind];
+  return [item.id, item.native, item.base, item.quote, item.wsname ?? '', kind, item.name ?? ''];
 }
 
 function readCache(sourceId: string): SymbolInfo[] | null {
@@ -169,6 +175,7 @@ export function fallbackNative(sourceId: string, pairId: string): string {
     if (isXStockNative(compact)) return compact;
     return compact.toUpperCase();
   }
+  if (sourceId === 'yahoo') return pairId;
   return pairId;
 }
 
@@ -312,12 +319,24 @@ async function fetchBitstamp(): Promise<SymbolInfo[]> {
   return items;
 }
 
+function fetchYahoo(): Promise<SymbolInfo[]> {
+  return Promise.resolve(
+    YAHOO_STOCKS.map((s) => makeInfo('yahoo', s.id, s.id, s.id, 'USD', undefined, 'stock', s.name, s.id)),
+  );
+}
+
 const FETCHERS: Record<string, () => Promise<SymbolInfo[]>> = {
   kraken: fetchKraken,
   binance: fetchBinance,
   coinbase: fetchCoinbase,
   bitstamp: fetchBitstamp,
+  yahoo: fetchYahoo,
 };
+
+export function symbolFromYahooQuote(symbol: string, name?: string): SymbolInfo {
+  const id = symbol.trim();
+  return makeInfo('yahoo', id, id, id, 'USD', undefined, 'stock', name, id);
+}
 
 export async function loadSourceSymbols(sourceId: string, force = false): Promise<SymbolInfo[]> {
   if (!force) {
@@ -381,7 +400,14 @@ export function searchSymbols(
   let pool = filter === 'all' ? items : items.filter((s) => s.sourceId === filter);
   if (category === 'crypto') pool = pool.filter((s) => s.kind !== 'stock');
   if (category === 'stocks') pool = pool.filter((s) => s.kind === 'stock');
-  if (!q) return pool.slice(0, limit);
+  if (!q) {
+    if (category === 'stocks') {
+      const curated = pool.filter((s) => s.sourceId === 'yahoo');
+      const rest = pool.filter((s) => s.sourceId !== 'yahoo');
+      return [...curated, ...rest].slice(0, limit);
+    }
+    return pool.slice(0, limit);
+  }
   const ranked: { item: SymbolInfo; rank: number; baseHits: boolean }[] = [];
   for (const item of pool) {
     const base = item.base.toLowerCase();

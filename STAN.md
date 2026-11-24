@@ -199,7 +199,10 @@ Klucze `localStorage` / `sessionStorage` mają prefiks `opencharts:`. Przy starc
 
 - Wyszukiwarka ma filtr **Crypto / Stocks** obok filtra giełdy; przy każdym wyniku widać źródło danych.
 - Kraken xStocks: **177** par `*x/USD` online (np. AAPLx/USD) z publicznego `AssetPairs?aclass_base=tokenized_asset` (CORS działa w przeglądarce). Świece i ticker wymagają `asset_class=tokenized_asset`. Wyszukiwarka pokazuje wariant `*x`, bez równoległych listingów `*SPV`.
-- XRPN (Evernorth, Nasdaq) nie jest na Krakenie jako xStock. Yahoo Finance ma ten ticker, ale API Yahoo/Stooq/Nasdaq są blokowane przez CORS w przeglądarce — bez backendu nie da się ich dodać.
+- XRPN (Evernorth, Nasdaq) nie jest na Krakenie jako xStock. Świece i ticker idą przez opcjonalny Cloudflare Worker (`worker/`, `opencharts-proxy`) do Yahoo Finance (`query1`/`query2.finance.yahoo.com`, tylko `/v8/finance/chart/{symbol}` i `/v1/finance/search`). URL Workera: `VITE_STOCKS_PROXY` albo pusta stała w `src/config.ts` (do czasu wdrożenia). Bez URL kategoria Stocks pokazuje „Stock data proxy not configured yet”; krypto i xStocks działają dalej.
+- Lista Stocks (Yahoo): XRPN, AAPL, MSFT, NVDA, TSLA, AMZN, META, GOOGL, COIN, MSTR, HOOD (z nazwami spółek) plus wyszukiwanie dowolnego tickera (debounce, tylko EQUITY/ETF, w tym GPW `.WA`). Interwały: 1h z Yahoo (historia intraday zwykle ~60–90 dni), 4h agregowane z 1h, 1D/1W/1M z Yahoo (`1d`/`1wk`/`1mo`).
+
+Zrzut (lokalny, w `.gitignore`): `screenshots-test/stocks-yahoo.png` (XRPN z zamockowanym proxy).
 
 ## Pasek narzędzi i ulubione (24 XI 2026)
 

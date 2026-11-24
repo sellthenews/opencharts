@@ -2,3 +2,7 @@
 // Copyright (C) 2026 OpenCharts contributors
 
 /// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  readonly VITE_STOCKS_PROXY?: string;
+}
