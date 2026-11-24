@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
+import './storage';
 import {
   CandlestickSeries,
   CrosshairMode,
@@ -35,10 +36,10 @@ import type { WatchState } from './watchlist';
 const DEFAULT_SOURCE = 'kraken';
 const DEFAULT_PAIR: PairId = 'XRPUSD';
 const DEFAULT_INTERVAL: IntervalId = '1D';
-const THEME_KEY = 'wykresy:theme';
-const SIDEBAR_KEY = 'wykresy:sidebar';
-const CURSOR_MODE_KEY = 'wykresy:cursor-mode';
-const MAGNET_KEY = 'wykresy:magnet';
+const THEME_KEY = 'opencharts:theme';
+const SIDEBAR_KEY = 'opencharts:sidebar';
+const CURSOR_MODE_KEY = 'opencharts:cursor-mode';
+const MAGNET_KEY = 'opencharts:magnet';
 type CursorMode = 'cross' | 'dot' | 'arrow';
 type ThemeName = 'dark' | 'light';
 
@@ -54,7 +55,7 @@ function applyTheme(name: ThemeName): void {
   localStorage.setItem(THEME_KEY, name);
   persistLayout();
   const btn = document.querySelector<HTMLButtonElement>('#theme-btn');
-  if (btn) btn.textContent = name === 'light' ? 'Motyw ciemny' : 'Motyw jasny';
+  if (btn) btn.textContent = name === 'light' ? 'Dark theme' : 'Light theme';
 }
 
 
@@ -114,7 +115,7 @@ let toastTimer: number | null = null;
 function renderAlerts(): void {
   if (!alertListEl) return;
   if (!alerts.length) {
-    alertListEl.innerHTML = '<p class="watch-empty">Brak alertów.</p>';
+    alertListEl.innerHTML = '<p class="watch-empty">No alerts.</p>';
     return;
   }
   alertListEl.innerHTML = alerts
@@ -123,7 +124,7 @@ function renderAlerts(): void {
       const fired = a.enabled ? '' : ' is-fired';
       return `<div class="alert-item${fired}" data-alert-id="${a.id}">
         <span>${alertLabel(a, src?.name ?? a.sourceId)}</span>
-        <button type="button" data-alert-del="${a.id}" title="Usuń alert">×</button>
+        <button type="button" data-alert-del="${a.id}" title="Remove alert">×</button>
       </div>`;
     })
     .join('');
@@ -167,7 +168,7 @@ const chart: IChartApi = createChart(chartEl, {
   autoSize: true,
   ...themeChartOptions(theme === 'light'),
   ...interactionOptions(),
-  localization: { locale: 'pl-PL' },
+  localization: { locale: 'en-US' },
 });
 
 const series: ISeriesApi<'Candlestick'> = chart.addSeries(CandlestickSeries, candleSeriesOptions());
@@ -207,7 +208,7 @@ function setStatus(text: string, error = false): void {
 
 function currentSource() {
   const src = getSource(sourceId) ?? sources[0];
-  if (!src) throw new Error('Brak źródeł danych');
+  if (!src) throw new Error('No data sources');
   return src;
 }
 
@@ -342,7 +343,7 @@ function setSidebar(on: boolean): void {
   const btn = document.querySelector<HTMLButtonElement>('#sidebar-btn');
   if (btn) {
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    btn.title = on ? 'Ukryj panel obserwowanych' : 'Pokaż panel obserwowanych';
+    btn.title = on ? 'Hide watchlist panel' : 'Show watchlist panel';
   }
   resizeCharts();
 }
@@ -421,7 +422,7 @@ function setLiveStatus(status: LiveStatus): void {
   const el = document.querySelector<HTMLElement>('#live-status');
   if (el) {
     el.dataset.live = status;
-    el.textContent = status === 'live' ? 'Na żywo' : status === 'connecting' ? 'Łączenie…' : 'Offline';
+    el.textContent = status === 'live' ? 'Live' : status === 'connecting' ? 'Connecting…' : 'Offline';
   }
   appEl.dataset.live = status;
 }
@@ -459,7 +460,7 @@ function syncLiveChart(): void {
 function describeCandles(srcName: string, pairLabel: string, candles: Candle[], aggregated: boolean): string {
   const first = isoDate(candles[0]!.time);
   const last = isoDate(candles[candles.length - 1]!.time);
-  return `${srcName} · ${pairLabel} · ${intervalId}${aggregated ? ' · agregacja' : ''} · ${candles.length} świec · ${first} – ${last}`;
+  return `${srcName} · ${pairLabel} · ${intervalId}${aggregated ? ' · aggregated' : ''} · ${candles.length} candles · ${first} – ${last}`;
 }
 
 async function loadChart(): Promise<void> {
@@ -479,13 +480,13 @@ async function loadChart(): Promise<void> {
   } else {
     setChartLoading('full');
     if (!hadData) setReady(false);
-    setStatus(`Ładowanie ${src.name} · ${pairLabel} · ${intervalId}…`);
+    setStatus(`Loading ${src.name} · ${pairLabel} · ${intervalId}…`);
   }
 
   try {
     const candles = await src.fetchCandles(pairId, intervalId);
     if (seq !== loadSeq) return;
-    if (!candles.length) throw new Error('Brak świec w odpowiedzi API');
+    if (!candles.length) throw new Error('No candles in the API response');
     setCachedCandles(sourceId, pairId, intervalId, candles);
     applyPriceData(candles, !(cached?.length || hadData));
     drawings.setContext(src.id, pairId);
@@ -504,7 +505,7 @@ async function loadChart(): Promise<void> {
     }
     syncLiveChart();
     const message = err instanceof Error ? err.message : String(err);
-    setStatus(`Nie udało się pobrać danych z ${src.name}: ${message}`, true);
+    setStatus(`Failed to load data from ${src.name}: ${message}`, true);
     setChartLoading('off');
   }
 }
@@ -549,7 +550,7 @@ document.querySelectorAll<HTMLButtonElement>('[data-tool]').forEach((btn) => {
 
 deleteBtn.addEventListener('click', () => {
   if (!drawings.deleteSelected()) {
-    setStatus('Zaznacz rysunek kursorem, potem kliknij Usuń (albo Delete).');
+    setStatus('Select a drawing with the cursor, then click Delete.');
   }
 });
 
@@ -562,7 +563,7 @@ exportBtn.addEventListener('click', () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `wykresy-rysunki-${sourceId}-${pairId}.json`;
+  a.download = `opencharts-drawings-${sourceId}-${pairId}.json`;
   a.click();
   URL.revokeObjectURL(url);
 });
@@ -576,13 +577,13 @@ importFile.addEventListener('change', async () => {
     drawings.importJson(await file.text());
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    setStatus(`Import rysunków nie powiódł się: ${message}`, true);
+    setStatus(`Drawing import failed: ${message}`, true);
   }
 });
 
 extendRightBtn.addEventListener('click', () => {
   if (!drawings.toggleExtendRight()) {
-    setStatus('Zaznacz Fibo rozszerzenie, potem kliknij Przedłuż w prawo.');
+    setStatus('Select a trend-based Fib extension, then click Extend right.');
   }
 });
 
@@ -677,7 +678,7 @@ window.addEventListener('resize', () => resizeCharts());
 
 declare global {
   interface Window {
-    __wykresy: {
+    __opencharts: {
       getDrawings: () => ReturnType<DrawingLayer['getDrawings']>;
       getSelectedId: () => string | null;
       getAbcdScreen: () => ReturnType<DrawingLayer['getAbcdScreen']>;
@@ -690,7 +691,7 @@ declare global {
   }
 }
 
-window.__wykresy = {
+window.__opencharts = {
   getDrawings: () => drawings.getDrawings(),
   getSelectedId: () => drawings.getSelectedId(),
   getAbcdScreen: () => drawings.getAbcdScreen(),
@@ -714,13 +715,13 @@ initChartMenu(
       chart.timeScale().fitContent();
       chart.timeScale().scrollToRealTime();
       series.priceScale().applyOptions({ autoScale: true });
-      setStatus('Zresetowano widok wykresu.');
+      setStatus('Chart view reset.');
     },
     copyPrice: (price) => {
       const text = String(price);
       void navigator.clipboard?.writeText(text).then(
-        () => setStatus(`Skopiowano cenę ${text}`),
-        () => setStatus(`Nie udało się skopiować ceny ${text}`, true),
+        () => setStatus(`Copied price ${text}`),
+        () => setStatus(`Could not copy price ${text}`, true),
       );
     },
     addAlert: (price) => {
@@ -729,11 +730,11 @@ initChartMenu(
       alerts.push(createAlert(sourceId, pairId, price, direction));
       saveAlerts(alerts);
       renderAlerts();
-      setStatus(`Dodano alert na ${price}`);
+      setStatus(`Added alert at ${price}`);
     },
     clearDrawings: () => {
       drawings.clearAll();
-      setStatus('Usunięto wszystkie rysunki.');
+      setStatus('Removed all drawings.');
     },
   },
 );
@@ -818,7 +819,7 @@ function placeDrawBar(): void {
   if (drawColor) drawColor.value = color.length === 7 ? color : '#5b9cf6';
   if (drawWidth) drawWidth.value = String(d.style?.width ?? 1);
   if (drawLineStyle) drawLineStyle.value = d.style?.lineStyle ?? 'solid';
-  if (drawLock) drawLock.textContent = d.style?.locked ? 'Odblokuj' : 'Zablokuj';
+  if (drawLock) drawLock.textContent = d.style?.locked ? 'Unlock' : 'Lock';
   const anchor = drawings.selectionAnchor();
   if (anchor) {
     const top = Math.max(8, anchor.y - 40);

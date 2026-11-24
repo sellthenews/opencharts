@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
 export async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -10,7 +10,7 @@ export async function fetchJson<T>(url: string): Promise<T> {
     } catch {
       /* ignore */
     }
-    throw new Error(`HTTP ${res.status} dla ${url}${detail ? `: ${detail}` : ''}`);
+    throw new Error(`HTTP ${res.status} for ${url}${detail ? `: ${detail}` : ''}`);
   }
   return (await res.json()) as T;
 }

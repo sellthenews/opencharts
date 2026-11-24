@@ -1,21 +1,21 @@
-# Wykresy
+# OpenCharts
 
 Free, open-source candlestick charting app (TradingView-style). It is a static site: no backend, no API keys, no accounts. Stage 1 is ready to publish on GitHub Pages.
 
 ## Features
 
-- Candlestick chart with a dark theme and a Polish UI.
+- Candlestick chart with a dark theme and an English UI.
 - Exchange switcher: **Kraken** (default), **Binance**, **Coinbase**, **Bitstamp**. All four are public REST APIs that work from the browser (CORS checked with a real `fetch` in headless Chrome).
 - Symbol search (click the pair name or start typing on the chart): all official spot pairs from Kraken, Binance, Coinbase and Bitstamp, with exchange filters, typeahead, and a 24h `localStorage` cache. Selecting a result switches the exchange and opens that pair.
 - Pairs shown by default: XRP/USD, BTC/USD, ETH/USD. On Binance USD maps to USDT (`XRPUSDT`, `BTCUSDT`, `ETHUSDT`); other listed pairs keep the venue’s native symbol.
 - Intervals: 1h, 4h, 1D (default), 1W, 1M. Missing intervals are aggregated in `src/sources/aggregate.ts` (Coinbase has no native 4h / 1W / 1M; Bitstamp and Kraken have no native 1M; Bitstamp has no native 1W).
-- Watchlists (sidebar): several named lists, add/remove pairs from any exchange, last price and 24h change. Default list **Moje** is Kraken XRP/USD, BTC/USD and ETH/USD. Quotes refresh every 45s when the tab is visible; Kraken rows also update live over the public ticker WebSocket.
+- Watchlists (sidebar): several named lists, add/remove pairs from any exchange, last price and 24h change. Default list **My list** is Kraken XRP/USD, BTC/USD and ETH/USD. A second empty list, **Crypto**, is included. Quotes refresh every 45s when the tab is visible; Kraken rows also update live over the public ticker WebSocket.
 - Indicators, calculated locally, with toggles and periods stored in `localStorage`: SMA, EMA and Bollinger Bands on the price chart; volume; RSI and MACD in panes under the chart.
 - Drawing tools (P1–P3, see [STAN.md](STAN.md)): click-click with live preview, optional magnet snap to OHLC, thin antialiased lines, circle handles only when selected, and a floating style bar (color, width, line style, lock, delete). Delete/Backspace removes the selected drawing; after finishing a tool the cursor is reselected. Drawings are saved in `localStorage` per exchange + pair, including style. Export/import JSON is available.
 - Cursor modes on the left rail (crosshair with dashed lines and axis labels, dot, or arrow), remembered in `localStorage`. A magnet toggle snaps the pointer and drawings to OHLC.
 - Chart context menu (right-click): reset view (zoom/scroll only), copy the price under the cursor, add an alert at that price, or clear all drawings (with confirm).
 - Live updates for Kraken via the public WebSocket `wss://ws.kraken.com/v2` (OHLC + ticker), with automatic reconnect. Aggregated intervals (including 1M) update the last candle.
-- GitHub Pages-friendly build: Vite `base` is `./`, output goes to `site/`. The site is published at [https://sellthenews.github.io/wykresy/](https://sellthenews.github.io/wykresy/) from `main` via `.github/workflows/pages.yml`.
+- GitHub Pages-friendly build: Vite `base` is `./`, output goes to `site/`. The site is published at [https://sellthenews.github.io/opencharts/](https://sellthenews.github.io/opencharts/) from `main` via `.github/workflows/pages.yml`.
 
 ## Dependencies
 

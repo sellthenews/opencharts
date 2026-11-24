@@ -1,9 +1,12 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wykresy</title>
+    <title>OpenCharts</title>
+    <meta name="description" content="Free, open-source candlestick charting app." />
+    <meta property="og:title" content="OpenCharts" />
+    <meta property="og:description" content="Free, open-source candlestick charting app." />
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
@@ -11,107 +14,107 @@
       <div id="alert-toast" class="alert-toast" hidden role="status"></div>
       <div id="workspace">
       <header class="toolbar">
-        <div class="brand" title="Wykresy">Wykresy</div>
+        <div class="brand" title="OpenCharts">OpenCharts</div>
 
         <label class="field">
-          <span>Giełda</span>
+          <span>Exchange</span>
           <select id="source" data-source></select>
         </label>
 
         <label class="field field-pair">
-          <span>Para</span>
-          <button type="button" id="pair-btn" title="Szukaj pary (zacznij pisać)">XRP/USD</button>
+          <span>Pair</span>
+          <button type="button" id="pair-btn" title="Search symbol (start typing)">XRP/USD</button>
           <select id="pair" data-pair class="visually-hidden" tabindex="-1" aria-hidden="true"></select>
         </label>
 
-        <div class="group" role="group" aria-label="Interwał" id="intervals"></div>
-        <div class="group" id="layout-btns" role="group" aria-label="Układ wykresów">
-          <button type="button" data-panes="1" class="is-active" title="Jeden wykres">1</button>
-          <button type="button" data-panes="2" title="Dwa wykresy">2</button>
-          <button type="button" data-panes="4" title="Cztery wykresy">4</button>
+        <div class="group" role="group" aria-label="Interval" id="intervals"></div>
+        <div class="group" id="layout-btns" role="group" aria-label="Chart layout">
+          <button type="button" data-panes="1" class="is-active" title="One chart">1</button>
+          <button type="button" data-panes="2" title="Two charts">2</button>
+          <button type="button" data-panes="4" title="Four charts">4</button>
         </div>
-        <button type="button" id="ind-btn" title="Wskaźniki">fx Wskaźniki</button>
-        <button type="button" id="sidebar-btn" aria-pressed="true" title="Panel obserwowanych i alertów">Panel</button>
-        <button type="button" id="theme-btn" title="Przełącz motyw jasny/ciemny">Motyw jasny</button>
-        <span id="live-status" class="live-status" data-live="off" title="Publiczny WebSocket Krakena (OHLC i ticker)">Offline</span>
-        <div id="status" class="status" role="status">Ładowanie…</div>
+        <button type="button" id="ind-btn" title="Indicators">fx Indicators</button>
+        <button type="button" id="sidebar-btn" aria-pressed="true" title="Watchlist and alerts panel">Panel</button>
+        <button type="button" id="theme-btn" title="Switch light/dark theme">Light theme</button>
+        <span id="live-status" class="live-status" data-live="off" title="Public Kraken WebSocket (OHLC and ticker)">Offline</span>
+        <div id="status" class="status" role="status">Loading…</div>
       </header>
 
         <div class="workspace-body">
-        <nav id="tool-rail" aria-label="Narzędzia rysowania">
-          <div class="group" role="group" aria-label="Narzędzia rysowania">
-          <button type="button" class="tool is-active" id="cursor-tool" data-tool="cursor" title="Kursor — kliknij ponownie, aby zmienić tryb" aria-label="Kursor — kliknij ponownie, aby zmienić tryb"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M3.5 2.5 6 13l2-4.5 4.5-1.5z"/></svg><span class="tool-name">Kursor</span></button>
-          <div id="cursor-mode-pop" hidden role="menu" aria-label="Tryb kursora">
-            <button type="button" data-cursor-mode="cross" title="Krzyż">Krzyż</button>
-            <button type="button" data-cursor-mode="dot" title="Kropka">Kropka</button>
-            <button type="button" data-cursor-mode="arrow" title="Strzałka">Strzałka</button>
+        <nav id="tool-rail" aria-label="Drawing tools">
+          <div class="group" role="group" aria-label="Drawing tools">
+          <button type="button" class="tool is-active" id="cursor-tool" data-tool="cursor" title="Cursor — click again to change mode" aria-label="Cursor — click again to change mode"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M3.5 2.5 6 13l2-4.5 4.5-1.5z"/></svg><span class="tool-name">Cursor</span></button>
+          <div id="cursor-mode-pop" hidden role="menu" aria-label="Cursor mode">
+            <button type="button" data-cursor-mode="cross" title="Cross">Cross</button>
+            <button type="button" data-cursor-mode="dot" title="Dot">Dot</button>
+            <button type="button" data-cursor-mode="arrow" title="Arrow">Arrow</button>
           </div>
-          <button type="button" class="tool" id="magnet-btn" title="Magnes — przyciąganie do OHLC" aria-label="Magnes — przyciąganie do OHLC" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M4 3v5a4 4 0 0 0 8 0V3M4 3h2v5a2 2 0 0 0 4 0V3h2"/></svg><span class="tool-name">Magnes</span></button>
-          <button type="button" class="tool" data-tool="trend" title="Linia trendu — dwa kliknięcia" aria-label="Linia trendu — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2.5 12.5 13.5 3.5"/><circle cx="2.5" cy="12.5" r="1" fill="currentColor"/><circle cx="13.5" cy="3.5" r="1" fill="currentColor"/></svg><span class="tool-name">Linia trendu</span></button>
-          <button type="button" class="tool" data-tool="hline" title="Linia pozioma — jedno kliknięcie" aria-label="Linia pozioma — jedno kliknięcie"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M1.5 8h13"/></svg><span class="tool-name">Linia pozioma</span></button>
-          <button type="button" class="tool" data-tool="rect" title="Prostokąt — dwa kliknięcia" aria-label="Prostokąt — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><rect fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" x="3" y="4" width="10" height="8"/></svg><span class="tool-name">Prostokąt</span></button>
-          <button type="button" class="tool" data-tool="ray" title="Promień — dwa kliknięcia, przedłużany" aria-label="Promień — dwa kliknięcia, przedłużany"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2.5 12.5 9 6l5-3"/><circle cx="2.5" cy="12.5" r="1" fill="currentColor"/></svg><span class="tool-name">Promień</span></button>
-          <button type="button" class="tool" data-tool="channel" title="Kanał równoległy — trzy kliknięcia" aria-label="Kanał równoległy — trzy kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2 11.5 14 6M2 14.5 14 9"/></svg><span class="tool-name">Kanał</span></button>
-          <button type="button" class="tool" data-tool="fib" title="Zniesienie Fibonacciego — dwa kliknięcia" aria-label="Zniesienie Fibonacciego — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2.5 13V3M2.5 13h11M2.5 10h9M2.5 7.5h7M2.5 5h5"/></svg><span class="tool-name">Fibo</span></button>
-          <button type="button" class="tool" data-tool="fibext" title="Fibo rozszerzenie wg trendu — trzy punkty A, B, C" aria-label="Fibo rozszerzenie wg trendu — trzy punkty A, B, C"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2 13h12M2 10h9M2 7h6M12 3v10"/></svg><span class="tool-name">Fibo rozszerzenie</span></button>
-          <button type="button" class="tool" data-tool="abcd" title="Korekta 1:1 (AB=CD) — trzy punkty A, B, C" aria-label="Korekta 1:1 (AB=CD) — trzy punkty A, B, C"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M3 12 6.5 4 10 12 13 5"/></svg><span class="tool-name">AB=CD</span></button>
-          <button type="button" class="tool" data-tool="text" title="Tekst — kliknij i wpisz" aria-label="Tekst — kliknij i wpisz"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M3 4h10M8 4v9"/></svg><span class="tool-name">Tekst</span></button>
-          <button type="button" class="tool" data-tool="longpos" title="Long position — wejście, stop, cel" aria-label="Long position — wejście, stop, cel"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M4 13V8h4v5H4zm4-2v2h4v-2H8zM5 6.5 8 3l3 3.5"/><path fill="currentColor" opacity=".3" d="M4 8h4v5H4z"/></svg><span class="tool-name">Long</span></button>
-          <button type="button" class="tool" data-tool="shortpos" title="Short position — wejście, stop, cel" aria-label="Short position — wejście, stop, cel"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M4 3v5h4V3H4zm4 0v3h4V3H8zM5 9.5 8 13l3-3.5"/><path fill="currentColor" opacity=".3" d="M8 3h4v3H8z"/></svg><span class="tool-name">Short</span></button>
-          <button type="button" class="tool" data-tool="pricerange" title="Zakres cen — dwa kliknięcia" aria-label="Zakres cen — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M2 5h12M2 11h12"/><path fill="currentColor" opacity=".25" d="M2 5h12v6H2z"/></svg><span class="tool-name">Zakres cen</span></button>
-          <button type="button" class="tool" data-tool="daterange" title="Zakres dat — dwa kliknięcia" aria-label="Zakres dat — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M5 2v12M11 2v12"/><path fill="currentColor" opacity=".25" d="M5 2h6v12H5z"/></svg><span class="tool-name">Zakres dat</span></button>
-          <button type="button" class="tool" data-tool="datepricerange" title="Zakres dat i cen — dwa kliknięcia" aria-label="Zakres dat i cen — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><rect fill="none" stroke="currentColor" stroke-width="1.4" x="3" y="4" width="10" height="8"/><path fill="none" stroke="currentColor" stroke-width="1.2" d="M3 8h10M8 4v8"/></svg><span class="tool-name">Zakres dat i cen</span></button>
-          <button type="button" class="tool" data-tool="vline" title="Linia pionowa — jedno kliknięcie" aria-label="Linia pionowa — jedno kliknięcie"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M8 1.5v13"/></svg><span class="tool-name">Linia pionowa</span></button>
-          <button type="button" class="tool" data-tool="hray" title="Poziomy promień — dwa kliknięcia" aria-label="Poziomy promień — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M3 8h11"/><circle cx="3" cy="8" r="1.1" fill="currentColor"/></svg><span class="tool-name">Poziomy promień</span></button>
-          <button type="button" class="tool" data-tool="extline" title="Linia rozszerzona — dwa kliknięcia" aria-label="Linia rozszerzona — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M1 12.5 15 3.5"/></svg><span class="tool-name">Linia rozszerzona</span></button>
-          <button type="button" class="tool" data-tool="arrow" title="Strzałka — dwa kliknięcia" aria-label="Strzałka — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2.5 12.5 13 4"/><path fill="currentColor" d="m13 4-4 .3 2.2 2.2z"/></svg><span class="tool-name">Strzałka</span></button>
-          <button type="button" class="tool" data-tool="pricelabel" title="Etykieta ceny — jedno kliknięcie" aria-label="Etykieta ceny — jedno kliknięcie"><svg viewBox="0 0 16 16" aria-hidden="true"><rect fill="none" stroke="currentColor" stroke-width="1.4" x="3" y="5" width="10" height="6" rx="1"/><path fill="none" stroke="currentColor" stroke-width="1.2" d="M6 8h4"/></svg><span class="tool-name">Etykieta ceny</span></button>
-          <button type="button" class="tool" data-tool="note" title="Notatka — kliknij i wpisz" aria-label="Notatka — kliknij i wpisz"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M4 3.5h6.5L12.5 6v6.5H4z"/><path fill="none" stroke="currentColor" stroke-width="1.2" d="M10.5 3.5V6H13"/></svg><span class="tool-name">Notatka</span></button>
-          <button type="button" class="tool" data-tool="callout" title="Objaśnienie — kotwica, ramka i tekst" aria-label="Objaśnienie — kotwica, ramka i tekst"><svg viewBox="0 0 16 16" aria-hidden="true"><rect fill="none" stroke="currentColor" stroke-width="1.4" x="5" y="2.5" width="9" height="6" rx="1"/><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M7 8.5 4 13"/></svg><span class="tool-name">Objaśnienie</span></button>
-          <button type="button" class="tool" data-tool="ellipse" title="Elipsa — dwa kliknięcia" aria-label="Elipsa — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><ellipse fill="none" stroke="currentColor" stroke-width="1.4" cx="8" cy="8" rx="6" ry="4"/></svg><span class="tool-name">Elipsa</span></button>
-          <button type="button" class="tool" data-tool="triangle" title="Trójkąt — trzy kliknięcia" aria-label="Trójkąt — trzy kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M8 2.5 14 13.5H2z"/></svg><span class="tool-name">Trójkąt</span></button>
-          <button type="button" class="tool" data-tool="regress" title="Kanał regresji — dwa kliknięcia (zakres czasu)" aria-label="Kanał regresji — dwa kliknięcia (zakres czasu)"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M2 12.5 14 5.5M2 14.5 14 7.5M2 10.5 14 3.5"/></svg><span class="tool-name">Kanał regresji</span></button>
-          <button type="button" class="tool" data-tool="xabcd" title="XABCD — pięć punktów formacji harmonicznej" aria-label="XABCD — pięć punktów formacji harmonicznej"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M1.5 11 4.5 4 8 12 11.5 5 14.5 10"/></svg><span class="tool-name">XABCD</span></button>
-          <button type="button" class="tool" data-tool="hs" title="Głowa z ramionami — pięć punktów (LS, szyja, głowa, szyja, RS)" aria-label="Głowa z ramionami — pięć punktów (LS, szyja, głowa, szyja, RS)"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M1.5 10 4 6.5 6.5 10 8 3.5 9.5 10 12 6.5 14.5 10"/><path fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 1.5" d="M1.5 10h13"/></svg><span class="tool-name">Głowa z ramionami</span></button>
-          <button type="button" class="tool" data-tool="fibchan" title="Kanał Fibonacciego — trzy kliknięcia" aria-label="Kanał Fibonacciego — trzy kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M2 13 14 8M2 10.5 14 5.5M2 8 14 3"/></svg><span class="tool-name">Kanał Fibonacciego</span></button>
-          <button type="button" class="tool" data-tool="fibfan" title="Wachlarz Fibonacciego — dwa kliknięcia" aria-label="Wachlarz Fibonacciego — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M2 13h12M2 13 14 9M2 13 10 3"/></svg><span class="tool-name">Wachlarz Fibonacciego</span></button>
-          <button type="button" class="tool" data-tool="arc" title="Łuk — trzy kliknięcia" aria-label="Łuk — trzy kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M2.5 11c1.5-6 9.5-6 11 0"/></svg><span class="tool-name">Łuk</span></button>
-          <button type="button" class="tool" data-tool="tripattern" title="Trójkąt (formacja) — dwie linie, cztery punkty" aria-label="Trójkąt (formacja) — dwie linie, cztery punkty"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M1.5 13 13 3M1.5 4 13 12"/></svg><span class="tool-name">Trójkąt (formacja)</span></button>
-          <button type="button" class="tool" data-tool="elliottimp" title="Fale Elliotta (impuls) — sześć punktów 0–5" aria-label="Fale Elliotta (impuls) — sześć punktów 0–5"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M1 12 3.5 8 5.5 10 8.5 3 11 7 15 4"/></svg><span class="tool-name">Elliott impuls</span></button>
-          <button type="button" class="tool" data-tool="elliottabc" title="Fale Elliotta (korekta) — trzy punkty A, B, C" aria-label="Fale Elliotta (korekta) — trzy punkty A, B, C"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M2 12 7 4 10 9 14 5"/></svg><span class="tool-name">Elliott korekta</span></button>
-          <button type="button" class="tool" data-tool="path" title="Ścieżka — kliknięcia, Enter lub podwójne kliknięcie kończy" aria-label="Ścieżka — kliknięcia, Enter lub podwójne kliknięcie kończy"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M2 12 5 6 8 9 12 4 14 7"/></svg><span class="tool-name">Ścieżka</span></button>
-          <button type="button" class="tool" data-tool="brush" title="Pędzel — rysuj przeciągając" aria-label="Pędzel — rysuj przeciągając"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M3 13c2-5 4-1 6-6 1.2 2 2.2.5 4-3"/></svg><span class="tool-name">Pędzel</span></button>
-          <button type="button" class="tool" data-tool="flag" title="Flaga — maszt i trzy rogi równoległoboku" aria-label="Flaga — maszt i trzy rogi równoległoboku"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M4 14V4l8 1.5-1 4-7 1.2"/></svg><span class="tool-name">Flaga</span></button>
-          <button type="button" class="tool" data-tool="forecast" title="Prognoza — dwa kliknięcia, linia przedłużana" aria-label="Prognoza — dwa kliknięcia, linia przedłużana"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2 2" d="M2 12 14 4"/></svg><span class="tool-name">Prognoza</span></button>
-          <button type="button" class="tool" data-tool="fibarcs" title="Łuki Fibonacciego — dwa kliknięcia" aria-label="Łuki Fibonacciego — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.3" d="M2 13c2-8 10-8 12 0M2 13c1.4-5 6.6-5 8 0M2 13c.8-2.8 3.2-2.8 4 0"/></svg><span class="tool-name">Łuki Fibonacciego</span></button>
-          <button type="button" class="tool" data-tool="fibspiral" title="Spirala Fibonacciego — dwa kliknięcia" aria-label="Spirala Fibonacciego — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M8 8c0-2 2-2 2 0s-4 3.5-4 0 6-6 6 0"/></svg><span class="tool-name">Spirala Fibonacciego</span></button>
-          <button type="button" class="tool" data-tool="fibtz" title="Strefy czasowe Fibonacciego — dwa kliknięcia" aria-label="Strefy czasowe Fibonacciego — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M3 2v12M6 2v12M10 2v12M14 2v12"/></svg><span class="tool-name">Strefy czasowe Fib</span></button>
-          <button type="button" class="tool" data-tool="gannbox" title="Gann box — dwa kliknięcia" aria-label="Gann box — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><rect fill="none" stroke="currentColor" stroke-width="1.4" x="3" y="3" width="10" height="10"/><path fill="none" stroke="currentColor" stroke-width="1.1" d="M3 8h10M8 3v10M3 3l10 10"/></svg><span class="tool-name">Gann box</span></button>
-          <button type="button" class="tool" data-tool="gannfan" title="Gann fan — dwa kliknięcia" aria-label="Gann fan — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M2 14h12M2 14 14 10M2 14 10 2M2 14 14 2"/></svg><span class="tool-name">Gann fan</span></button>
-          <button type="button" class="tool" data-tool="gannsq" title="Gann square — dwa kliknięcia" aria-label="Gann square — dwa kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><rect fill="none" stroke="currentColor" stroke-width="1.4" x="3" y="3" width="10" height="10"/><path fill="none" stroke="currentColor" stroke-width="1.1" d="M3 3l10 10M13 3 3 13"/></svg><span class="tool-name">Gann square</span></button>
-          <button type="button" class="tool" data-tool="pitchfork" title="Widły Andrewsa — trzy kliknięcia" aria-label="Widły Andrewsa — trzy kliknięcia"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M2 12 14 5M5 14 15 7M5 10 15 3"/></svg><span class="tool-name">Widły Andrewsa</span></button>
+          <button type="button" class="tool" id="magnet-btn" title="Magnet — snap to OHLC" aria-label="Magnet — snap to OHLC" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M4 3v5a4 4 0 0 0 8 0V3M4 3h2v5a2 2 0 0 0 4 0V3h2"/></svg><span class="tool-name">Magnet</span></button>
+          <button type="button" class="tool" data-tool="trend" title="Trend Line — two clicks" aria-label="Trend Line — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2.5 12.5 13.5 3.5"/><circle cx="2.5" cy="12.5" r="1" fill="currentColor"/><circle cx="13.5" cy="3.5" r="1" fill="currentColor"/></svg><span class="tool-name">Trend Line</span></button>
+          <button type="button" class="tool" data-tool="hline" title="Horizontal Line — one click" aria-label="Horizontal Line — one click"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M1.5 8h13"/></svg><span class="tool-name">Horizontal Line</span></button>
+          <button type="button" class="tool" data-tool="rect" title="Rectangle — two clicks" aria-label="Rectangle — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><rect fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" x="3" y="4" width="10" height="8"/></svg><span class="tool-name">Rectangle</span></button>
+          <button type="button" class="tool" data-tool="ray" title="Ray — two clicks, extends" aria-label="Ray — two clicks, extends"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2.5 12.5 9 6l5-3"/><circle cx="2.5" cy="12.5" r="1" fill="currentColor"/></svg><span class="tool-name">Ray</span></button>
+          <button type="button" class="tool" data-tool="channel" title="Parallel Channel — three clicks" aria-label="Parallel Channel — three clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2 11.5 14 6M2 14.5 14 9"/></svg><span class="tool-name">Channel</span></button>
+          <button type="button" class="tool" data-tool="fib" title="Fib Retracement — two clicks" aria-label="Fib Retracement — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2.5 13V3M2.5 13h11M2.5 10h9M2.5 7.5h7M2.5 5h5"/></svg><span class="tool-name">Fibo</span></button>
+          <button type="button" class="tool" data-tool="fibext" title="Trend-Based Fib Extension — three points A, B, C" aria-label="Trend-Based Fib Extension — three points A, B, C"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2 13h12M2 10h9M2 7h6M12 3v10"/></svg><span class="tool-name">Fib Extension</span></button>
+          <button type="button" class="tool" data-tool="abcd" title="AB=CD Pattern — three points A, B, C" aria-label="AB=CD Pattern — three points A, B, C"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M3 12 6.5 4 10 12 13 5"/></svg><span class="tool-name">AB=CD</span></button>
+          <button type="button" class="tool" data-tool="text" title="Text — click and type" aria-label="Text — click and type"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M3 4h10M8 4v9"/></svg><span class="tool-name">Text</span></button>
+          <button type="button" class="tool" data-tool="longpos" title="Long Position — entry, stop, target" aria-label="Long Position — entry, stop, target"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M4 13V8h4v5H4zm4-2v2h4v-2H8zM5 6.5 8 3l3 3.5"/><path fill="currentColor" opacity=".3" d="M4 8h4v5H4z"/></svg><span class="tool-name">Long</span></button>
+          <button type="button" class="tool" data-tool="shortpos" title="Short Position — entry, stop, target" aria-label="Short Position — entry, stop, target"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M4 3v5h4V3H4zm4 0v3h4V3H8zM5 9.5 8 13l3-3.5"/><path fill="currentColor" opacity=".3" d="M8 3h4v3H8z"/></svg><span class="tool-name">Short</span></button>
+          <button type="button" class="tool" data-tool="pricerange" title="Price Range — two clicks" aria-label="Price Range — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M2 5h12M2 11h12"/><path fill="currentColor" opacity=".25" d="M2 5h12v6H2z"/></svg><span class="tool-name">Price Range</span></button>
+          <button type="button" class="tool" data-tool="daterange" title="Date Range — two clicks" aria-label="Date Range — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M5 2v12M11 2v12"/><path fill="currentColor" opacity=".25" d="M5 2h6v12H5z"/></svg><span class="tool-name">Date Range</span></button>
+          <button type="button" class="tool" data-tool="datepricerange" title="Date and Price Range — two clicks" aria-label="Date and Price Range — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><rect fill="none" stroke="currentColor" stroke-width="1.4" x="3" y="4" width="10" height="8"/><path fill="none" stroke="currentColor" stroke-width="1.2" d="M3 8h10M8 4v8"/></svg><span class="tool-name">Date and Price Range</span></button>
+          <button type="button" class="tool" data-tool="vline" title="Vertical Line — one click" aria-label="Vertical Line — one click"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M8 1.5v13"/></svg><span class="tool-name">Vertical Line</span></button>
+          <button type="button" class="tool" data-tool="hray" title="Horizontal Ray — two clicks" aria-label="Horizontal Ray — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M3 8h11"/><circle cx="3" cy="8" r="1.1" fill="currentColor"/></svg><span class="tool-name">Horizontal Ray</span></button>
+          <button type="button" class="tool" data-tool="extline" title="Extended Line — two clicks" aria-label="Extended Line — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M1 12.5 15 3.5"/></svg><span class="tool-name">Extended Line</span></button>
+          <button type="button" class="tool" data-tool="arrow" title="Arrow — two clicks" aria-label="Arrow — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M2.5 12.5 13 4"/><path fill="currentColor" d="m13 4-4 .3 2.2 2.2z"/></svg><span class="tool-name">Arrow</span></button>
+          <button type="button" class="tool" data-tool="pricelabel" title="Price Label — one click" aria-label="Price Label — one click"><svg viewBox="0 0 16 16" aria-hidden="true"><rect fill="none" stroke="currentColor" stroke-width="1.4" x="3" y="5" width="10" height="6" rx="1"/><path fill="none" stroke="currentColor" stroke-width="1.2" d="M6 8h4"/></svg><span class="tool-name">Price Label</span></button>
+          <button type="button" class="tool" data-tool="note" title="Note — click and type" aria-label="Note — click and type"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M4 3.5h6.5L12.5 6v6.5H4z"/><path fill="none" stroke="currentColor" stroke-width="1.2" d="M10.5 3.5V6H13"/></svg><span class="tool-name">Note</span></button>
+          <button type="button" class="tool" data-tool="callout" title="Callout — anchor, box, and text" aria-label="Callout — anchor, box, and text"><svg viewBox="0 0 16 16" aria-hidden="true"><rect fill="none" stroke="currentColor" stroke-width="1.4" x="5" y="2.5" width="9" height="6" rx="1"/><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M7 8.5 4 13"/></svg><span class="tool-name">Callout</span></button>
+          <button type="button" class="tool" data-tool="ellipse" title="Ellipse — two clicks" aria-label="Ellipse — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><ellipse fill="none" stroke="currentColor" stroke-width="1.4" cx="8" cy="8" rx="6" ry="4"/></svg><span class="tool-name">Ellipse</span></button>
+          <button type="button" class="tool" data-tool="triangle" title="Triangle — three clicks" aria-label="Triangle — three clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M8 2.5 14 13.5H2z"/></svg><span class="tool-name">Triangle</span></button>
+          <button type="button" class="tool" data-tool="regress" title="Regression Trend — two clicks (time range)" aria-label="Regression Trend — two clicks (time range)"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M2 12.5 14 5.5M2 14.5 14 7.5M2 10.5 14 3.5"/></svg><span class="tool-name">Regression Trend</span></button>
+          <button type="button" class="tool" data-tool="xabcd" title="XABCD Pattern — five harmonic points" aria-label="XABCD Pattern — five harmonic points"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M1.5 11 4.5 4 8 12 11.5 5 14.5 10"/></svg><span class="tool-name">XABCD</span></button>
+          <button type="button" class="tool" data-tool="hs" title="Head and Shoulders — five points (LS, neck, head, neck, RS)" aria-label="Head and Shoulders — five points (LS, neck, head, neck, RS)"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M1.5 10 4 6.5 6.5 10 8 3.5 9.5 10 12 6.5 14.5 10"/><path fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 1.5" d="M1.5 10h13"/></svg><span class="tool-name">Head and Shoulders</span></button>
+          <button type="button" class="tool" data-tool="fibchan" title="Fib Channel — three clicks" aria-label="Fib Channel — three clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M2 13 14 8M2 10.5 14 5.5M2 8 14 3"/></svg><span class="tool-name">Fib Channel</span></button>
+          <button type="button" class="tool" data-tool="fibfan" title="Fib Fan — two clicks" aria-label="Fib Fan — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M2 13h12M2 13 14 9M2 13 10 3"/></svg><span class="tool-name">Fib Fan</span></button>
+          <button type="button" class="tool" data-tool="arc" title="Arc — three clicks" aria-label="Arc — three clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M2.5 11c1.5-6 9.5-6 11 0"/></svg><span class="tool-name">Arc</span></button>
+          <button type="button" class="tool" data-tool="tripattern" title="Triangle Pattern — two lines, four points" aria-label="Triangle Pattern — two lines, four points"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M1.5 13 13 3M1.5 4 13 12"/></svg><span class="tool-name">Triangle Pattern</span></button>
+          <button type="button" class="tool" data-tool="elliottimp" title="Elliott Impulse Wave — six points 0–5" aria-label="Elliott Impulse Wave — six points 0–5"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M1 12 3.5 8 5.5 10 8.5 3 11 7 15 4"/></svg><span class="tool-name">Elliott Impulse</span></button>
+          <button type="button" class="tool" data-tool="elliottabc" title="Elliott Correction Wave — three points A, B, C" aria-label="Elliott Correction Wave — three points A, B, C"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M2 12 7 4 10 9 14 5"/></svg><span class="tool-name">Elliott Correction</span></button>
+          <button type="button" class="tool" data-tool="path" title="Path — click to add points, Enter or double-click to finish" aria-label="Path — click to add points, Enter or double-click to finish"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" d="M2 12 5 6 8 9 12 4 14 7"/></svg><span class="tool-name">Path</span></button>
+          <button type="button" class="tool" data-tool="brush" title="Brush — click and drag to draw" aria-label="Brush — click and drag to draw"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M3 13c2-5 4-1 6-6 1.2 2 2.2.5 4-3"/></svg><span class="tool-name">Brush</span></button>
+          <button type="button" class="tool" data-tool="flag" title="Flag — pole and three parallelogram corners" aria-label="Flag — pole and three parallelogram corners"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M4 14V4l8 1.5-1 4-7 1.2"/></svg><span class="tool-name">Flag</span></button>
+          <button type="button" class="tool" data-tool="forecast" title="Forecast — two clicks, line extends" aria-label="Forecast — two clicks, line extends"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2 2" d="M2 12 14 4"/></svg><span class="tool-name">Forecast</span></button>
+          <button type="button" class="tool" data-tool="fibarcs" title="Fib Arcs — two clicks" aria-label="Fib Arcs — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.3" d="M2 13c2-8 10-8 12 0M2 13c1.4-5 6.6-5 8 0M2 13c.8-2.8 3.2-2.8 4 0"/></svg><span class="tool-name">Fib Arcs</span></button>
+          <button type="button" class="tool" data-tool="fibspiral" title="Fib Spiral — two clicks" aria-label="Fib Spiral — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M8 8c0-2 2-2 2 0s-4 3.5-4 0 6-6 6 0"/></svg><span class="tool-name">Fib Spiral</span></button>
+          <button type="button" class="tool" data-tool="fibtz" title="Fib Time Zone — two clicks" aria-label="Fib Time Zone — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M3 2v12M6 2v12M10 2v12M14 2v12"/></svg><span class="tool-name">Fib Time Zone</span></button>
+          <button type="button" class="tool" data-tool="gannbox" title="Gann Box — two clicks" aria-label="Gann Box — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><rect fill="none" stroke="currentColor" stroke-width="1.4" x="3" y="3" width="10" height="10"/><path fill="none" stroke="currentColor" stroke-width="1.1" d="M3 8h10M8 3v10M3 3l10 10"/></svg><span class="tool-name">Gann Box</span></button>
+          <button type="button" class="tool" data-tool="gannfan" title="Gann Fan — two clicks" aria-label="Gann Fan — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M2 14h12M2 14 14 10M2 14 10 2M2 14 14 2"/></svg><span class="tool-name">Gann Fan</span></button>
+          <button type="button" class="tool" data-tool="gannsq" title="Gann Square — two clicks" aria-label="Gann Square — two clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><rect fill="none" stroke="currentColor" stroke-width="1.4" x="3" y="3" width="10" height="10"/><path fill="none" stroke="currentColor" stroke-width="1.1" d="M3 3l10 10M13 3 3 13"/></svg><span class="tool-name">Gann Square</span></button>
+          <button type="button" class="tool" data-tool="pitchfork" title="Andrews' Pitchfork — three clicks" aria-label="Andrews' Pitchfork — three clicks"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" d="M2 12 14 5M5 14 15 7M5 10 15 3"/></svg><span class="tool-name">Andrews' Pitchfork</span></button>
           </div>
           <div class="group rail-actions">
-          <button type="button" id="delete-btn" title="Usuń zaznaczony rysunek (Delete)" aria-label="Usuń">
+          <button type="button" id="delete-btn" title="Delete the selected drawing (Delete)" aria-label="Delete">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M4 4.5h8M6 4.5V3.5h4v1M5 6.5l.5 6h5l.5-6"/></svg>
-            <span class="tool-name">Usuń</span>
+            <span class="tool-name">Delete</span>
           </button>
-          <button type="button" id="clear-btn" class="danger" title="Usuń wszystkie rysunki tej pary" aria-label="Wyczyść wszystko">
+          <button type="button" id="clear-btn" class="danger" title="Remove all drawings for this pair" aria-label="Clear all">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M3 5h10M5.5 5V3.5h5V5M6 7v5M8 7v5M10 7v5M4.5 5l.6 8h6l.6-8"/></svg>
-            <span class="tool-name">Wyczyść</span>
+            <span class="tool-name">Clear</span>
           </button>
-          <button type="button" id="export-btn" title="Eksport rysunków do JSON" aria-label="Eksport">
+          <button type="button" id="export-btn" title="Export drawings as JSON" aria-label="Export">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M8 3v7M5.5 6 8 3.5 10.5 6M3.5 9.5V13h9V9.5"/></svg>
-            <span class="tool-name">Eksport</span>
+            <span class="tool-name">Export</span>
           </button>
-          <button type="button" id="import-btn" title="Import rysunków z JSON" aria-label="Import">
+          <button type="button" id="import-btn" title="Import drawings from JSON" aria-label="Import">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M8 10V3M5.5 7.5 8 10.5 10.5 7.5M3.5 12.5h9"/></svg>
             <span class="tool-name">Import</span>
           </button>
           <input type="file" id="import-file" accept="application/json,.json" hidden />
-          <button type="button" id="extend-right-btn" title="Przedłuż poziomy Fibo rozszerzenia w prawo" aria-label="Przedłuż w prawo">
+          <button type="button" id="extend-right-btn" title="Extend Fib extension levels to the right" aria-label="Extend right">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" d="M2 8h12M10.5 5 14 8l-3.5 3"/></svg>
-            <span class="tool-name">Przedłuż</span>
+            <span class="tool-name">Extend</span>
           </button>
           </div>
         </nav>
@@ -123,24 +126,24 @@
           <div id="ind-labels"></div>
           <div id="chart-loader" hidden>
             <div class="chart-skeleton" aria-hidden="true"></div>
-            <div class="chart-spinner" role="status" aria-label="Ładowanie wykresu"></div>
+            <div class="chart-spinner" role="status" aria-label="Loading chart"></div>
           </div>
           <div id="cursor-dot" hidden></div>
           <div id="draw-bar" hidden>
-            <input type="color" id="draw-color" title="Kolor" aria-label="Kolor linii" value="#5b9cf6" />
-            <select id="draw-width" title="Grubość" aria-label="Grubość linii">
+            <input type="color" id="draw-color" title="Color" aria-label="Line color" value="#5b9cf6" />
+            <select id="draw-width" title="Width" aria-label="Line width">
               <option value="1">1 px</option>
               <option value="2">2 px</option>
               <option value="3">3 px</option>
               <option value="4">4 px</option>
             </select>
-            <select id="draw-linestyle" title="Styl linii" aria-label="Styl linii">
-              <option value="solid">Ciągła</option>
-              <option value="dashed">Przerywana</option>
-              <option value="dotted">Kropkowana</option>
+            <select id="draw-linestyle" title="Line style" aria-label="Line style">
+              <option value="solid">Solid</option>
+              <option value="dashed">Dashed</option>
+              <option value="dotted">Dotted</option>
             </select>
-            <button type="button" id="draw-lock" title="Zablokuj">Zablokuj</button>
-            <button type="button" id="draw-delete" title="Usuń">Usuń</button>
+            <button type="button" id="draw-lock" title="Lock">Lock</button>
+            <button type="button" id="draw-delete" title="Delete">Delete</button>
           </div>
         </div>
         <div class="chart-cell extra-cell" data-extra="0"></div>
@@ -150,16 +153,16 @@
         </div>
       </div>
       <div id="sidebar">
-        <aside id="watchlist" aria-label="Listy obserwowanych"></aside>
-        <aside id="alerts-panel" aria-label="Alerty cenowe">
-          <h2>Alerty cenowe</h2>
+        <aside id="watchlist" aria-label="Watchlists"></aside>
+        <aside id="alerts-panel" aria-label="Price alerts">
+          <h2>Price alerts</h2>
           <form id="alert-form" class="alert-form">
-            <select id="alert-dir" aria-label="Kierunek">
-              <option value="above">Cena ≥</option>
-              <option value="below">Cena ≤</option>
+            <select id="alert-dir" aria-label="Direction">
+              <option value="above">Price ≥</option>
+              <option value="below">Price ≤</option>
             </select>
-            <input type="number" id="alert-price" step="any" min="0" required placeholder="Poziom" />
-            <button type="submit">Dodaj</button>
+            <input type="number" id="alert-price" step="any" min="0" required placeholder="Level" />
+            <button type="submit">Add</button>
           </form>
           <div id="alert-list" class="alert-list"></div>
         </aside>
@@ -168,12 +171,12 @@
         <div class="sym-modal-backdrop"></div>
         <div class="sym-modal-box" role="dialog" aria-modal="true" aria-labelledby="sym-modal-title">
           <div class="ind-modal-head">
-            <h2 id="sym-modal-title">Szukaj pary</h2>
-            <button type="button" id="sym-modal-close" aria-label="Zamknij">×</button>
+            <h2 id="sym-modal-title">Search symbol</h2>
+            <button type="button" id="sym-modal-close" aria-label="Close">×</button>
           </div>
-          <input id="sym-search" type="search" placeholder="Nazwa lub ticker, np. sol" autocomplete="off" />
-          <div id="sym-filters" class="sym-filters" role="group" aria-label="Giełda">
-            <button type="button" data-sym-filter="all" class="is-active">Wszystkie</button>
+          <input id="sym-search" type="search" placeholder="Name or ticker, e.g. sol" autocomplete="off" />
+          <div id="sym-filters" class="sym-filters" role="group" aria-label="Exchange">
+            <button type="button" data-sym-filter="all" class="is-active">All</button>
             <button type="button" data-sym-filter="kraken">Kraken</button>
             <button type="button" data-sym-filter="binance">Binance</button>
             <button type="button" data-sym-filter="coinbase">Coinbase</button>
@@ -186,19 +189,19 @@
         <div class="ind-modal-backdrop"></div>
         <div class="ind-modal-box" role="dialog" aria-modal="true" aria-labelledby="ind-modal-title">
           <div class="ind-modal-head">
-            <h2 id="ind-modal-title">Wskaźniki</h2>
-            <button type="button" id="ind-modal-close" aria-label="Zamknij">×</button>
+            <h2 id="ind-modal-title">Indicators</h2>
+            <button type="button" id="ind-modal-close" aria-label="Close">×</button>
           </div>
-          <input id="ind-search" type="search" placeholder="Szukaj wskaźnika" autocomplete="off" />
+          <input id="ind-search" type="search" placeholder="Search indicator" autocomplete="off" />
           <div id="ind-catalog"></div>
         </div>
       </div>
     </div>
-    <div id="chart-menu" hidden role="menu" aria-label="Menu wykresu">
-      <button type="button" role="menuitem" data-chart-menu="reset">Zresetuj wykres</button>
-      <button type="button" role="menuitem" data-chart-menu="copy-price">Kopiuj cenę</button>
-      <button type="button" role="menuitem" data-chart-menu="add-alert">Dodaj alert na tej cenie</button>
-      <button type="button" role="menuitem" data-chart-menu="clear-drawings">Usuń wszystkie rysunki</button>
+    <div id="chart-menu" hidden role="menu" aria-label="Chart menu">
+      <button type="button" role="menuitem" data-chart-menu="reset">Reset chart</button>
+      <button type="button" role="menuitem" data-chart-menu="copy-price">Copy price</button>
+      <button type="button" role="menuitem" data-chart-menu="add-alert">Add alert at this price</button>
+      <button type="button" role="menuitem" data-chart-menu="clear-drawings">Remove all drawings</button>
     </div>
     <script type="module" src="./src/main.ts"></script>
   </body>

@@ -1,8 +1,8 @@
 # Stan prac
 
-Aktualizacja: 24 listopada 2026, ok. 16:40 (Europe/Warsaw).
+Aktualizacja: 24 listopada 2026, ok. 16:50 (Europe/Warsaw).
 
-Etap 1 i etap 2 są ukończone. Repozytorium publiczne: [sellthenews/wykresy](https://github.com/sellthenews/wykresy). GitHub Pages: [https://sellthenews.github.io/wykresy/](https://sellthenews.github.io/wykresy/). Licencja projektu: **AGPL-3.0-or-later**.
+Projekt nazywa się **OpenCharts**. Etap 1 i etap 2 są ukończone. Repozytorium publiczne: [sellthenews/opencharts](https://github.com/sellthenews/opencharts). GitHub Pages: [https://sellthenews.github.io/opencharts/](https://sellthenews.github.io/opencharts/). Licencja projektu: **AGPL-3.0-or-later**. Interfejs jest po angielsku.
 
 ## Commity
 
@@ -25,10 +25,10 @@ Podgląd: http://127.0.0.1:4173 (`npm run build && npm run preview`). Testy: `np
 - Giełdy: Kraken (domyślna), Binance, Coinbase, Bitstamp — publiczne REST, CORS OK w przeglądarce.
 - Pary: wyszukiwarka wszystkich par spot z oficjalnych API Krakena, Binance, Coinbase i Bitstamp (filtr giełdy, podpowiedzi, cache 24 h). Domyślnie XRP/USD, BTC/USD, ETH/USD; interwały 1h, 4h, 1D, 1W, 1M (agregacja gdy trzeba).
 - Wskaźniki lokalne, włączanie/okres w UI, `localStorage`.
-- Obserwowane: wiele list (Moje, Krypto), dodawanie/usuwanie, cena i zmiana 24h, klik otwiera wykres; odświeżanie 45 s gdy karta widoczna; pozycje Krakena też z tickera WS.
+- Obserwowane: wiele list (My list, Crypto), dodawanie/usuwanie, cena i zmiana 24h, klik otwiera wykres; odświeżanie 45 s gdy karta widoczna; pozycje Krakena też z tickera WS.
 - Rysunki: narzędzia P1–P3 z listy poniżej; rysowanie klik-klik z podglądem, magnes do OHLC, cienkie wygładzone linie, kółka-uchwyty po zaznaczeniu, pływający pasek stylu (kolor, grubość, styl, blokada, usuń), Delete/Backspace, po narysowaniu powrót do kursora. JSON i `localStorage` per giełda+para, wraz ze stylem. Linia pozioma ma etykietę ceny na osi.
 - Live Kraken: `wss://ws.kraken.com/v2`, kanały `ohlc` i `ticker`, ponowne łączenie.
-- Deploy Pages z `main` (`.github/workflows/pages.yml`) na https://sellthenews.github.io/wykresy/.
+- Deploy Pages z `main` (`.github/workflows/pages.yml`) na https://sellthenews.github.io/opencharts/.
 - Runtime w `vendor/lightweight-charts@5.3.0/` (Apache 2.0, bez CDN).
 
 ## Uruchomienie
@@ -156,9 +156,9 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 
 ## UI wskaźników i panel (23 XI 2026)
 
-- Pasek checkboxów zastąpiony przyciskiem „fx Wskaźniki”: okno z wyszukiwarką i grupami (Trend, Momentum, Zmienność, Wolumen), wiele instancji tego samego wskaźnika, etykiety na wykresie (ustawienia / ukryj / usuń). Zapis `wykresy:indicators` v2 z migracją ze starych ustawień.
+- Pasek checkboxów zastąpiony przyciskiem „fx Wskaźniki”: okno z wyszukiwarką i grupami (Trend, Momentum, Zmienność, Wolumen), wiele instancji tego samego wskaźnika, etykiety na wykresie (ustawienia / ukryj / usuń). Zapis `opencharts:indicators` (migracja z `wykresy:`) v2 z migracją ze starych ustawień.
 - Etykiety wskaźników (fx, ustawienia / ukryj / usuń) są też na dodatkowych panelach układu wielu wykresów; lista zapisywana w układzie.
-- Panel obserwowanych i alertów cenowych po prawej stronie. Przycisk „Panel” w górnym pasku chowa/pokazuje panel; wykresy zajmują wtedy całą szerokość. Stan w `wykresy:sidebar`.
+- Panel obserwowanych i alertów cenowych po prawej stronie. Przycisk „Panel” w górnym pasku chowa/pokazuje panel; wykresy zajmują wtedy całą szerokość. Stan w `opencharts:sidebar` (migracja z `wykresy:`).
 
 ## Płynność i wygląd (23 XI 2026)
 
@@ -181,10 +181,16 @@ Pozostało: pozostałe wskaźniki z typowej listy ~100 (P3).
 
 ## Wyszukiwarka, menu, kursor i rysowanie (24 XI 2026)
 
-- Wyszukiwarka par: klik w nazwę pary w nagłówku albo litera na wykresie (gdy focus nie jest w polu tekstowym); Esc zamyka. Listy z oficjalnych API (Kraken AssetPairs, Binance exchangeInfo — tylko SPOT/TRADING, Coinbase products online, Bitstamp trading-pairs-info Enabled). Filtr Wszystkie/Kraken/Binance/Coinbase/Bitstamp. Prefiks bazy przed trafieniem w środku, limit ~100, strzałki + Enter. Wybór przełącza giełdę i parę. Cache `wykresy:symbols:<giełda>` 24 h. Błąd jednej giełdy nie psuje pozostałych. Kraken WS tylko gdy źródło to Kraken.
+- Wyszukiwarka par: klik w nazwę pary w nagłówku albo litera na wykresie (gdy focus nie jest w polu tekstowym); Esc zamyka. Listy z oficjalnych API (Kraken AssetPairs, Binance exchangeInfo — tylko SPOT/TRADING, Coinbase products online, Bitstamp trading-pairs-info Enabled). Filtr Wszystkie/Kraken/Binance/Coinbase/Bitstamp. Prefiks bazy przed trafieniem w środku, limit ~100, strzałki + Enter. Wybór przełącza giełdę i parę. Cache `opencharts:symbols:<giełda>` (migracja z `wykresy:`) 24 h. Błąd jednej giełdy nie psuje pozostałych. Kraken WS tylko gdy źródło to Kraken.
 - Cache list (24 XI 2026): Kraken 1353, Binance 1376, Coinbase 511. Lista Bitstamp z `trading-pairs-info` jest blokowana przez CORS w przeglądarce (świece z `/api/v2/ohlc/` nadal działają; curl widzi 252 pary Enabled). Błąd tej giełdy nie psuje pozostałych.
 - Menu kontekstowe (prawy klik na wykresie): Zresetuj wykres (zoom/scroll i autoscale osi ceny, bez kasowania rysunków i wskaźników), Kopiuj cenę, Dodaj alert na tej cenie, Usuń wszystkie rysunki (z potwierdzeniem). Zamknięcie: klik poza / Esc.
 - Kursor: krzyż z przerywanymi liniami i etykietami ceny/czasu na osiach (LWC CrosshairMode + LineStyle.Dashed). Pierwsza ikona lewego paska: krzyż / kropka / strzałka, zapis w `localStorage`. Przełącznik magnesu (przyciąganie do OHLC) obok.
 - Po zaznaczeniu rysunku pływający pasek (kolor, grubość 1–4, styl linii, zablokuj, usuń). Ustawienia zapisywane z rysunkiem.
 
 Zrzuty (lokalne, w `.gitignore`): `screenshots-test/wyszukiwarka-par.png`, `screenshots-test/menu-kontekstowe.png`, `screenshots-test/rysowanie-tv.png`.
+
+## OpenCharts i język angielski (24 XI 2026)
+
+Aplikacja nosi nazwę **OpenCharts** (tytuł, logo, meta, `package.json`, README, CONTRIBUTING, THIRD_PARTY, nagłówki copyright „OpenCharts contributors”). UI, komunikaty, etykiety, aria-label, nazwy narzędzi i miesięcy oraz locale LWC/`Intl` są po angielsku (`en-US`), `html lang="en"`.
+
+Klucze `localStorage` / `sessionStorage` mają prefiks `opencharts:`. Przy starcie jednorazowo kopiowane są stare klucze `wykresy:` oraz ewentualne `opencandle:`, o ile nowy klucz jeszcze nie istnieje (rysunki, wskaźniki, layout, sidebar, listy, alerty, kursor, magnes, motyw, cache par i świec). Dane użytkownika nie są nadpisywane ani usuwane.

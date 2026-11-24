@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
+import './storage';
 import type { PairId } from './sources';
 import { PAIR_LABELS } from './sources';
 
-export const ALERTS_KEY = 'wykresy:alerts';
+export const ALERTS_KEY = 'opencharts:alerts';
 
 export interface PriceAlert {
   id: string;

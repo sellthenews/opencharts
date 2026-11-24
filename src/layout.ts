@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
+import './storage';
 import type { IntervalId, PairId } from './sources';
 import type { MiniState } from './minichart';
 
-export const LAYOUT_KEY = 'wykresy:layout';
+export const LAYOUT_KEY = 'opencharts:layout';
 
 export interface LayoutState {
   sourceId: string;

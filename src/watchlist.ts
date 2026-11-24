@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
+import './storage';
 import { getSource, sources } from './sources';
 import type { PairId, Ticker } from './sources';
 import { PAIR_IDS, PAIR_LABELS, formatPairLabel } from './sources';
 
-export const WATCH_STORAGE_KEY = 'wykresy:watchlists';
+export const WATCH_STORAGE_KEY = 'opencharts:watchlists';
 export const TICKER_INTERVAL_MS = 45_000;
 
 export interface WatchItem {
@@ -30,14 +31,14 @@ export function defaultWatchState(): WatchState {
     lists: [
       {
         id: 'moje',
-        name: 'Moje',
+        name: 'My list',
         items: [
           { sourceId: 'kraken', pairId: 'XRPUSD' },
           { sourceId: 'kraken', pairId: 'BTCUSD' },
           { sourceId: 'kraken', pairId: 'ETHUSD' },
         ],
       },
-      { id: 'krypto', name: 'Krypto', items: [] },
+      { id: 'krypto', name: 'Crypto', items: [] },
     ],
   };
 }
@@ -61,7 +62,12 @@ export function loadWatchState(): WatchState {
       .filter((l) => l && typeof l.id === 'string' && typeof l.name === 'string')
       .map((l) => ({
         id: l.id,
-        name: l.name.trim() || 'Lista',
+        name: (() => {
+          const trimmed = l.name.trim();
+          if (l.id === 'moje' || trimmed === 'Moje') return 'My list';
+          if (l.id === 'krypto' || trimmed === 'Krypto') return 'Crypto';
+          return trimmed || 'List';
+        })(),
         items: Array.isArray(l.items)
           ? l.items.filter((i) => i && typeof i.sourceId === 'string' && isPairId(String(i.pairId))).map((i) => ({
               sourceId: i.sourceId,
@@ -87,15 +93,15 @@ function itemKey(item: WatchItem): string {
 
 function formatPrice(price: number): string {
   if (!Number.isFinite(price)) return '—';
-  if (price >= 1000) return price.toLocaleString('pl-PL', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
-  if (price >= 1) return price.toLocaleString('pl-PL', { maximumFractionDigits: 4 });
-  return price.toLocaleString('pl-PL', { maximumFractionDigits: 6 });
+  if (price >= 1000) return price.toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+  if (price >= 1) return price.toLocaleString('en-US', { maximumFractionDigits: 4 });
+  return price.toLocaleString('en-US', { maximumFractionDigits: 6 });
 }
 
 function formatPct(pct: number | null): string {
   if (pct === null || !Number.isFinite(pct)) return '—';
   const sign = pct > 0 ? '+' : '';
-  return `${sign}${pct.toLocaleString('pl-PL', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}%`;
+  return `${sign}${pct.toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}%`;
 }
 
 export class WatchlistPanel {
@@ -220,7 +226,7 @@ export class WatchlistPanel {
     }
     const addList = t.closest<HTMLButtonElement>('[data-watch-action="add-list"]');
     if (addList) {
-      const name = window.prompt('Nazwa nowej listy', 'Nowa lista');
+      const name = window.prompt('New list name', 'New list');
       if (!name || !name.trim()) return;
       const list: WatchList = { id: newId(), name: name.trim(), items: [] };
       this.state.lists.push(list);
@@ -303,25 +309,25 @@ export class WatchlistPanel {
           <span class="watch-ex">${escapeHtml(exch)}</span>
           <span class="watch-last">${last}</span>
           <span class="watch-chg${chgClass}">${chg}</span>
-          <span class="watch-del" data-watch-remove="${key}" title="Usuń z listy" role="button">×</span>
+          <span class="watch-del" data-watch-remove="${key}" title="Remove from list" role="button">×</span>
         </button>`;
       })
       .join('');
     this.notifyKrakenPairs();
     this.root.innerHTML = `
       <div class="watch-head">
-        <h2>Obserwowane</h2>
+        <h2>Watchlist</h2>
         <div class="watch-lists">
-          <select id="watch-list-select" title="Lista" aria-label="Lista obserwowanych">${listOpts}</select>
-          <button type="button" data-watch-action="add-list" title="Nowa lista">+</button>
-          <button type="button" data-watch-action="remove-list" title="Usuń listę" ${canDeleteList ? '' : 'disabled'}>−</button>
+          <select id="watch-list-select" title="List" aria-label="Watchlist">${listOpts}</select>
+          <button type="button" data-watch-action="add-list" title="New list">+</button>
+          <button type="button" data-watch-action="remove-list" title="Remove list" ${canDeleteList ? '' : 'disabled'}>−</button>
         </div>
       </div>
-      <div class="watch-body">${rows || '<p class="watch-empty">Lista jest pusta.</p>'}</div>
+      <div class="watch-body">${rows || '<p class="watch-empty">This list is empty.</p>'}</div>
       <form id="watch-add-form" class="watch-add">
-        <select id="watch-add-source" aria-label="Giełda">${sourceOpts}</select>
+        <select id="watch-add-source" aria-label="Exchange">${sourceOpts}</select>
         <select id="watch-add-pair" aria-label="Para">${pairOpts}</select>
-        <button type="submit">Dodaj</button>
+        <button type="submit">Add</button>
       </form>
     `;
   }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
 import { aggregateCandles, sortDedup } from './aggregate';
 import { changePct, fetchJson } from './http';
@@ -75,7 +75,7 @@ export const coinbase: DataSource = {
       return aggregateCandles(daily, interval);
     }
     const gran = NATIVE_GRANULARITY[interval];
-    if (!gran) throw new Error(`Coinbase: brak interwału ${interval}`);
+    if (!gran) throw new Error(`Coinbase: unsupported interval ${interval}`);
     return fetchGranularity(product, gran);
   },
   async fetchTicker(pairId: PairId): Promise<Ticker> {

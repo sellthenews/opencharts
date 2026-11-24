@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
 import { expect, test } from '@playwright/test';
 
-test('AB=CD: wylicza D i przelicza po przeciągnięciu C', async ({ page }) => {
+test('AB=CD: computes D and recalculates after dragging C', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
 
@@ -18,7 +18,7 @@ test('AB=CD: wylicza D i przelicza po przeciągnięciu C', async ({ page }) => {
   await page.waitForTimeout(200);
 
   const before = await page.evaluate(() => {
-    const list = window.__wykresy.getDrawings();
+    const list = window.__opencharts.getDrawings();
     const d = list.find((x) => x.type === 'abcd');
     return d && d.type === 'abcd' ? d : null;
   });
@@ -33,7 +33,7 @@ test('AB=CD: wylicza D i przelicza po przeciągnięciu C', async ({ page }) => {
   await page.locator('[data-tool="cursor"]').click();
   await page.evaluate(() => document.querySelector('#draw-overlay')?.classList.remove('passthrough'));
 
-  const screen = await page.evaluate(() => window.__wykresy.getAbcdScreen());
+  const screen = await page.evaluate(() => window.__opencharts.getAbcdScreen());
   expect(screen).toBeTruthy();
   const overlay = await page.locator('#draw-overlay').boundingBox();
   expect(overlay).toBeTruthy();
@@ -46,7 +46,7 @@ test('AB=CD: wylicza D i przelicza po przeciągnięciu C', async ({ page }) => {
   await page.waitForTimeout(200);
 
   const after = await page.evaluate(() => {
-    const list = window.__wykresy.getDrawings();
+    const list = window.__opencharts.getDrawings();
     const d = list.find((x) => x.type === 'abcd');
     return d && d.type === 'abcd' ? d : null;
   });

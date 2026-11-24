@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
 import { expect, test } from '@playwright/test';
 
-test('rysowanie: linia trendu, zmiana koloru, Delete', async ({ page }) => {
+test('drawing: trend line, change color, Delete', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
 
@@ -26,12 +26,12 @@ test('rysowanie: linia trendu, zmiana koloru, Delete', async ({ page }) => {
   });
   await page.waitForTimeout(100);
 
-  const styled = await page.evaluate(() => window.__wykresy.getDrawings());
+  const styled = await page.evaluate(() => window.__opencharts.getDrawings());
   expect(styled.some((d) => d.type === 'trend' && d.style?.color === '#e91e63')).toBeTruthy();
 
   await page.keyboard.press('Delete');
   await page.waitForTimeout(100);
-  const after = await page.evaluate(() => window.__wykresy.getDrawings());
+  const after = await page.evaluate(() => window.__opencharts.getDrawings());
   expect(after.some((d) => d.type === 'trend')).toBeFalsy();
   await expect(page.locator('#draw-bar')).toBeHidden();
 });

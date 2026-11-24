@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
+import '../storage';
 import { fetchJson } from './http';
 import type { DataSource } from './types';
 import { PAIR_LABELS } from './types';
@@ -51,7 +52,7 @@ const KRAKEN_ASSET: Record<string, string> = {
 };
 
 function cacheKey(sourceId: string): string {
-  return `wykresy:symbols:${sourceId}`;
+  return `opencharts:symbols:${sourceId}`;
 }
 
 function krakenAsset(code: string): string {

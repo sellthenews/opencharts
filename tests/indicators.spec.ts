@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
 import { expect, test } from '@playwright/test';
 
-test('okno wskaźników: wyszukaj RSI, dodaj, zmień okres, ukryj, usuń', async ({ page }) => {
+test('indicators dialog: search RSI, add, change period, hide, remove', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
 
@@ -28,7 +28,7 @@ test('okno wskaźników: wyszukaj RSI, dodaj, zmień okres, ukryj, usuń', async
   await expect(rsi.locator('.ind-label-text')).toHaveText('RSI 21');
 
   const stored = await page.evaluate(() => {
-    const raw = localStorage.getItem('wykresy:indicators');
+    const raw = localStorage.getItem('opencharts:indicators');
     return raw ? JSON.parse(raw) : null;
   });
   expect(stored?.v).toBe(2);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
 import { clampParams, createInstance } from './settings';
 import {
@@ -23,7 +23,7 @@ export function renderIndicatorCatalog(catalogEl: HTMLElement, query: string): v
         .join('')}</div>`,
     );
   }
-  catalogEl.innerHTML = parts.join('') || '<p class="ind-empty">Brak wyników</p>';
+  catalogEl.innerHTML = parts.join('') || '<p class="ind-empty">No results</p>';
 }
 
 interface IndicatorModalEls {
@@ -139,15 +139,15 @@ export class IndicatorHud {
         const label = formatIndicatorLabel(item);
         const vis = item.visible ? 'on' : 'off';
         const gear = meta.fields.length
-          ? `<button type="button" class="ind-ico" data-ind-act="settings" data-ind-id="${item.id}" title="Ustawienia" aria-label="Ustawienia">⚙</button>`
+          ? `<button type="button" class="ind-ico" data-ind-act="settings" data-ind-id="${item.id}" title="Settings" aria-label="Settings">⚙</button>`
           : '';
-        const eyeTitle = item.visible ? 'Ukryj' : 'Pokaż';
+        const eyeTitle = item.visible ? 'Hide' : 'Show';
         html.push(
           `<div class="ind-label" data-ind-id="${item.id}" data-kind="${item.kind}" data-visible="${vis}">` +
             `<span class="ind-label-text">${label}</span>` +
             gear +
             `<button type="button" class="ind-ico" data-ind-act="toggle" data-ind-id="${item.id}" title="${eyeTitle}" aria-label="${eyeTitle}">${item.visible ? '◉' : '○'}</button>` +
-            `<button type="button" class="ind-ico" data-ind-act="remove" data-ind-id="${item.id}" title="Usuń" aria-label="Usuń">×</button>` +
+            `<button type="button" class="ind-ico" data-ind-act="remove" data-ind-id="${item.id}" title="Delete" aria-label="Delete">×</button>` +
             `</div>`,
         );
       }

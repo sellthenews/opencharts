@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
 export type IntervalId = '1h' | '4h' | '1D' | '1W' | '1M';
 
@@ -58,6 +58,6 @@ export function pairsFromNative(map: Record<string, string>): PairDef[] {
 
 export function nativeOf(source: DataSource, pairId: PairId): string {
   const pair = source.pairs.find((p) => p.id === pairId);
-  if (!pair) throw new Error(`Para ${pairId} nie jest obsługiwana przez ${source.name}`);
+  if (!pair) throw new Error(`Pair ${pairId} is not supported by ${source.name}`);
   return pair.native;
 }

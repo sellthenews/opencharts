@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
 export interface ChartMenuHandlers {
   resetView: () => void;
@@ -33,11 +33,11 @@ export function initChartMenu(
     const alertItem = menu.querySelector<HTMLElement>('[data-chart-menu="add-alert"]');
     const label = lastPrice === null ? '—' : formatPrice(lastPrice);
     if (priceItem) {
-      priceItem.textContent = lastPrice === null ? 'Kopiuj cenę' : `Kopiuj cenę (${label})`;
+      priceItem.textContent = lastPrice === null ? 'Copy price' : `Copy price (${label})`;
       priceItem.toggleAttribute('disabled', lastPrice === null);
     }
     if (alertItem) {
-      alertItem.textContent = lastPrice === null ? 'Dodaj alert na tej cenie' : `Dodaj alert na ${label}`;
+      alertItem.textContent = lastPrice === null ? 'Add alert at this price' : `Add alert at ${label}`;
       alertItem.toggleAttribute('disabled', lastPrice === null);
     }
     menu.hidden = false;
@@ -60,7 +60,7 @@ export function initChartMenu(
     else if (action === 'copy-price' && lastPrice !== null) handlers.copyPrice(lastPrice);
     else if (action === 'add-alert' && lastPrice !== null) handlers.addAlert(lastPrice);
     else if (action === 'clear-drawings') {
-      if (window.confirm('Usunąć wszystkie rysunki z tego wykresu?')) handlers.clearDrawings();
+      if (window.confirm('Remove all drawings from this chart?')) handlers.clearDrawings();
     }
     close();
   });

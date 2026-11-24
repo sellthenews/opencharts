@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
+import './storage';
 import type { IChartApi, ISeriesApi, Logical, SeriesType, Time } from 'lightweight-charts';
 import {
   ABCD_PROJECTIONS,
@@ -106,7 +107,7 @@ const HANDLE = 5;
 const HIT_PX = 7;
 
 function storageKey(sourceId: string, pairId: string): string {
-  return `wykresy:drawings:${sourceId}:${pairId}`;
+  return `opencharts:drawings:${sourceId}:${pairId}`;
 }
 
 function newId(): string {
@@ -474,7 +475,7 @@ export class DrawingLayer {
       : parsed && typeof parsed === 'object' && Array.isArray((parsed as { drawings?: unknown }).drawings)
         ? (parsed as { drawings: unknown[] }).drawings
         : null;
-    if (!list) throw new Error('Nieprawidłowy plik rysunków');
+    if (!list) throw new Error('Invalid drawings file');
     this.drawings = list.filter(isDrawing);
     this.selectedId = null;
     this.persist();
@@ -1078,7 +1079,7 @@ export class DrawingLayer {
       return;
     }
     if (this.tool === 'text') {
-      const text = window.prompt('Tekst notatki', 'Notatka');
+      const text = window.prompt('Note text', 'Note');
       if (text && text.trim()) {
         this.drawings.push({ id: newId(), type: 'text', p: point, text: text.trim() });
         this.selectedId = this.drawings[this.drawings.length - 1]!.id;
@@ -1094,7 +1095,7 @@ export class DrawingLayer {
     if (!this.draft) {
       if (needed === 1) {
         if (this.tool === 'note') {
-          const text = window.prompt('Notatka', 'Notatka');
+          const text = window.prompt('Note', 'Note');
           if (text && text.trim()) {
             const drawing = this.commitPoints('note', [point]);
             if (drawing && drawing.type === 'note') {
@@ -1133,7 +1134,7 @@ export class DrawingLayer {
       return;
     }
     if (this.tool === 'callout') {
-      const text = window.prompt('Objaśnienie', 'Objaśnienie');
+      const text = window.prompt('Callout', 'Callout');
       if (!(text && text.trim())) {
         this.draft = null;
         this.redraw();
@@ -2130,7 +2131,7 @@ export class DrawingLayer {
         const dt = Number(d.p2.time) - Number(d.p1.time);
         const bars = this.stepSec > 0 ? Math.abs(dt) / this.stepSec : 0;
         const midX = (x1 + x2) / 2;
-        const barTxt = bars >= 1 ? `  ·  ${bars >= 10 ? bars.toFixed(0) : bars.toFixed(1)} sł.` : '';
+        const barTxt = bars >= 1 ? `  ·  ${bars >= 10 ? bars.toFixed(0) : bars.toFixed(1)} bars` : '';
         this.label(ctx, `${formatSpan(dt)}${barTxt}`, midX - 24, 16, selected ? SELECTED : '#e0e3ea');
       } else if (d.type === 'datepricerange' && x1 !== null && x2 !== null && y1 !== null && y2 !== null) {
         const left = Math.min(x1, x2);
@@ -2222,7 +2223,7 @@ export class DrawingLayer {
       if (xy) this.paintBadge(ctx, this.formatPrice(d.p.price), xy.x + 6, xy.y, selected);
     } else if (d.type === 'note') {
       const xy = this.pointToXy(d.p);
-      if (xy) this.paintBadge(ctx, d.text || 'Notatka', xy.x, xy.y, selected);
+      if (xy) this.paintBadge(ctx, d.text || 'Note', xy.x, xy.y, selected);
     } else if (d.type === 'callout') {
       const a = this.pointToXy(d.p1);
       const b = this.pointToXy(d.p2);
@@ -2235,7 +2236,7 @@ export class DrawingLayer {
         ctx.arc(a.x, a.y, 3, 0, Math.PI * 2);
         ctx.fillStyle = selected ? SELECTED : COLOR;
         ctx.fill();
-        this.paintBadge(ctx, d.text || 'Objaśnienie', b.x, b.y, selected);
+        this.paintBadge(ctx, d.text || 'Callout', b.x, b.y, selected);
       }
     } else if (d.type === 'ellipse') {
       const a = this.pointToXy(d.p1);
@@ -2355,7 +2356,7 @@ export class DrawingLayer {
         for (let i = 0; i < named.length; i++) {
           this.label(ctx, named[i]![0], xy[i]!.x + 4, xy[i]!.y - 6, selected ? SELECTED : '#e0e3ea');
         }
-        this.label(ctx, 'Głowa z ramionami', xy[2]!.x + 4, xy[2]!.y - 18, selected ? SELECTED : '#e0e3ea');
+        this.label(ctx, 'Head and Shoulders', xy[2]!.x + 4, xy[2]!.y - 18, selected ? SELECTED : '#e0e3ea');
       }
     } else if (d.type === 'fibchan') {
       const levels = [...FIB_RETRACEMENT, 1.272, 1.618];
@@ -2442,7 +2443,7 @@ export class DrawingLayer {
           ctx.lineTo(c.x, c.y);
           ctx.closePath();
           ctx.fill();
-          this.label(ctx, 'Trójkąt', meet.x + 4, meet.y - 6, selected ? SELECTED : '#e0e3ea');
+          this.label(ctx, 'Triangle', meet.x + 4, meet.y - 6, selected ? SELECTED : '#e0e3ea');
         }
       }
     } else if (d.type === 'elliottimp' || d.type === 'elliottabc' || d.type === 'path' || d.type === 'brush') {
@@ -2478,7 +2479,7 @@ export class DrawingLayer {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
-        this.label(ctx, 'Flaga', b.x + 4, b.y - 6, selected ? SELECTED : '#e0e3ea');
+        this.label(ctx, 'Flag', b.x + 4, b.y - 6, selected ? SELECTED : '#e0e3ea');
       }
     } else if (d.type === 'forecast') {
       const a = this.pointToXy(d.p1);
@@ -2491,7 +2492,7 @@ export class DrawingLayer {
         ctx.lineTo(end.x, end.y);
         ctx.stroke();
         ctx.setLineDash([]);
-        this.label(ctx, `Prognoza  ${this.formatPrice(d.p2.price)}`, b.x + 6, b.y - 6, selected ? SELECTED : '#e0e3ea');
+        this.label(ctx, `Forecast  ${this.formatPrice(d.p2.price)}`, b.x + 6, b.y - 6, selected ? SELECTED : '#e0e3ea');
       }
     } else if (d.type === 'fibarcs') {
       const a = this.pointToXy(d.p1);
@@ -2572,7 +2573,7 @@ export class DrawingLayer {
         ctx.moveTo(t2.a.x, t2.a.y);
         ctx.lineTo(t2.b.x, t2.b.y);
         ctx.stroke();
-        this.label(ctx, 'Widły', a.x + 4, a.y - 6, selected ? SELECTED : '#e0e3ea');
+        this.label(ctx, 'Pitchfork', a.x + 4, a.y - 6, selected ? SELECTED : '#e0e3ea');
       }
     }
     ctx.restore();

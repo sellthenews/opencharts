@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
 import { expect, test } from '@playwright/test';
 import fs from 'node:fs';
@@ -7,7 +7,7 @@ import path from 'node:path';
 
 const SHOT = path.resolve('screenshots-test/xrp-1d.png');
 
-test('XRP/USD 1D: linia trendu i zapis po przeładowaniu', async ({ page }) => {
+test('XRP/USD 1D: trend line persists after reload', async ({ page }) => {
   await page.goto('/');
 
   const source = page.locator('#source');
@@ -33,10 +33,10 @@ test('XRP/USD 1D: linia trendu i zapis po przeładowaniu', async ({ page }) => {
   await page.waitForTimeout(250);
 
   const before = await page.evaluate(() => {
-    const list = window.__wykresy.getDrawings();
+    const list = window.__opencharts.getDrawings();
     return {
       list,
-      stored: localStorage.getItem('wykresy:drawings:kraken:XRPUSD'),
+      stored: localStorage.getItem('opencharts:drawings:kraken:XRPUSD'),
     };
   });
   expect(before.list.length).toBeGreaterThanOrEqual(1);
@@ -50,10 +50,10 @@ test('XRP/USD 1D: linia trendu i zapis po przeładowaniu', async ({ page }) => {
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
 
   const after = await page.evaluate(() => {
-    const list = window.__wykresy.getDrawings();
+    const list = window.__opencharts.getDrawings();
     return {
       list,
-      stored: localStorage.getItem('wykresy:drawings:kraken:XRPUSD'),
+      stored: localStorage.getItem('opencharts:drawings:kraken:XRPUSD'),
     };
   });
   expect(after.stored).toEqual(before.stored);

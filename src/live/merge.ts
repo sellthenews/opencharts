@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
 import type { Candle, IntervalId } from '../sources/types';
 
@@ -11,7 +11,7 @@ function monthStartUtc(time: number): number {
 export function isoToUnix(iso: string): number {
   const trimmed = iso.replace(/(\.\d{3})\d+Z$/, '$1Z');
   const ms = Date.parse(trimmed);
-  if (!Number.isFinite(ms)) throw new Error(`Niepoprawny czas: ${iso}`);
+  if (!Number.isFinite(ms)) throw new Error(`Invalid time: ${iso}`);
   return Math.floor(ms / 1000);
 }
 

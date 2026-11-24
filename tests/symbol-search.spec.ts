@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
 import { expect, test } from '@playwright/test';
 
-test('wyszukiwarka: wpisz sol, wybierz wynik, wykres się ładuje', async ({ page }) => {
+test('symbol search: type sol, pick a result, chart loads', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
   await expect(page.locator('#pair')).toHaveValue('XRPUSD');

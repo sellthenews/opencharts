@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
 import { aggregateCandles, sortDedup } from './aggregate';
 import { changePct, fetchJson } from './http';
@@ -26,7 +26,7 @@ async function fetchInterval(pair: string, interval: number): Promise<Candle[]> 
   const result = data.result ?? {};
   const key = Object.keys(result).find((k) => k !== 'last');
   const rows = key ? (result[key] as unknown[]) : [];
-  if (!Array.isArray(rows)) throw new Error('Kraken: nieoczekiwany format OHLC');
+  if (!Array.isArray(rows)) throw new Error('Kraken: unexpected OHLC format');
   const candles: Candle[] = [];
   for (const row of rows) {
     if (!Array.isArray(row) || row.length < 7) continue;
@@ -67,7 +67,7 @@ export const kraken: DataSource = {
     const result = data.result ?? {};
     const key = Object.keys(result).find((k) => k !== 'last') ?? Object.keys(result)[0];
     const row = key ? result[key] : undefined;
-    if (!row) throw new Error('Kraken: pusty ticker');
+    if (!row) throw new Error('Kraken: empty ticker');
     const lastRaw = Array.isArray(row.c) ? row.c[0] : row.c;
     const last = Number(lastRaw);
     const open = Number(row.o);

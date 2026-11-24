@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
 import { expect, test } from '@playwright/test';
 import fs from 'node:fs';
@@ -7,7 +7,7 @@ import path from 'node:path';
 
 const SHOT = path.resolve('screenshots-test/etap2-rsi-fib.png');
 
-test('zrzut etap 2: XRP/USD 1D Kraken, RSI, Fibo, obserwowane', async ({ page }) => {
+test('stage 2 screenshot: XRP/USD 1D Kraken, RSI, Fib, watchlist', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#source')).toHaveValue('kraken');
   await expect(page.locator('#pair')).toHaveValue('XRPUSD');
@@ -35,7 +35,7 @@ test('zrzut etap 2: XRP/USD 1D Kraken, RSI, Fibo, obserwowane', async ({ page })
   await page.mouse.click(b.x + b.width * 0.7, b.y + b.height * 0.48);
   await page.waitForTimeout(250);
 
-  const drawings = await page.evaluate(() => window.__wykresy.getDrawings());
+  const drawings = await page.evaluate(() => window.__opencharts.getDrawings());
   expect(drawings.some((d) => d.type === 'fib')).toBeTruthy();
 
   fs.mkdirSync(path.dirname(SHOT), { recursive: true });

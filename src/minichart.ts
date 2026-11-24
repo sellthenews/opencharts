@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
 import { CandlestickSeries, createChart } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
@@ -53,7 +53,7 @@ export class MiniChart {
       <select data-mini="source"></select>
       <select data-mini="pair"></select>
       <select data-mini="interval"></select>
-      <button type="button" class="mini-fx" title="Wskaźniki" aria-label="Wskaźniki">fx</button>
+      <button type="button" class="mini-fx" title="Indicators" aria-label="Indicators">fx</button>
     </div>
     <div class="extra-status"></div>
     <div class="extra-plot">
@@ -71,7 +71,7 @@ export class MiniChart {
       ...themeChartOptions(light),
       ...interactionOptions(),
       layout: { ...themeChartOptions(light).layout, fontSize: 10 },
-      localization: { locale: 'pl-PL' },
+      localization: { locale: 'en-US' },
     });
     this.series = this.chart.addSeries(CandlestickSeries, candleSeriesOptions());
     this.host = new IndicatorHost(this.chart, this.series);
@@ -179,7 +179,7 @@ export class MiniChart {
       this.statusEl.textContent = '…';
     }
     try {
-      if (!src) throw new Error('Brak źródła');
+      if (!src) throw new Error('No source');
       const candles = await src.fetchCandles(this.state.pairId, this.state.intervalId);
       if (seq !== this.loadSeq) return;
       setCachedCandles(this.state.sourceId, this.state.pairId, this.state.intervalId, candles);
@@ -192,7 +192,7 @@ export class MiniChart {
         this.series.setData([]);
         this.applyIndicators();
       }
-      this.statusEl.textContent = err instanceof Error ? err.message : 'Błąd';
+      this.statusEl.textContent = err instanceof Error ? err.message : 'Error';
     }
   }
 }

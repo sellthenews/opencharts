@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
 import {
   type SourceFilter,
@@ -81,7 +81,7 @@ export function initSymbolSearch(opts: {
     visible = searchSymbols(opts.input.value, filter, items, 100);
     if (active >= visible.length) active = 0;
     if (!visible.length) {
-      opts.results.innerHTML = `<p class="sym-empty">${items.length ? 'Brak wyników.' : 'Ładowanie par…'}</p>`;
+      opts.results.innerHTML = `<p class="sym-empty">${items.length ? 'No results.' : 'Loading pairs…'}</p>`;
       return;
     }
     opts.results.innerHTML = visible

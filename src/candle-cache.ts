@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
+import './storage';
 import type { Candle, IntervalId, PairId } from './sources';
 
 const mem = new Map<string, Candle[]>();
-const PREFIX = 'wykresy:candles:';
-const INDEX_KEY = 'wykresy:candles:index';
+const PREFIX = 'opencharts:candles:';
+const INDEX_KEY = 'opencharts:candles:index';
 const MAX_SESSION = 8;
 
 export function candleCacheKey(sourceId: string, pairId: string, intervalId: string): string {

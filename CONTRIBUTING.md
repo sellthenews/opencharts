@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping with Wykresy. This is a static charting app licensed under **AGPL-3.0-or-later**.
+Thanks for helping with OpenCharts. This is a static charting app licensed under **AGPL-3.0-or-later**.
 
 ## License of contributions
 
@@ -8,7 +8,7 @@ Contributions are accepted under the same license: **inbound = outbound**. By op
 
 ```
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 ```
 
 Do not add GPL-licensed third-party code unless a later project decision says otherwise. Vendored runtime libraries must stay MIT or Apache 2.0, with their `LICENSE` (and `NOTICE`, if any) in `vendor/`.
@@ -49,7 +49,7 @@ Return normalized candles: `{ time, open, high, low, close, volume }` with `time
 
 ## Drawings and storage
 
-Drawings are stored in `localStorage` under `wykresy:drawings:<sourceId>:<pairId>`. Keep that key stable, or migrate existing data if you change it.
+Drawings are stored in `localStorage` under `opencharts:drawings:<sourceId>:<pairId>`. On first load, keys prefixed with `wykresy:` or `opencandle:` are copied to `opencharts:` when the new key is missing, so existing user data is kept. Do not drop that migration without a replacement.
 
 ## Vendored runtime libraries
 
@@ -57,7 +57,7 @@ Do not load libraries from a CDN. Runtime code lives in `vendor/<name>@<version>
 
 ## Pull requests
 
-- Keep the UI in Polish and the docs in English unless a change says otherwise.
+- Keep the UI and the docs in English unless a change says otherwise.
 - Do not commit `node_modules/`, `site/`, or `screenshots-test/`.
 - Do commit `vendor/`.
 - Run `npm run build` and, when you touch the chart or drawings, `npm run test:e2e`.

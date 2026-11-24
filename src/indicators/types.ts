@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 Wykresy contributors
+// Copyright (C) 2026 OpenCharts contributors
 
 import type { Candle } from '../sources/types';
 
@@ -59,7 +59,7 @@ export const DEFAULT_INDICATORS: IndicatorSettings = {
   macd: { on: false, fast: 12, slow: 26, signal: 9 },
 };
 
-export const INDICATOR_STORAGE_KEY = 'wykresy:indicators';
+export const INDICATOR_STORAGE_KEY = 'opencharts:indicators';
 
 export type IndicatorKind =
   | 'sma'
@@ -135,18 +135,18 @@ export interface IndicatorMeta {
 export const INDICATOR_GROUPS: { id: IndicatorGroupId; label: string }[] = [
   { id: 'trend', label: 'Trend' },
   { id: 'momentum', label: 'Momentum' },
-  { id: 'volatility', label: 'Zmienność' },
-  { id: 'volume', label: 'Wolumen' },
+  { id: 'volatility', label: 'Volatility' },
+  { id: 'volume', label: 'Volume' },
 ];
 
-function periodField(label = 'Okres'): IndicatorField {
+function periodField(label = 'Period'): IndicatorField {
   return { key: 'period', label, min: 2, max: 400, step: 1 };
 }
 
 export const INDICATOR_CATALOG: IndicatorMeta[] = [
-  { kind: 'sma', name: 'Średnia krocząca prosta', short: 'SMA', aliases: ['ma', 'sma'], group: 'trend', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
-  { kind: 'ema', name: 'Średnia wykładnicza', short: 'EMA', aliases: ['ema'], group: 'trend', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
-  { kind: 'wma', name: 'Średnia ważona', short: 'WMA', aliases: ['wma'], group: 'trend', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
+  { kind: 'sma', name: 'Simple Moving Average', short: 'SMA', aliases: ['ma', 'sma'], group: 'trend', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
+  { kind: 'ema', name: 'Exponential Moving Average', short: 'EMA', aliases: ['ema'], group: 'trend', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
+  { kind: 'wma', name: 'Weighted Moving Average', short: 'WMA', aliases: ['wma'], group: 'trend', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
   { kind: 'ichimoku', name: 'Ichimoku', short: 'Ichimoku', aliases: ['cloud', 'kumo', 'ichimoku'], group: 'trend', defaults: {}, fields: [], pane: 'price' },
   {
     kind: 'supertrend',
@@ -155,7 +155,7 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     aliases: ['st', 'supertrend'],
     group: 'trend',
     defaults: { period: 10, multiplier: 3 },
-    fields: [periodField('Okres ATR'), { key: 'multiplier', label: 'Mnożnik', min: 0.5, max: 10, step: 0.1 }],
+    fields: [periodField('ATR Period'), { key: 'multiplier', label: 'Multiplier', min: 0.5, max: 10, step: 0.1 }],
     pane: 'price',
   },
   { kind: 'pivots', name: 'Pivot Points', short: 'Pivot Points', aliases: ['pivot', 'pp', 'pivots'], group: 'trend', defaults: {}, fields: [], pane: 'price' },
@@ -170,9 +170,9 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     group: 'momentum',
     defaults: { fast: 12, slow: 26, signal: 9 },
     fields: [
-      { key: 'fast', label: 'Szybka', min: 2, max: 200, step: 1 },
-      { key: 'slow', label: 'Wolna', min: 3, max: 400, step: 1 },
-      { key: 'signal', label: 'Sygnał', min: 2, max: 200, step: 1 },
+      { key: 'fast', label: 'Fast', min: 2, max: 200, step: 1 },
+      { key: 'slow', label: 'Slow', min: 3, max: 400, step: 1 },
+      { key: 'signal', label: 'Signal', min: 2, max: 200, step: 1 },
     ],
     pane: 'osc',
   },
@@ -196,7 +196,7 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     aliases: ['bb', 'bollinger', 'bands'],
     group: 'volatility',
     defaults: { period: 20, std: 2 },
-    fields: [periodField(), { key: 'std', label: 'Odch. std.', min: 0.5, max: 6, step: 0.1 }],
+    fields: [periodField(), { key: 'std', label: 'StdDev', min: 0.5, max: 6, step: 0.1 }],
     pane: 'price',
   },
   {
@@ -207,7 +207,7 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     group: 'momentum',
     defaults: { period: 14, kPeriod: 3, dPeriod: 3 },
     fields: [
-      periodField('Okres RSI'),
+      periodField('RSI Period'),
       { key: 'kPeriod', label: '%K', min: 1, max: 100, step: 1 },
       { key: 'dPeriod', label: '%D', min: 1, max: 100, step: 1 },
     ],
@@ -222,8 +222,8 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     defaults: { start: 0.02, multiplier: 0.02, max: 0.2 },
     fields: [
       { key: 'start', label: 'Start', min: 0.001, max: 1, step: 0.01 },
-      { key: 'multiplier', label: 'Krok', min: 0.001, max: 1, step: 0.01 },
-      { key: 'max', label: 'Maks.', min: 0.01, max: 1, step: 0.01 },
+      { key: 'multiplier', label: 'Increment', min: 0.001, max: 1, step: 0.01 },
+      { key: 'max', label: 'Max', min: 0.01, max: 1, step: 0.01 },
     ],
     pane: 'price',
   },
@@ -239,15 +239,15 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     group: 'volatility',
     defaults: { period: 20, kPeriod: 10, multiplier: 2 },
     fields: [
-      periodField('Okres EMA'),
-      { key: 'kPeriod', label: 'Okres ATR', min: 2, max: 400, step: 1 },
-      { key: 'multiplier', label: 'Mnożnik', min: 0.5, max: 10, step: 0.1 },
+      periodField('EMA Period'),
+      { key: 'kPeriod', label: 'ATR Period', min: 2, max: 400, step: 1 },
+      { key: 'multiplier', label: 'Multiplier', min: 0.5, max: 10, step: 0.1 },
     ],
     pane: 'price',
   },
   { kind: 'donchian', name: 'Donchian Channels', short: 'Donchian', aliases: ['donchian', 'dc'], group: 'volatility', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
   { kind: 'atr', name: 'ATR', short: 'ATR', aliases: ['atr'], group: 'volatility', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
-  { kind: 'volume', name: 'Wolumen', short: 'Wolumen', aliases: ['volume', 'vol', 'wolumen'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
+  { kind: 'volume', name: 'Volume', short: 'Volume', aliases: ['volume', 'vol', 'wolumen'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
   { kind: 'cmf', name: 'Chaikin Money Flow', short: 'CMF', aliases: ['cmf', 'chaikin'], group: 'volume', defaults: { period: 20 }, fields: [periodField()], pane: 'osc' },
   { kind: 'mfi', name: 'Money Flow Index', short: 'MFI', aliases: ['mfi', 'money flow'], group: 'volume', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   { kind: 'obv', name: 'On-Balance Volume', short: 'OBV', aliases: ['obv', 'on balance'], group: 'volume', defaults: {}, fields: [], pane: 'osc' },
