@@ -13,7 +13,6 @@ import { candleSeriesOptions, interactionOptions, themeChartOptions } from './ch
 import { getCachedCandles, setCachedCandles } from './candle-cache';
 import { ohlcLegendHtml } from './ohlc-legend';
 import { DrawingLayer } from './drawings';
-import type { Tool } from './drawings';
 import { IndicatorHost } from './indicators/host';
 import type { PaneMap } from './indicators/host';
 import { loadIndicatorSettings, saveIndicatorSettings } from './indicators/settings';
@@ -23,6 +22,7 @@ import { INTERVALS, formatPairLabel, getSource, sources } from './sources';
 import type { Candle, IntervalId, PairId } from './sources';
 import { initSymbolSearch } from './symbol-search';
 import { initChartMenu } from './chart-menu';
+import { initToolRail } from './tool-rail';
 import { loadLayout, saveLayout } from './layout';
 import { MiniChart } from './minichart';
 import type { MiniState } from './minichart';
@@ -68,12 +68,8 @@ const statusEl = document.querySelector<HTMLDivElement>('#status')!;
 const chartEl = document.querySelector<HTMLDivElement>('#chart')!;
 const wrapEl = document.querySelector<HTMLDivElement>('#chart-wrap')!;
 const overlayEl = document.querySelector<HTMLCanvasElement>('#draw-overlay')!;
-const deleteBtn = document.querySelector<HTMLButtonElement>('#delete-btn')!;
-const clearBtn = document.querySelector<HTMLButtonElement>('#clear-btn')!;
-const exportBtn = document.querySelector<HTMLButtonElement>('#export-btn')!;
-const importBtn = document.querySelector<HTMLButtonElement>('#import-btn')!;
 const importFile = document.querySelector<HTMLInputElement>('#import-file')!;
-const extendRightBtn = document.querySelector<HTMLButtonElement>('#extend-right-btn')!;
+let toolRail: ReturnType<typeof initToolRail> | null = null;
 
 let sourceId = DEFAULT_SOURCE;
 let pairId: PairId = DEFAULT_PAIR;
@@ -536,29 +532,7 @@ intervalsEl.addEventListener('click', (ev) => {
   void loadChart();
 });
 
-document.querySelectorAll<HTMLButtonElement>('[data-tool]').forEach((btn) => {
-  if (btn.id === 'cursor-tool') return;
-  btn.addEventListener('click', () => {
-    const tool = btn.dataset.tool as Tool;
-    drawings.setTool(tool);
-    document.querySelectorAll('[data-tool]').forEach((el) => {
-      el.classList.toggle('is-active', el === btn);
-    });
-    cursorPop && (cursorPop.hidden = true);
-  });
-});
-
-deleteBtn.addEventListener('click', () => {
-  if (!drawings.deleteSelected()) {
-    setStatus('Select a drawing with the cursor, then click Delete.');
-  }
-});
-
-clearBtn.addEventListener('click', () => {
-  drawings.clearAll();
-});
-
-exportBtn.addEventListener('click', () => {
+function exportDrawingsFile(): void {
   const blob = new Blob([drawings.exportJson()], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -566,9 +540,8 @@ exportBtn.addEventListener('click', () => {
   a.download = `opencharts-drawings-${sourceId}-${pairId}.json`;
   a.click();
   URL.revokeObjectURL(url);
-});
+}
 
-importBtn.addEventListener('click', () => importFile.click());
 importFile.addEventListener('change', async () => {
   const file = importFile.files?.[0];
   importFile.value = '';
@@ -581,11 +554,11 @@ importFile.addEventListener('change', async () => {
   }
 });
 
-extendRightBtn.addEventListener('click', () => {
+function extendSelectedFib(): void {
   if (!drawings.toggleExtendRight()) {
     setStatus('Select a trend-based Fib extension, then click Extend right.');
   }
-});
+}
 
 fillSources();
 fillPairs();
@@ -736,6 +709,9 @@ initChartMenu(
       drawings.clearAll();
       setStatus('Removed all drawings.');
     },
+    exportDrawings: () => exportDrawingsFile(),
+    importDrawings: () => importFile.click(),
+    extendFib: () => extendSelectedFib(),
   },
 );
 
@@ -751,8 +727,6 @@ let cursorMode: CursorMode = loadCursorMode();
 let magnetOn = localStorage.getItem(MAGNET_KEY) === 'on';
 
 const cursorDot = document.querySelector<HTMLElement>('#cursor-dot');
-const cursorPop = document.querySelector<HTMLElement>('#cursor-mode-pop');
-const magnetBtn = document.querySelector<HTMLButtonElement>('#magnet-btn');
 const drawBar = document.querySelector<HTMLElement>('#draw-bar');
 const drawColor = document.querySelector<HTMLInputElement>('#draw-color');
 const drawWidth = document.querySelector<HTMLSelectElement>('#draw-width');
@@ -793,11 +767,7 @@ function applyCursorAppearance(): void {
     if (cursorDot) cursorDot.hidden = true;
   }
   drawings.setMagnet(magnetOn);
-  magnetBtn?.classList.toggle('is-active', magnetOn);
-  if (magnetBtn) magnetBtn.setAttribute('aria-pressed', magnetOn ? 'true' : 'false');
-  cursorPop?.querySelectorAll('[data-cursor-mode]').forEach((el) => {
-    el.classList.toggle('is-active', el.getAttribute('data-cursor-mode') === cursorMode);
-  });
+  toolRail?.refreshActions();
   localStorage.setItem(CURSOR_MODE_KEY, cursorMode);
   localStorage.setItem(MAGNET_KEY, magnetOn ? 'on' : 'off');
 }
@@ -836,38 +806,57 @@ function placeDrawBar(): void {
 
 function activateCursorTool(): void {
   drawings.setTool('cursor');
-  document.querySelectorAll('[data-tool]').forEach((el) => {
-    el.classList.toggle('is-active', el.getAttribute('data-tool') === 'cursor');
-  });
+  toolRail?.setActive('cursor');
 }
 
 drawings.setOnToolDone(() => activateCursorTool());
 drawings.setOnSelect(() => placeDrawBar());
 
-magnetBtn?.addEventListener('click', () => {
-  magnetOn = !magnetOn;
-  applyCursorAppearance();
-});
-
-document.querySelector('#cursor-tool')?.addEventListener('click', (ev) => {
-  ev.stopPropagation();
-  const already = document.querySelector('#cursor-tool')?.classList.contains('is-active');
-  activateCursorTool();
-  if (already && cursorPop) cursorPop.hidden = !cursorPop.hidden;
-  else if (cursorPop) cursorPop.hidden = true;
-});
-
-cursorPop?.addEventListener('click', (ev) => {
-  const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-cursor-mode]');
-  if (!btn) return;
-  setCursorMode((btn.dataset.cursorMode as CursorMode) ?? 'cross');
-  cursorPop.hidden = true;
-});
-
-document.addEventListener('mousedown', (ev) => {
-  if (!cursorPop || cursorPop.hidden) return;
-  if (cursorPop.contains(ev.target as Node) || (ev.target as HTMLElement).closest('#cursor-tool')) return;
-  cursorPop.hidden = true;
+toolRail = initToolRail({
+  rail: document.querySelector('#tool-rail')!,
+  flyout: document.querySelector('#rail-flyout')!,
+  favBar: document.querySelector('#fav-bar')!,
+  onTool: (tool) => {
+    drawings.setTool(tool);
+    toolRail?.setActive(tool);
+  },
+  getCursorMode: () => cursorMode,
+  setCursorMode: (mode) => setCursorMode(mode),
+  getMagnet: () => magnetOn,
+  setMagnet: (on) => {
+    magnetOn = on;
+    applyCursorAppearance();
+  },
+  onLockAll: () => {
+    drawings.setAllLocked(!drawings.areAllLocked());
+    toolRail?.refreshActions();
+  },
+  onHideAll: () => {
+    drawings.setHidden(!drawings.isHidden());
+    toolRail?.refreshActions();
+  },
+  onClearAll: () => {
+    if (window.confirm('Remove all drawings from this chart?')) {
+      drawings.clearAll();
+      setStatus('Removed all drawings.');
+    }
+  },
+  onZoomIn: () => {
+    const ts = chart.timeScale();
+    const current = ts.options().barSpacing ?? 8;
+    ts.applyOptions({ barSpacing: Math.min(48, current * 1.25) });
+  },
+  onZoomOut: () => {
+    const ts = chart.timeScale();
+    const current = ts.options().barSpacing ?? 8;
+    ts.applyOptions({ barSpacing: Math.max(2, current / 1.25) });
+  },
+  onFit: () => {
+    chart.timeScale().fitContent();
+    series.priceScale().applyOptions({ autoScale: true });
+  },
+  isLockedAll: () => drawings.areAllLocked(),
+  isHidden: () => drawings.isHidden(),
 });
 
 drawColor?.addEventListener('input', () => {

@@ -165,7 +165,7 @@ Najpopularniejsze, jeszcze niezaimplementowane (kolejność P1 → P3):
 - Płynne przewijanie i zoom: kinetic scroll (mysz i dotyk), ograniczone `barSpacing`, `rightOffset`, osie bez ciężkiej ramki. Przy zmianie pary/interwału zachowywany jest logiczny zakres; zamiast pustego ekranu szkielet lub pasek odświeżania; płynne przyciemnienie (ok. 180 ms).
 - Cache świec w pamięci i `sessionStorage` (klucz giełda+para+interwał, max 8 wpisów). Dodatkowe panele układu wielu wykresów inicjowane leniwie.
 - Overlay rysowania: `requestAnimationFrame`, bez zbędnych przerysowań przy ruchu wskaźnika, `devicePixelRatio`.
-- Ciemny motyw: subtelna siatka, czytelny crosshair z etykietami, legenda OHLC (O H L C i zmiana %) przy kursorze, podświetlenie ostatniej ceny, lewy pionowy pasek narzędzi rysowania (ikony z tooltipami), uporządkowany górny pasek, przejścia hover 160 ms. Etykiety wskaźników także na dodatkowych panelach układu.
+- Ciemny motyw: subtelna siatka, czytelny crosshair z etykietami, legenda OHLC (O H L C i zmiana %) przy kursorze, podświetlenie ostatniej ceny, lewy pionowy pasek narzędzi w grupach (menu z nagłówkami i gwiazdkami, pływający pasek ulubionych), uporządkowany górny pasek, przejścia hover 160 ms. Etykiety wskaźników także na dodatkowych panelach układu.
 
 ## Postęp P2 (23 XI 2026)
 
@@ -183,8 +183,8 @@ Pozostało: pozostałe wskaźniki z typowej listy ~100 (P3).
 
 - Wyszukiwarka par: klik w nazwę pary w nagłówku albo litera na wykresie (gdy focus nie jest w polu tekstowym); Esc zamyka. Listy z oficjalnych API (Kraken AssetPairs, Binance exchangeInfo — tylko SPOT/TRADING, Coinbase products online, Bitstamp trading-pairs-info Enabled). Filtr Wszystkie/Kraken/Binance/Coinbase/Bitstamp. Prefiks bazy przed trafieniem w środku, limit ~100, strzałki + Enter. Wybór przełącza giełdę i parę. Cache `opencharts:symbols:<giełda>` (migracja z `wykresy:`) 24 h. Błąd jednej giełdy nie psuje pozostałych. Kraken WS tylko gdy źródło to Kraken.
 - Cache list (24 XI 2026): Kraken 1353, Binance 1376, Coinbase 511. Lista Bitstamp z `trading-pairs-info` jest blokowana przez CORS w przeglądarce (świece z `/api/v2/ohlc/` nadal działają; curl widzi 252 pary Enabled). Błąd tej giełdy nie psuje pozostałych.
-- Menu kontekstowe (prawy klik na wykresie): Zresetuj wykres (zoom/scroll i autoscale osi ceny, bez kasowania rysunków i wskaźników), Kopiuj cenę, Dodaj alert na tej cenie, Usuń wszystkie rysunki (z potwierdzeniem). Zamknięcie: klik poza / Esc.
-- Kursor: krzyż z przerywanymi liniami i etykietami ceny/czasu na osiach (LWC CrosshairMode + LineStyle.Dashed). Pierwsza ikona lewego paska: krzyż / kropka / strzałka, zapis w `localStorage`. Przełącznik magnesu (przyciąganie do OHLC) obok.
+- Menu kontekstowe (prawy klik na wykresie): Zresetuj wykres (zoom/scroll i autoscale osi ceny, bez kasowania rysunków i wskaźników), Kopiuj cenę, Dodaj alert na tej cenie, Usuń wszystkie rysunki (z potwierdzeniem), Eksport / import rysunków, Extend Fib right. Zamknięcie: klik poza / Esc.
+- Kursor: krzyż z przerywanymi liniami i etykietami ceny/czasu na osiach (LWC CrosshairMode + LineStyle.Dashed). Pierwsza ikona lewego paska: krzyż / kropka / strzałka, zapis w `localStorage`. Przełącznik magnesu (przyciąganie do OHLC) na dole paska.
 - Po zaznaczeniu rysunku pływający pasek (kolor, grubość 1–4, styl linii, zablokuj, usuń). Ustawienia zapisywane z rysunkiem.
 
 Zrzuty (lokalne, w `.gitignore`): `screenshots-test/wyszukiwarka-par.png`, `screenshots-test/menu-kontekstowe.png`, `screenshots-test/rysowanie-tv.png`.
@@ -200,3 +200,12 @@ Klucze `localStorage` / `sessionStorage` mają prefiks `opencharts:`. Przy starc
 - Wyszukiwarka ma filtr **Crypto / Stocks** obok filtra giełdy; przy każdym wyniku widać źródło danych.
 - Kraken xStocks: **177** par `*x/USD` online (np. AAPLx/USD) z publicznego `AssetPairs?aclass_base=tokenized_asset` (CORS działa w przeglądarce). Świece i ticker wymagają `asset_class=tokenized_asset`. Wyszukiwarka pokazuje wariant `*x`, bez równoległych listingów `*SPV`.
 - XRPN (Evernorth, Nasdaq) nie jest na Krakenie jako xStock. Yahoo Finance ma ten ticker, ale API Yahoo/Stooq/Nasdaq są blokowane przez CORS w przeglądarce — bez backendu nie da się ich dodać.
+
+## Pasek narzędzi i ulubione (24 XI 2026)
+
+- Lewy pasek w grupach: kursor, linie, Fibonacci, formacje, prognozy i mierniki, pędzel, tekst, kształty. Na dole: linijka (zakres daty i ceny), zoom (przybliż / oddal / dopasuj), magnes, zablokuj wszystkie rysunki, ukryj wszystkie, kosz (z potwierdzeniem). Klik ikony grupy włącza ostatnio użyte narzędzie w tej grupie (ikona się zmienia, stan w `opencharts:rail-last`); mały trójkąt otwiera menu z nagłówkami sekcji po angielsku (np. FORECASTING / MEASURERS) i gwiazdką przy każdym narzędziu. Esc albo klik poza menu zamyka je.
+- W menu są tylko narzędzia, które działają. Nie ma sekcji VOLUME-BASED (Anchored VWAP, profil wolumenu), Ghost feed ani innych pozycji, których nie implementujemy.
+- Gwiazdka dodaje narzędzie do pływającego paska ulubionych (ciemna pastylka, uchwyt z sześcioma kropkami, przeciąganie). Lista i pozycja są w `opencharts:favorites`. Pusty pasek jest ukryty.
+- Eksport / import rysunków oraz „Extend Fib right” są w menu kontekstowym, nie na lewym pasku.
+
+Zrzuty (lokalne, w `.gitignore`): `screenshots-test/pasek-menu.png`, `screenshots-test/pasek-ulubione.png`. Folder `screenshots-test/ref/` z referencyjnymi zdjęciami też jest ignorowany i nie trafia do repo.

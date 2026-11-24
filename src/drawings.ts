@@ -304,6 +304,7 @@ export class DrawingLayer {
   private stepSec = 86400;
   private priceSamples: PriceSample[] = [];
   private magnet = false;
+  private layerHidden = false;
   private onToolDone: (() => void) | null = null;
   private onSelect: ((d: Drawing | null) => void) | null = null;
   private ro: ResizeObserver;
@@ -373,6 +374,31 @@ export class DrawingLayer {
 
   setMagnet(on: boolean): void {
     this.magnet = on;
+  }
+
+  setAllLocked(locked: boolean): void {
+    for (const d of this.drawings) d.style = { ...d.style, locked };
+    this.persist();
+    this.redraw();
+  }
+
+  areAllLocked(): boolean {
+    return this.drawings.length > 0 && this.drawings.every((d) => d.style?.locked);
+  }
+
+  setHidden(hidden: boolean): void {
+    this.layerHidden = hidden;
+    if (hidden) {
+      this.selectedId = null;
+      this.draft = null;
+      this.emitSelect();
+    }
+    this.syncPointerEvents();
+    this.redraw();
+  }
+
+  isHidden(): boolean {
+    return this.layerHidden;
   }
 
   setOnToolDone(cb: () => void): void {
@@ -533,7 +559,7 @@ export class DrawingLayer {
   };
 
   private syncPointerEvents(): void {
-    const drawing = this.tool !== 'cursor';
+    const drawing = this.tool !== 'cursor' && !this.layerHidden;
     this.canvas.classList.toggle('passthrough', !drawing);
     this.chart.applyOptions(drawing ? { handleScroll: false, handleScale: false } : interactionOptions());
   }
@@ -615,7 +641,7 @@ export class DrawingLayer {
   }
 
   private onHoverPassthrough(ev: MouseEvent): void {
-    if (this.tool !== 'cursor' || this.drag) return;
+    if (this.layerHidden || this.tool !== 'cursor' || this.drag) return;
     const rect = this.canvas.getBoundingClientRect();
     const x = ev.clientX - rect.left;
     const y = ev.clientY - rect.top;
@@ -624,6 +650,14 @@ export class DrawingLayer {
   }
 
   private onPointer(ev: MouseEvent, phase: 'down' | 'move' | 'up'): void {
+    if (this.layerHidden) {
+      if (phase === 'up' && this.drag) {
+        this.drag = null;
+        this.persist();
+        this.syncPointerEvents();
+      }
+      return;
+    }
     const hit = this.eventPoint(ev);
     if (this.tool === 'brush') {
       this.onBrushPointer(ev, hit, phase);
@@ -1850,6 +1884,7 @@ export class DrawingLayer {
     const width = this.canvas.getBoundingClientRect().width;
     const height = this.canvas.getBoundingClientRect().height;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    if (this.layerHidden) return;
     for (const d of this.drawings) this.paint(ctx, d, width, height, d.id === this.selectedId);
     if (this.draft) this.paintDraft(ctx, width, height);
     if (this.selectedId) {

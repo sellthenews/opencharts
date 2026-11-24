@@ -713,59 +713,310 @@ button.danger:hover {
 }
 
 #tool-rail {
-  width: 44px;
+  --rail-flyout-bg: #2c3038;
+  --rail-flyout-text: #e0e3ea;
+  --rail-flyout-muted: #9aa0a6;
+  --rail-flyout-hover: rgba(255, 255, 255, 0.08);
+  width: 46px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 8px;
-  padding: 8px 6px;
+  gap: 0;
+  padding: 6px 4px 8px;
   background: var(--bar);
   border-right: 1px solid var(--border);
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
+  position: relative;
+  z-index: 12;
 }
 
-#tool-rail .group {
+html[data-theme="light"] #tool-rail {
+  --rail-flyout-bg: #5c5f66;
+  --rail-flyout-text: #f4f5f8;
+  --rail-flyout-muted: #c5c7cc;
+  --rail-flyout-hover: rgba(255, 255, 255, 0.1);
+  background: #eceef2;
+}
+
+#tool-rail .rail-top,
+#tool-rail .rail-bottom {
+  display: flex;
   flex-direction: column;
-  flex-wrap: nowrap;
-  gap: 2px;
+  align-items: center;
+  gap: 1px;
 }
 
-#tool-rail button {
-  width: 32px;
+#tool-rail .rail-spacer {
+  flex: 1 1 auto;
+  min-height: 8px;
+}
+
+#tool-rail .rail-slot {
+  position: relative;
+  width: 36px;
+  height: 32px;
+}
+
+#tool-rail .rail-btn {
+  width: 36px;
   height: 32px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: 4px;
   color: var(--muted);
+  background: transparent;
+  border: 0;
 }
 
-#tool-rail button svg {
+#tool-rail .rail-icon,
+#tool-rail .rail-btn svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+#tool-rail .rail-btn:hover {
+  color: var(--text);
+  background: var(--btn-hover);
+}
+
+#tool-rail .rail-btn.is-active {
+  color: var(--heading);
+  background: var(--btn-hover);
+}
+
+#tool-rail .rail-caret {
+  position: absolute;
+  right: 0;
+  bottom: 2px;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+#tool-rail .rail-caret::before {
+  content: "";
+  display: block;
+  width: 0;
+  height: 0;
+  margin: 2px 0 0 2px;
+  border-left: 4px solid #8a8f99;
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+}
+
+html[data-theme="dark"] #tool-rail .rail-caret::before {
+  border-left-color: #9aa0a6;
+}
+
+#tool-rail .rail-caret:hover::before,
+#tool-rail .rail-slot:hover .rail-caret::before {
+  border-left-color: var(--heading);
+}
+
+#tool-rail .rail-bottom {
+  padding-top: 6px;
+  margin-top: 2px;
+  border-top: 1px solid var(--border);
+}
+
+#tool-rail .rail-danger:hover {
+  color: var(--danger);
+}
+
+#rail-flyout {
+  --rail-flyout-bg: #2c3038;
+  --rail-flyout-text: #e0e3ea;
+  --rail-flyout-muted: #9aa0a6;
+  --rail-flyout-hover: rgba(255, 255, 255, 0.08);
+  position: fixed;
+  z-index: 40;
+  min-width: 268px;
+  max-height: min(72vh, 640px);
+  overflow-y: auto;
+  padding: 6px 0 8px;
+  border-radius: 6px;
+  background: var(--rail-flyout-bg);
+  color: var(--rail-flyout-text);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  font-size: 13px;
+}
+
+html[data-theme="light"] #rail-flyout {
+  --rail-flyout-bg: #5c5f66;
+  --rail-flyout-text: #f4f5f8;
+  --rail-flyout-muted: #c8cad0;
+  --rail-flyout-hover: rgba(255, 255, 255, 0.1);
+}
+
+#rail-flyout[hidden] {
+  display: none;
+}
+
+#rail-flyout .fly-section + .fly-section {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+#rail-flyout .fly-h {
+  padding: 6px 14px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--rail-flyout-muted, #9aa0a6);
+}
+
+#rail-flyout .fly-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 32px;
+  padding: 0 10px 0 14px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: 13px/1.2 inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+#rail-flyout .fly-row:hover,
+#rail-flyout .fly-row.is-active {
+  background: var(--rail-flyout-hover, rgba(255, 255, 255, 0.08));
+}
+
+#rail-flyout .fly-ico {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  color: inherit;
+  display: inline-flex;
+}
+
+#rail-flyout .fly-ico svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+#rail-flyout .fly-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#rail-flyout .star-btn {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+#rail-flyout .star-btn svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+}
+
+#rail-flyout .star-btn.is-on {
+  color: #f0d778;
+}
+
+#rail-flyout .star-btn.is-on svg {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+#fav-bar {
+  position: absolute;
+  z-index: 9;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 12px 0 8px;
+  border-radius: 19px;
+  background: #131722;
+  color: #d1d4dc;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  user-select: none;
+}
+
+#fav-bar[hidden] {
+  display: none;
+}
+
+#fav-bar .fav-handle {
+  width: 16px;
+  height: 28px;
+  padding: 4px 2px;
+  border: 0;
+  background: transparent;
+  cursor: grab;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: repeat(3, 1fr);
+  gap: 3px 3px;
+  align-content: center;
+  justify-items: center;
+}
+
+#fav-bar .fav-handle span {
+  width: 2.5px;
+  height: 2.5px;
+  border-radius: 50%;
+  background: #8b919b;
+  display: block;
+}
+
+#fav-bar .fav-items {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#fav-bar .fav-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #d1d4dc;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#fav-bar .fav-btn svg {
   width: 16px;
   height: 16px;
   display: block;
 }
 
-#tool-rail .tool-name {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-}
-
-#tool-rail button:hover {
-  color: var(--text);
-}
-
-#tool-rail .tool.is-active,
-#tool-rail button.is-active {
-  color: var(--heading);
-  background: var(--btn-hover);
-  border-color: var(--accent);
+#fav-bar .fav-btn:hover,
+#fav-bar .fav-btn.is-active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 #ohlc-legend {

@@ -6,6 +6,9 @@ export interface ChartMenuHandlers {
   copyPrice: (price: number) => void;
   addAlert: (price: number) => void;
   clearDrawings: () => void;
+  exportDrawings?: () => void;
+  importDrawings?: () => void;
+  extendFib?: () => void;
 }
 
 function formatPrice(price: number): string {
@@ -61,7 +64,9 @@ export function initChartMenu(
     else if (action === 'add-alert' && lastPrice !== null) handlers.addAlert(lastPrice);
     else if (action === 'clear-drawings') {
       if (window.confirm('Remove all drawings from this chart?')) handlers.clearDrawings();
-    }
+    } else if (action === 'export') handlers.exportDrawings?.();
+    else if (action === 'import') handlers.importDrawings?.();
+    else if (action === 'extend') handlers.extendFib?.();
     close();
   });
 
