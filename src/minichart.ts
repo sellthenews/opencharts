@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
+import { localeOf, onLangChange, t } from './i18n';
+
 import { CandlestickSeries, createChart } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import { INTERVALS, getSource } from './sources';
@@ -53,7 +55,7 @@ export class MiniChart {
       <select data-mini="source"></select>
       <select data-mini="pair"></select>
       <select data-mini="interval"></select>
-      <button type="button" class="mini-fx" title="Indicators" aria-label="Indicators">fx</button>
+      <button type="button" class="mini-fx" title="${t('toolbar.indicatorsTitle')}" aria-label="${t('toolbar.indicatorsTitle')}">fx</button>
     </div>
     <div class="extra-status"></div>
     <div class="extra-plot">
@@ -71,9 +73,17 @@ export class MiniChart {
       ...themeChartOptions(light),
       ...interactionOptions(),
       layout: { ...themeChartOptions(light).layout, fontSize: 10 },
-      localization: { locale: 'en-US' },
+      localization: { locale: localeOf() },
     });
     this.series = this.chart.addSeries(CandlestickSeries, candleSeriesOptions());
+    onLangChange(() => {
+      this.chart.applyOptions({ localization: { locale: localeOf() } });
+      const fx = root.querySelector<HTMLElement>('.mini-fx');
+      if (fx) {
+        fx.title = t('toolbar.indicatorsTitle');
+        fx.setAttribute('aria-label', t('toolbar.indicatorsTitle'));
+      }
+    });
     this.host = new IndicatorHost(this.chart, this.series);
     this.hud = new IndicatorHud(
       this.state.indicators!,

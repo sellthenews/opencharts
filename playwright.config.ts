@@ -10,5 +10,6 @@ export default defineConfig({
     channel: 'chrome',
     headless: true,
     viewport: { width: 1400, height: 900 },
+    locale: 'en-US',
   },
 });

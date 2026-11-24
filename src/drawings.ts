@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
+import { t } from './i18n';
+
 import './storage';
 import type { IChartApi, ISeriesApi, Logical, SeriesType, Time } from 'lightweight-charts';
 import {
@@ -1499,7 +1501,7 @@ export class DrawingLayer {
       return;
     }
     if (this.tool === 'text') {
-      const text = window.prompt('Note text', 'Note');
+      const text = window.prompt(t('draw.notePrompt'), t('tool.note'));
       if (text && text.trim()) {
         this.drawings.push(this.stampStyle({ id: newId(), type: 'text', p: point, text: text.trim() }));
         this.selectedId = this.drawings[this.drawings.length - 1]!.id;
@@ -1515,7 +1517,7 @@ export class DrawingLayer {
     if (!this.draft) {
       if (needed === 1) {
         if (this.tool === 'note') {
-          const text = window.prompt('Note', 'Note');
+          const text = window.prompt(t('tool.note'), t('tool.note'));
           if (text && text.trim()) {
             const drawing = this.commitPoints('note', [point]);
             if (drawing && drawing.type === 'note') {
@@ -1554,7 +1556,7 @@ export class DrawingLayer {
       return;
     }
     if (this.tool === 'callout') {
-      const text = window.prompt('Callout', 'Callout');
+      const text = window.prompt(t('tool.callout'), t('tool.callout'));
       if (!(text && text.trim())) {
         this.draft = null;
         this.redraw();
@@ -2679,7 +2681,7 @@ export class DrawingLayer {
         const risk = Math.abs(d.entry.price - d.stop.price);
         const reward = Math.abs(d.target.price - d.entry.price);
         const rr = risk > 0 ? reward / risk : 0;
-        const tag = isLong ? 'Long' : 'Short';
+        const tag = isLong ? t('tool.longpos') : t('tool.shortpos');
         const header = `${tag}  TP ${this.formatPrice(d.target.price)}  RR ${rr.toFixed(2)}`;
         const top = Math.min(yE, yT, yS);
         const used: number[] = [];
@@ -2723,7 +2725,7 @@ export class DrawingLayer {
       if (xy) this.paintBadge(ctx, this.formatPrice(d.p.price), xy.x + 6, xy.y, selected);
     } else if (d.type === 'note') {
       const xy = this.pointToXy(d.p);
-      if (xy) this.paintBadge(ctx, d.text || 'Note', xy.x, xy.y, selected);
+      if (xy) this.paintBadge(ctx, d.text || t('tool.note'), xy.x, xy.y, selected);
     } else if (d.type === 'callout') {
       const a = this.pointToXy(d.p1);
       const b = this.pointToXy(d.p2);
@@ -2736,7 +2738,7 @@ export class DrawingLayer {
         ctx.arc(a.x, a.y, 3, 0, Math.PI * 2);
         ctx.fillStyle = selected ? SELECTED : COLOR;
         ctx.fill();
-        this.paintBadge(ctx, d.text || 'Callout', b.x, b.y, selected);
+        this.paintBadge(ctx, d.text || t('tool.callout'), b.x, b.y, selected);
       }
     } else if (d.type === 'ellipse') {
       const a = this.pointToXy(d.p1);
@@ -2800,7 +2802,7 @@ export class DrawingLayer {
         ctx.lineTo(midB.x, midB.y);
         ctx.stroke();
         ctx.setLineDash([]);
-        if (chan) this.label(ctx, 'Regresja  ±2σ', midA.x + 4, midA.y - 6, selected ? SELECTED : '#e0e3ea');
+        if (chan) this.label(ctx, `${t('tool.regress')}  ±2σ`, midA.x + 4, midA.y - 6, selected ? SELECTED : '#e0e3ea');
       }
     } else if (d.type === 'xabcd') {
       const pts = [
@@ -2856,7 +2858,7 @@ export class DrawingLayer {
         for (let i = 0; i < named.length; i++) {
           this.label(ctx, named[i]![0], xy[i]!.x + 4, xy[i]!.y - 6, selected ? SELECTED : '#e0e3ea');
         }
-        this.label(ctx, 'Head and Shoulders', xy[2]!.x + 4, xy[2]!.y - 18, selected ? SELECTED : '#e0e3ea');
+        this.label(ctx, t('tool.hs'), xy[2]!.x + 4, xy[2]!.y - 18, selected ? SELECTED : '#e0e3ea');
       }
     } else if (d.type === 'fibchan') {
       const levels = [...FIB_RETRACEMENT, 1.272, 1.618];
@@ -2943,7 +2945,7 @@ export class DrawingLayer {
           ctx.lineTo(c.x, c.y);
           ctx.closePath();
           ctx.fill();
-          this.label(ctx, 'Triangle', meet.x + 4, meet.y - 6, selected ? SELECTED : '#e0e3ea');
+          this.label(ctx, t('tool.tripattern'), meet.x + 4, meet.y - 6, selected ? SELECTED : '#e0e3ea');
         }
       }
     } else if (d.type === 'elliottimp' || d.type === 'elliottabc' || d.type === 'path' || d.type === 'brush') {
@@ -2979,7 +2981,7 @@ export class DrawingLayer {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
-        this.label(ctx, 'Flag', b.x + 4, b.y - 6, selected ? SELECTED : '#e0e3ea');
+        this.label(ctx, t('tool.flag'), b.x + 4, b.y - 6, selected ? SELECTED : '#e0e3ea');
       }
     } else if (d.type === 'forecast') {
       const a = this.pointToXy(d.p1);
@@ -3020,7 +3022,7 @@ export class DrawingLayer {
         ctx.moveTo(screen[0]!.x, screen[0]!.y);
         for (let i = 1; i < screen.length; i++) ctx.lineTo(screen[i]!.x, screen[i]!.y);
         ctx.stroke();
-        this.label(ctx, 'Spirala Fib', screen[0]!.x + 4, screen[0]!.y - 6, selected ? SELECTED : '#e0e3ea');
+        this.label(ctx, t('tool.fibspiral'), screen[0]!.x + 4, screen[0]!.y - 6, selected ? SELECTED : '#e0e3ea');
       }
     } else if (d.type === 'fibtz') {
       for (const k of FIB_TIME) {
@@ -3036,7 +3038,7 @@ export class DrawingLayer {
       }
     } else if (d.type === 'gannbox' || d.type === 'gannsq') {
       const box = this.gannRect(d);
-      if (box) this.paintGannGrid(ctx, box, d.type === 'gannsq' ? 'Gann square' : 'Gann box', selected);
+      if (box) this.paintGannGrid(ctx, box, d.type === 'gannsq' ? t('tool.gannsq') : t('tool.gannbox'), selected);
     } else if (d.type === 'gannfan') {
       const a = this.pointToXy(d.p1);
       const b = this.pointToXy(d.p2);
@@ -3073,7 +3075,7 @@ export class DrawingLayer {
         ctx.moveTo(t2.a.x, t2.a.y);
         ctx.lineTo(t2.b.x, t2.b.y);
         ctx.stroke();
-        this.label(ctx, 'Pitchfork', a.x + 4, a.y - 6, selected ? SELECTED : '#e0e3ea');
+        this.label(ctx, t('tool.pitchfork'), a.x + 4, a.y - 6, selected ? SELECTED : '#e0e3ea');
       }
     }
     ctx.restore();

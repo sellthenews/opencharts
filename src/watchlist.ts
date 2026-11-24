@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
+import { formatNumber, onLangChange, t } from './i18n';
+
 import './storage';
 import { getSource } from './sources';
 import type { PairId, Ticker } from './sources';
@@ -39,7 +41,7 @@ export function defaultWatchState(): WatchState {
     lists: [
       {
         id: 'moje',
-        name: 'My list',
+        name: t('watch.myList'),
         items: [
           { sourceId: 'kraken', pairId: 'XRPUSD' },
           { sourceId: 'kraken', pairId: 'BTCUSD' },
@@ -47,7 +49,7 @@ export function defaultWatchState(): WatchState {
         ],
         sections: [],
       },
-      { id: 'krypto', name: 'Crypto', items: [], sections: [] },
+      { id: 'krypto', name: t('sym.crypto'), items: [], sections: [] },
     ],
   };
 }
@@ -72,7 +74,7 @@ function normalizeSection(raw: unknown): WatchSection | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Partial<WatchSection>;
   if (typeof r.id !== 'string' || !r.id) return null;
-  const name = typeof r.name === 'string' && r.name.trim() ? r.name.trim() : 'Section';
+  const name = typeof r.name === 'string' && r.name.trim() ? r.name.trim() : t('watch.section');
   return { id: r.id, name, collapsed: r.collapsed === true, items: normalizeItems(r.items) };
 }
 
@@ -81,7 +83,7 @@ function normalizeList(raw: unknown): WatchList | null {
   const l = raw as Partial<WatchList> & { name?: string; id?: string };
   if (typeof l.id !== 'string' || typeof l.name !== 'string') return null;
   const trimmed = l.name.trim();
-  const name = l.id === 'moje' || trimmed === 'Moje' ? 'My list' : l.id === 'krypto' || trimmed === 'Krypto' ? 'Crypto' : trimmed || 'List';
+  const name = l.id === 'moje' || trimmed === 'Moje' ? t('watch.myList') : l.id === 'krypto' || trimmed === 'Krypto' ? t('sym.crypto') : trimmed || t('watch.list');
   const sections = Array.isArray(l.sections)
     ? l.sections.map(normalizeSection).filter((s): s is WatchSection => s !== null)
     : [];
@@ -125,7 +127,7 @@ function formatPrice(price: number): string {
 function formatPct(pct: number | null): string {
   if (pct === null || !Number.isFinite(pct)) return '—';
   const sign = pct > 0 ? '+' : '';
-  return `${sign}${pct.toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}%`;
+  return `${sign}${formatNumber(pct, { maximumFractionDigits: 2, minimumFractionDigits: 2 })}%`;
 }
 
 export class WatchlistPanel {
@@ -160,9 +162,14 @@ export class WatchlistPanel {
     });
     document.addEventListener('click', () => this.hideMenu());
     this.render();
+    onLangChange(() => this.render());
     void this.refreshQuotes();
     this.startTimer();
     this.notifyKrakenPairs();
+  }
+
+  refresh(): void {
+    this.render();
   }
 
   private notifyKrakenPairs(): void {
@@ -286,7 +293,7 @@ export class WatchlistPanel {
 
   private addSection(): void {
     const list = this.activeList();
-    list.sections.push({ id: newId(), name: 'Section', collapsed: false, items: [] });
+    list.sections.push({ id: newId(), name: t('watch.section'), collapsed: false, items: [] });
     this.persist();
     this.render();
   }
@@ -295,7 +302,7 @@ export class WatchlistPanel {
     const list = this.activeList();
     const sec = list.sections.find((s) => s.id === id);
     if (!sec) return;
-    if (!window.confirm(`Delete section “${sec.name}”? Symbols will be moved back to the list.`)) return;
+    if (!window.confirm(t('watch.deleteSectionConfirm', { name: sec.name }))) return;
     list.items.push(...sec.items);
     list.sections = list.sections.filter((s) => s.id !== id);
     this.persist();
@@ -312,7 +319,7 @@ export class WatchlistPanel {
     const menu = document.createElement('div');
     menu.className = 'watch-menu';
     menu.setAttribute('role', 'menu');
-    menu.innerHTML = `<button type="button" role="menuitem" data-watch-action="add-section">Add section</button>`;
+    menu.innerHTML = `<button type="button" role="menuitem" data-watch-action="add-section">${t('watch.addSection')}</button>`;
     menu.style.left = `${Math.min(x, window.innerWidth - 160)}px`;
     menu.style.top = `${Math.min(y, window.innerHeight - 48)}px`;
     document.body.append(menu);
@@ -345,7 +352,7 @@ export class WatchlistPanel {
     input.focus();
     input.select();
     const commit = (): void => {
-      const next = input.value.trim() || 'Section';
+      const next = input.value.trim() || t('watch.section');
       sec.name = next;
       this.persist();
       this.render();
@@ -462,20 +469,20 @@ export class WatchlistPanel {
   }
 
   private onClick(ev: Event): void {
-    const t = ev.target as HTMLElement;
-    const menuBtn = t.closest<HTMLButtonElement>('[data-watch-action="list-menu"]');
+    const el = ev.target as HTMLElement;
+    const menuBtn = el.closest<HTMLButtonElement>('[data-watch-action="list-menu"]');
     if (menuBtn) {
       ev.stopPropagation();
       const rect = menuBtn.getBoundingClientRect();
       this.showMenu(rect.left, rect.bottom + 4);
       return;
     }
-    const addSection = t.closest<HTMLButtonElement>('[data-watch-action="add-section"]');
+    const addSection = el.closest<HTMLButtonElement>('[data-watch-action="add-section"]');
     if (addSection) {
       this.addSection();
       return;
     }
-    const toggle = t.closest<HTMLButtonElement>('[data-watch-action="toggle-section"]');
+    const toggle = el.closest<HTMLButtonElement>('[data-watch-action="toggle-section"]');
     if (toggle) {
       ev.preventDefault();
       ev.stopPropagation();
@@ -488,14 +495,14 @@ export class WatchlistPanel {
       }
       return;
     }
-    const delSec = t.closest<HTMLButtonElement>('[data-watch-action="remove-section"]');
+    const delSec = el.closest<HTMLButtonElement>('[data-watch-action="remove-section"]');
     if (delSec) {
       ev.preventDefault();
       ev.stopPropagation();
       if (delSec.dataset.watchSectionId) this.removeSection(delSec.dataset.watchSectionId);
       return;
     }
-    const removeList = t.closest<HTMLButtonElement>('[data-watch-action="remove-list"]');
+    const removeList = el.closest<HTMLButtonElement>('[data-watch-action="remove-list"]');
     if (removeList) {
       if (this.state.lists.length <= 1) return;
       const id = this.state.activeId;
@@ -506,14 +513,14 @@ export class WatchlistPanel {
       void this.refreshQuotes();
       return;
     }
-    const addSymbol = t.closest<HTMLButtonElement>('[data-watch-action="add-symbol"]');
+    const addSymbol = el.closest<HTMLButtonElement>('[data-watch-action="add-symbol"]');
     if (addSymbol) {
       this.onRequestAdd?.();
       return;
     }
-    const addList = t.closest<HTMLButtonElement>('[data-watch-action="add-list"]');
+    const addList = el.closest<HTMLButtonElement>('[data-watch-action="add-list"]');
     if (addList) {
-      const name = window.prompt('New list name', 'New list');
+      const name = window.prompt(t('watch.newListName'), t('watch.newListDefault'));
       if (!name || !name.trim()) return;
       const list: WatchList = { id: newId(), name: name.trim(), items: [], sections: [] };
       this.state.lists.push(list);
@@ -522,7 +529,7 @@ export class WatchlistPanel {
       this.render();
       return;
     }
-    const del = t.closest<HTMLElement>('[data-watch-remove]');
+    const del = el.closest<HTMLElement>('[data-watch-remove]');
     if (del) {
       ev.preventDefault();
       ev.stopPropagation();
@@ -532,7 +539,7 @@ export class WatchlistPanel {
       if (sourceId && pairId) this.removeItem(sourceId, pairId as PairId);
       return;
     }
-    const row = t.closest<HTMLElement>('.watch-row');
+    const row = el.closest<HTMLElement>('.watch-row');
     if (row) {
       const sourceId = row.dataset.source;
       const pairId = row.dataset.pair as PairId | undefined;
@@ -570,7 +577,7 @@ export class WatchlistPanel {
       <span class="watch-ex">${escapeHtml(exch)}</span>
       <span class="watch-last">${last}</span>
       <span class="watch-chg${chgClass}">${chg}</span>
-      <span class="watch-del" data-watch-remove="${key}" title="Remove from list" role="button">×</span>
+      <span class="watch-del" data-watch-remove="${key}" title="${t('watch.removeFromList')}" role="button">×</span>
     </button>`;
   }
 
@@ -584,29 +591,29 @@ export class WatchlistPanel {
     const sections = list.sections
       .map((sec) => {
         const rows = sec.collapsed ? '' : sec.items.map((item) => this.rowHtml(item, sec.id)).join('');
-        const empty = !sec.collapsed && !sec.items.length ? '<p class="watch-empty watch-sec-empty">Drop symbols here.</p>' : '';
+        const empty = !sec.collapsed && !sec.items.length ? `<p class="watch-empty watch-sec-empty">${t('watch.dropHere')}</p>` : '';
         return `<div class="watch-section" data-watch-section="${sec.id}">
           <div class="watch-sec-head" data-watch-section-drag="${sec.id}" draggable="true">
-            <button type="button" class="watch-sec-toggle" data-watch-action="toggle-section" data-watch-section-id="${sec.id}" title="${sec.collapsed ? 'Expand' : 'Collapse'}" aria-expanded="${sec.collapsed ? 'false' : 'true'}">${sec.collapsed ? '▸' : '▾'}</button>
+            <button type="button" class="watch-sec-toggle" data-watch-action="toggle-section" data-watch-section-id="${sec.id}" title="${sec.collapsed ? t('watch.expand') : t('watch.collapse')}" aria-expanded="${sec.collapsed ? 'false' : 'true'}">${sec.collapsed ? '▸' : '▾'}</button>
             <span class="watch-sec-name" data-watch-section-name="${sec.id}">${escapeHtml(sec.name)}</span>
             <span class="watch-sec-count">${sec.items.length}</span>
-            <button type="button" class="watch-sec-del" data-watch-action="remove-section" data-watch-section-id="${sec.id}" title="Delete section" aria-label="Delete section">×</button>
+            <button type="button" class="watch-sec-del" data-watch-action="remove-section" data-watch-section-id="${sec.id}" title="${t('watch.deleteSection')}" aria-label="${t('watch.deleteSection')}">×</button>
           </div>
           ${rows}${empty}
         </div>`;
       })
       .join('');
-    const body = `${loose || (!list.sections.length ? '<p class="watch-empty">This list is empty. Click + to add a symbol.</p>' : '')}<div class="watch-loose"></div>${sections}`;
+    const body = `${loose || (!list.sections.length ? `<p class="watch-empty">${t('watch.empty')}</p>` : '')}<div class="watch-loose"></div>${sections}`;
     this.notifyKrakenPairs();
     this.root.innerHTML = `
       <div class="watch-head">
-        <h2>Watchlist</h2>
+        <h2>${t('watch.title')}</h2>
         <div class="watch-lists">
-          <select id="watch-list-select" title="List" aria-label="Watchlist">${listOpts}</select>
-          <button type="button" data-watch-action="add-symbol" title="Add symbol" aria-label="Add symbol">+</button>
-          <button type="button" data-watch-action="add-list" title="New list" aria-label="New list">New</button>
-          <button type="button" data-watch-action="list-menu" title="List menu" aria-label="List menu" aria-haspopup="menu">⋯</button>
-          <button type="button" data-watch-action="remove-list" title="Remove list" aria-label="Remove list" ${canDeleteList ? '' : 'disabled'}>−</button>
+          <select id="watch-list-select" title="${t('watch.list')}" aria-label="${t('watch.lists')}">${listOpts}</select>
+          <button type="button" data-watch-action="add-symbol" title="${t('watch.addSymbol')}" aria-label="${t('watch.addSymbol')}">+</button>
+          <button type="button" data-watch-action="add-list" title="${t('watch.newList')}" aria-label="${t('watch.newList')}">${t('watch.newList')}</button>
+          <button type="button" data-watch-action="list-menu" title="${t('watch.listMenu')}" aria-label="${t('watch.listMenu')}" aria-haspopup="menu">⋯</button>
+          <button type="button" data-watch-action="remove-list" title="${t('watch.removeList')}" aria-label="${t('watch.removeList')}" ${canDeleteList ? '' : 'disabled'}>−</button>
         </div>
       </div>
       <div class="watch-body">${body}</div>

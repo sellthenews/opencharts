@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
+import { onLangChange, t } from '../i18n';
+
 import { clampParams, clampStyle, createInstance, loadIndicatorFavorites, toggleIndicatorFavorite } from './settings';
 import {
   CATALOG_BY_KIND,
@@ -12,12 +14,66 @@ import {
 import type { IndicatorInstance, IndicatorKind, IndicatorMeta, IndicatorParams, IndicatorStyle } from './types';
 import type { PaneMap } from './host';
 
+
+const FIELD_KEY: Record<string, string> = {
+  Period: 'ind.field.period',
+  Timeframe: 'ind.field.tf',
+  Chart: 'ind.field.chart',
+  Divergences: 'ind.field.divergences',
+  'Regular and hidden': 'ind.field.regularHidden',
+  On: 'ind.field.on',
+  Off: 'ind.field.off',
+  Tenkan: 'ind.field.tenkan',
+  Kijun: 'ind.field.kijun',
+  'Senkou B': 'ind.field.senkou',
+  Displacement: 'ind.field.shift',
+  Multiplier: 'ind.field.multiplier',
+  Type: 'ind.field.mode',
+  Standard: 'ind.field.standard',
+  Fibonacci: 'ind.field.fibonacci',
+  Fast: 'ind.field.fast',
+  Slow: 'ind.field.slow',
+  Signal: 'ind.field.signal',
+  'Bands (±σ)': 'ind.field.bands',
+  'Session high/low': 'ind.field.highs',
+  Rows: 'ind.field.rows',
+  Source: 'ind.field.source',
+  Close: 'ind.field.close',
+  Volume: 'ind.field.volume',
+  Method: 'ind.field.method',
+  'ATR Period': 'ind.field.atrPeriod',
+  Increment: 'ind.field.increment',
+  Max: 'ind.field.max',
+  Start: 'ind.field.start',
+  StdDev: 'ind.field.std',
+  '%K': 'ind.field.kPeriod',
+  '%D': 'ind.field.dPeriod',
+  'Pivot length': 'ind.field.pivotLength',
+};
+
+function fieldLabel(label: string, key?: string): string {
+  const mapped = FIELD_KEY[label] ?? (key ? `ind.field.${key}` : '');
+  if (!mapped) return label;
+  const tr = t(mapped);
+  return tr === mapped ? label : tr;
+}
+
+function optionLabel(label: string, value: string): string {
+  if (FIELD_KEY[label]) return fieldLabel(label);
+  if (value === 'chart') return t('ind.field.chart');
+  if (value === 'on') return t('ind.field.on');
+  if (value === 'off') return t('ind.field.off');
+  if (value === 'standard') return t('ind.field.standard');
+  if (value === 'fib') return t('ind.field.fibonacci');
+  return label;
+}
+
 function rowHtml(m: IndicatorMeta, favs: Set<string>): string {
   const on = favs.has(m.kind);
   return (
     `<div class="ind-row">` +
     `<button type="button" class="ind-add" data-ind-add="${m.kind}"><span class="ind-add-short">${m.short}</span><span class="ind-add-name">${m.name}</span></button>` +
-    `<button type="button" class="ind-fav${on ? ' is-on' : ''}" data-ind-fav="${m.kind}" title="${on ? 'Remove from favorites' : 'Add to favorites'}" aria-label="${on ? 'Remove from favorites' : 'Add to favorites'}" aria-pressed="${on ? 'true' : 'false'}">★</button>` +
+    `<button type="button" class="ind-fav${on ? ' is-on' : ''}" data-ind-fav="${m.kind}" title="${on ? t('ind.removeFav') : t('ind.addFav')}" aria-label="${on ? t('ind.removeFav') : t('ind.addFav')}" aria-pressed="${on ? 'true' : 'false'}">★</button>` +
     `</div>`
   );
 }
@@ -27,14 +83,14 @@ export function renderIndicatorCatalog(catalogEl: HTMLElement, query: string, fa
   const parts: string[] = [];
   const favRows = INDICATOR_CATALOG.filter((m) => favs.has(m.kind) && matchesIndicatorQuery(m, query));
   if (favRows.length) {
-    parts.push(`<div class="ind-group"><h3>Favorites</h3>${favRows.map((m) => rowHtml(m, favs)).join('')}</div>`);
+    parts.push(`<div class="ind-group"><h3>${t('ind.favorites')}</h3>${favRows.map((m) => rowHtml(m, favs)).join('')}</div>`);
   }
   for (const group of INDICATOR_GROUPS) {
     const rows = INDICATOR_CATALOG.filter((m) => m.group === group.id && matchesIndicatorQuery(m, query));
     if (!rows.length) continue;
-    parts.push(`<div class="ind-group"><h3>${group.label}</h3>${rows.map((m) => rowHtml(m, favs)).join('')}</div>`);
+    parts.push(`<div class="ind-group"><h3>${t(`ind.group.${group.id}`)}</h3>${rows.map((m) => rowHtml(m, favs)).join('')}</div>`);
   }
-  catalogEl.innerHTML = parts.join('') || '<p class="ind-empty">No results</p>';
+  catalogEl.innerHTML = parts.join('') || `<p class="ind-empty">${t('ind.noResults')}</p>`;
 }
 
 interface IndicatorModalEls {
@@ -62,6 +118,9 @@ export function initIndicatorModal(els: IndicatorModalEls): void {
       ev.preventDefault();
       closeIndicatorModal();
     }
+  });
+  onLangChange(() => {
+    if (modalEls && !modalEls.modal.hidden) renderIndicatorCatalog(modalEls.catalog, modalEls.search.value);
   });
   els.catalog.addEventListener('click', (ev) => {
     const favBtn = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-ind-fav]');
@@ -115,6 +174,7 @@ export class IndicatorHud {
       this.labelsRoot.querySelector('.ind-popover')?.remove();
     });
     this.renderLabels();
+    onLangChange(() => this.renderLabels());
   }
 
   add(kind: IndicatorKind): void {
@@ -166,14 +226,14 @@ export class IndicatorHud {
       for (const item of list) {
         const label = formatIndicatorLabel(item);
         const vis = item.visible ? 'on' : 'off';
-        const gear = `<button type="button" class="ind-ico" data-ind-act="settings" data-ind-id="${item.id}" title="Settings" aria-label="Settings">⚙</button>`;
-        const eyeTitle = item.visible ? 'Hide' : 'Show';
+        const gear = `<button type="button" class="ind-ico" data-ind-act="settings" data-ind-id="${item.id}" title="${t('ind.settings')}" aria-label="${t('ind.settings')}">⚙</button>`;
+        const eyeTitle = item.visible ? t('ind.hide') : t('ind.show');
         html.push(
           `<div class="ind-label" data-ind-id="${item.id}" data-kind="${item.kind}" data-visible="${vis}">` +
             `<span class="ind-label-text">${label}</span>` +
             gear +
             `<button type="button" class="ind-ico" data-ind-act="toggle" data-ind-id="${item.id}" title="${eyeTitle}" aria-label="${eyeTitle}">${item.visible ? '◉' : '○'}</button>` +
-            `<button type="button" class="ind-ico" data-ind-act="remove" data-ind-id="${item.id}" title="Delete" aria-label="Delete">×</button>` +
+            `<button type="button" class="ind-ico" data-ind-act="remove" data-ind-id="${item.id}" title="${t('ind.remove')}" aria-label="${t('ind.remove')}">×</button>` +
             `</div>`,
         );
       }
@@ -227,16 +287,16 @@ export class IndicatorHud {
       .map((f) => {
         if (f.type === 'select') {
           const val = String(params[f.key] ?? '');
-          const opts = (f.options ?? []).map((o) => `<option value="${o.value}"${o.value === val ? ' selected' : ''}>${o.label}</option>`).join('');
-          return `<label>${f.label}<select data-ind-field="${f.key}">${opts}</select></label>`;
+          const opts = (f.options ?? []).map((o) => `<option value="${o.value}"${o.value === val ? ' selected' : ''}>${optionLabel(o.label, o.value)}</option>`).join('');
+          return `<label>${fieldLabel(f.label, f.key)}<select data-ind-field="${f.key}">${opts}</select></label>`;
         }
         const val = params[f.key] ?? '';
-        return `<label>${f.label}<input type="number" data-ind-field="${f.key}" min="${f.min ?? ''}" max="${f.max ?? ''}" step="${f.step ?? 1}" value="${val}" /></label>`;
+        return `<label>${fieldLabel(f.label, f.key)}<input type="number" data-ind-field="${f.key}" min="${f.min ?? ''}" max="${f.max ?? ''}" step="${f.step ?? 1}" value="${val}" /></label>`;
       })
       .join('');
     pop.innerHTML =
-      `<label>Color<input type="color" data-ind-style="color" value="${color || '#5b9cf6'}" /></label>` +
-      `<label>Width<select data-ind-style="width">${[1, 2, 3, 4].map((w) => `<option value="${w}"${w === width ? ' selected' : ''}>${w} px</option>`).join('')}</select></label>` +
+      `<label>${t('ind.color')}<input type="color" data-ind-style="color" value="${color || '#5b9cf6'}" /></label>` +
+      `<label>${t('ind.width')}<select data-ind-style="width">${[1, 2, 3, 4].map((w) => `<option value="${w}"${w === width ? ' selected' : ''}>${t('draw.px', { n: w })}</option>`).join('')}</select></label>` +
       fieldHtml;
     if (labelEl) labelEl.append(pop);
     else this.labelsRoot.append(pop);

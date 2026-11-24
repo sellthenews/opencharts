@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
+import { t } from './i18n';
+
 import { STOCKS_PROXY_UNCONFIGURED, STOCKS_PROXY_DEFAULT, getStocksProxyUrl } from './config';
 
 export const PROXY_HOST = 'opencharts-proxy.opencharts.workers.dev';
 
-const PROXY_BLOCKED = `Could not reach the stock data proxy. An ad blocker or privacy extension may be blocking ${PROXY_HOST} – allow it and reload.`;
+function proxyBlocked(): string {
+  return t('status.loadProxyBlocked', { host: PROXY_HOST });
+}
 
 export function isLikelyBlocked(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
@@ -22,9 +26,9 @@ export function describeLoadError(sourceId: string, sourceName: string, err: unk
     msg.includes('workers.dev') ||
     (proxy && msg.includes(proxy)) ||
     msg.includes(PROXY_HOST);
-  if (mentionsProxy && isLikelyBlocked(err)) return PROXY_BLOCKED;
+  if (mentionsProxy && isLikelyBlocked(err)) return proxyBlocked();
   if (isLikelyBlocked(err)) {
-    return `Could not reach ${sourceName}. An ad blocker or privacy extension may be blocking this data source – allow it and reload.`;
+    return t('status.loadBlocked', { source: sourceName });
   }
-  return `Failed to load data from ${sourceName}: ${msg}`;
+  return t('status.loadFailed', { source: sourceName, message: msg });
 }

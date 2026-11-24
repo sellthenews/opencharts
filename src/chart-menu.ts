@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
+import { t } from './i18n';
+
 export interface ChartMenuHandlers {
   resetView: () => void;
   copyPrice: (price: number) => void;
@@ -49,11 +51,11 @@ export function initChartMenu(
     const alertItem = menu.querySelector<HTMLElement>('[data-chart-menu="add-alert"]');
     const label = lastPrice === null ? '—' : formatPrice(lastPrice);
     if (priceItem) {
-      priceItem.textContent = lastPrice === null ? 'Copy price' : `Copy price (${label})`;
+      priceItem.textContent = lastPrice === null ? t('menu.copyPrice') : t('menu.copyPriceAt', { price: label });
       priceItem.toggleAttribute('disabled', lastPrice === null);
     }
     if (alertItem) {
-      alertItem.textContent = handlers.alertMenuLabel?.(lastPrice) ?? (lastPrice === null ? 'Add alert' : `Add alert at ${label}`);
+      alertItem.textContent = handlers.alertMenuLabel?.(lastPrice) ?? (lastPrice === null ? t('menu.addAlert') : t('menu.addAlertAt', { price: label }));
       const disabled = lastPrice === null && !handlers.alertMenuLabel?.(lastPrice);
       alertItem.toggleAttribute('disabled', disabled);
     }
@@ -61,7 +63,7 @@ export function initChartMenu(
     if (watchItem) {
       const symbol = handlers.watchlistLabel?.() ?? 'symbol';
       const onList = handlers.isOnWatchlist?.() ?? false;
-      watchItem.textContent = onList ? `Remove ${symbol} from watchlist` : `Add ${symbol} to watchlist`;
+      watchItem.textContent = onList ? t('menu.removeWatch', { symbol }) : t('menu.addWatch', { symbol });
     }
     const settingsItem = menu.querySelector<HTMLElement>('[data-chart-menu="settings"]');
     if (settingsItem) settingsItem.hidden = !handlers.canOpenSettings?.();
@@ -86,7 +88,7 @@ export function initChartMenu(
     else if (action === 'add-alert' && lastPrice !== null) handlers.addAlert(lastPrice);
     else if (action === 'remove') handlers.removeDrawing?.();
     else if (action === 'clear-drawings') {
-      if (window.confirm('Remove all drawings from this chart?')) handlers.clearDrawings();
+      if (window.confirm(t('menu.confirmRemoveAll'))) handlers.clearDrawings();
     } else if (action === 'export') handlers.exportDrawings?.();
     else if (action === 'import') handlers.importDrawings?.();
     else if (action === 'extend') handlers.extendFib?.();

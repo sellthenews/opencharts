@@ -2,6 +2,7 @@
 // Copyright (C) 2026 OpenCharts contributors
 
 import type { Tool } from './drawings-types';
+import { onLangChange, t } from './i18n';
 
 export const TOOL_ICONS: Record<string, string> = {
   "cursor": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M3.2 1.8 4.1 13.2l3.1-3.2 3.6 4.4 1.8-1.5-3.6-4.3 4.5-.4z\"/></svg>",
@@ -64,10 +65,31 @@ export interface ToolDef {
   section?: string;
 }
 
+function groupLabel(id: string): string {
+  return t(id === 'shapes' ? 'group.icons' : `group.${id}`);
+}
+
+const SECTION_KEY: Record<string, string> = {
+  LINES: 'section.lines',
+  CHANNELS: 'section.channels',
+  FIBONACCI: 'section.fibonacci',
+  GANN: 'section.gann',
+  PATTERNS: 'section.patterns',
+  ELLIOTT: 'section.elliott',
+  FORECASTING: 'section.forecasting',
+  MEASURERS: 'section.measurers',
+  TEXT: 'section.text',
+  SHAPES: 'section.shapes',
+};
+
 export function toolTooltip(id: string): string {
   const def = (TOOL_DEFS as Record<string, ToolDef | undefined>)[id];
   if (!def) return '';
-  return def.shortcut ? `${def.name} (${def.shortcut})` : def.title;
+  const name = t(`tool.${id}`);
+  if (def.shortcut) return `${name} (${def.shortcut})`;
+  const hintKey = `tool.${id}.hint`;
+  const hint = t(hintKey);
+  return hint && hint !== hintKey ? `${name} — ${hint}` : name;
 }
 
 export interface RailGroup {
@@ -365,10 +387,10 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
       const idAttr = g.id === 'cursor' ? ' id="cursor-tool"' : '';
       const activeCls = active === tool || (g.id === 'cursor' && active === 'cursor') ? ' is-active' : '';
       return `<div class="rail-slot">
-        <button type="button" class="rail-btn${activeCls}" data-rail-group="${g.id}" data-tool="${tool}"${idAttr} title="${toolTooltip(tool)}" aria-label="${g.label}">
+        <button type="button" class="rail-btn${activeCls}" data-rail-group="${g.id}" data-tool="${tool}"${idAttr} title="${toolTooltip(tool)}" aria-label="${groupLabel(g.id)}">
           <span class="rail-icon">${icon(tool)}</span>
         </button>
-        <button type="button" class="rail-caret" data-rail-caret="${g.id}" title="${g.label} menu" aria-label="Open ${g.label} menu" aria-expanded="${openMenu === g.id ? 'true' : 'false'}"></button>
+        <button type="button" class="rail-caret" data-rail-caret="${g.id}" title="${t('rail.groupMenu', { name: groupLabel(g.id) })}" aria-label="${t('rail.openGroupMenu', { name: groupLabel(g.id) })}" aria-expanded="${openMenu === g.id ? 'true' : 'false'}"></button>
       </div>`;
     }).join('');
 
@@ -382,19 +404,19 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
       <div class="rail-spacer"></div>
       <div class="rail-bottom">
         <div class="rail-slot">
-          <button type="button" class="rail-btn${measureActive}" data-rail-action="measure" data-tool="datepricerange" title="Measure — date and price range" aria-label="Measure"><span class="rail-icon">${icon('measure')}</span></button>
+          <button type="button" class="rail-btn${measureActive}" data-rail-action="measure" data-tool="datepricerange" title="${t('rail.measureTitle')}" aria-label="${t('rail.measure')}"><span class="rail-icon">${icon('measure')}</span></button>
         </div>
         <div class="rail-slot">
-          <button type="button" class="rail-btn" data-rail-action="zoom" title="Zoom" aria-label="Zoom"><span class="rail-icon">${icon('zoom')}</span></button>
-          <button type="button" class="rail-caret" data-rail-caret="zoom" title="Zoom menu" aria-label="Open zoom menu"></button>
+          <button type="button" class="rail-btn" data-rail-action="zoom" title="${t('rail.zoom')}" aria-label="${t('rail.zoom')}"><span class="rail-icon">${icon('zoom')}</span></button>
+          <button type="button" class="rail-caret" data-rail-caret="zoom" title="${t('rail.zoomMenu')}" aria-label="${t('rail.openZoomMenu')}"></button>
         </div>
         <div class="rail-slot">
-          <button type="button" class="rail-btn${magnetActive}" id="magnet-btn" data-rail-action="magnet" title="Magnet — snap to OHLC (Ctrl)" aria-label="Magnet" aria-pressed="${opts.getMagnet() ? 'true' : 'false'}"><span class="rail-icon">${icon('magnet')}</span></button>
-          <button type="button" class="rail-caret" data-rail-caret="magnet" title="Magnet modes" aria-label="Magnet modes"></button>
+          <button type="button" class="rail-btn${magnetActive}" id="magnet-btn" data-rail-action="magnet" title="${t('rail.magnetTitle')}" aria-label="${t('rail.magnet')}" aria-pressed="${opts.getMagnet() ? 'true' : 'false'}"><span class="rail-icon">${icon('magnet')}</span></button>
+          <button type="button" class="rail-caret" data-rail-caret="magnet" title="${t('rail.magnetModes')}" aria-label="${t('rail.magnetModes')}"></button>
         </div>
-        <button type="button" class="rail-btn${lockActive}" data-rail-action="lock" title="Lock all drawings" aria-label="Lock all drawings" aria-pressed="${opts.isLockedAll() ? 'true' : 'false'}"><span class="rail-icon">${icon('lock')}</span></button>
-        <button type="button" class="rail-btn${hideActive}" data-rail-action="hide" title="Hide all drawings" aria-label="Hide all drawings" aria-pressed="${opts.isHidden() ? 'true' : 'false'}"><span class="rail-icon">${icon('hide')}</span></button>
-        <button type="button" class="rail-btn rail-danger" data-rail-action="trash" title="Remove all drawings" aria-label="Remove all drawings"><span class="rail-icon">${icon('trash')}</span></button>
+        <button type="button" class="rail-btn${lockActive}" data-rail-action="lock" title="${t('rail.lockAll')}" aria-label="${t('rail.lockAll')}" aria-pressed="${opts.isLockedAll() ? 'true' : 'false'}"><span class="rail-icon">${icon('lock')}</span></button>
+        <button type="button" class="rail-btn${hideActive}" data-rail-action="hide" title="${t('rail.hideAll')}" aria-label="${t('rail.hideAll')}" aria-pressed="${opts.isHidden() ? 'true' : 'false'}"><span class="rail-icon">${icon('hide')}</span></button>
+        <button type="button" class="rail-btn rail-danger" data-rail-action="trash" title="${t('rail.removeAll')}" aria-label="${t('rail.removeAll')}"><span class="rail-icon">${icon('trash')}</span></button>
       </div>`;
   }
 
@@ -427,12 +449,11 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
     }
     const items = fav.tools
       .map((id) => {
-        const def = TOOL_DEFS[id];
         const cls = id === active ? ' is-active' : '';
-        return `<button type="button" class="fav-btn${cls}" data-tool="${id}" title="${toolTooltip(id)}" aria-label="${def.name}">${icon(id)}</button>`;
+        return `<button type="button" class="fav-btn${cls}" data-tool="${id}" title="${toolTooltip(id)}" aria-label="${t(`tool.${id}`)}">${icon(id)}</button>`;
       })
       .join('');
-    opts.favBar.innerHTML = `<button type="button" class="fav-handle" id="fav-handle" title="Drag favorites bar" aria-label="Drag favorites bar">
+    opts.favBar.innerHTML = `<button type="button" class="fav-handle" id="fav-handle" title="${t('rail.favDrag')}" aria-label="${t('rail.favDrag')}">
         <span></span><span></span><span></span><span></span><span></span><span></span>
       </button><div class="fav-items">${items}</div>`;
     if (!favPlaced) requestAnimationFrame(() => centerFavIfNeeded());
@@ -461,7 +482,7 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
 
   function starBtn(tool: Tool): string {
     const on = fav.tools.includes(tool);
-    return `<button type="button" class="star-btn${on ? ' is-on' : ''}" data-star="${tool}" title="${on ? 'Remove from favorites' : 'Add to favorites'}" aria-pressed="${on ? 'true' : 'false'}" aria-label="${on ? 'Remove from favorites' : 'Add to favorites'}">${STAR}</button>`;
+    return `<button type="button" class="star-btn${on ? ' is-on' : ''}" data-star="${tool}" title="${on ? t('rail.removeFav') : t('rail.addFav')}" aria-pressed="${on ? 'true' : 'false'}" aria-label="${on ? t('rail.removeFav') : t('rail.addFav')}">${STAR}</button>`;
   }
 
   function openGroupMenu(groupId: string, anchor: HTMLElement): void {
@@ -470,20 +491,19 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
     openMenu = groupId;
     if (groupId === 'cursor') {
       const mode = opts.getCursorMode();
-      opts.flyout.innerHTML = `<div class="fly-section"><div class="fly-h">CURSOR</div>
-        <button type="button" class="fly-row${mode === 'cross' ? ' is-active' : ''}" data-cursor-mode="cross"><span class="fly-ico">${icon('cursor')}</span><span class="fly-name">Cross</span></button>
-        <button type="button" class="fly-row${mode === 'dot' ? ' is-active' : ''}" data-cursor-mode="dot"><span class="fly-ico">${icon('cursor')}</span><span class="fly-name">Dot</span></button>
-        <button type="button" class="fly-row${mode === 'arrow' ? ' is-active' : ''}" data-cursor-mode="arrow"><span class="fly-ico">${icon('cursor')}</span><span class="fly-name">Arrow</span></button>
+      opts.flyout.innerHTML = `<div class="fly-section"><div class="fly-h">${t('group.cursor')}</div>
+        <button type="button" class="fly-row${mode === 'cross' ? ' is-active' : ''}" data-cursor-mode="cross"><span class="fly-ico">${icon('cursor')}</span><span class="fly-name">${t('rail.cross')}</span></button>
+        <button type="button" class="fly-row${mode === 'dot' ? ' is-active' : ''}" data-cursor-mode="dot"><span class="fly-ico">${icon('cursor')}</span><span class="fly-name">${t('rail.dot')}</span></button>
+        <button type="button" class="fly-row${mode === 'arrow' ? ' is-active' : ''}" data-cursor-mode="arrow"><span class="fly-ico">${icon('cursor')}</span><span class="fly-name">${t('rail.arrow')}</span></button>
       </div>`;
     } else {
       opts.flyout.innerHTML = g.sections
         .map((sec, i) => {
-          const head = sec.title ? `<div class="fly-h">${sec.title}</div>` : i === 0 ? '' : `<div class="fly-h"></div>`;
+          const head = sec.title ? `<div class="fly-h">${t(SECTION_KEY[sec.title] ?? sec.title)}</div>` : i === 0 ? '' : `<div class="fly-h"></div>`;
           const rows = sec.tools
             .map((id) => {
-              const def = TOOL_DEFS[id];
               return `<div class="fly-row${id === active ? ' is-active' : ''}" role="menuitem" data-tool="${id}" title="${toolTooltip(id)}">
-                <span class="fly-ico">${icon(id)}</span><span class="fly-name">${def.name}</span>${starBtn(id)}
+                <span class="fly-ico">${icon(id)}</span><span class="fly-name">${t(`tool.${id}`)}</span>${starBtn(id)}
               </div>`;
             })
             .join('');
@@ -500,16 +520,16 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
   function openActionMenu(kind: 'zoom' | 'magnet', anchor: HTMLElement): void {
     openMenu = kind;
     if (kind === 'zoom') {
-      opts.flyout.innerHTML = `<div class="fly-section"><div class="fly-h">ZOOM</div>
-        <button type="button" class="fly-row" data-rail-cmd="zoom-in"><span class="fly-name">Zoom in</span></button>
-        <button type="button" class="fly-row" data-rail-cmd="zoom-out"><span class="fly-name">Zoom out</span></button>
-        <button type="button" class="fly-row" data-rail-cmd="fit"><span class="fly-name">Fit chart</span></button>
+      opts.flyout.innerHTML = `<div class="fly-section"><div class="fly-h">${t('rail.zoom')}</div>
+        <button type="button" class="fly-row" data-rail-cmd="zoom-in"><span class="fly-name">${t('rail.zoomIn')}</span></button>
+        <button type="button" class="fly-row" data-rail-cmd="zoom-out"><span class="fly-name">${t('rail.zoomOut')}</span></button>
+        <button type="button" class="fly-row" data-rail-cmd="fit"><span class="fly-name">${t('rail.fit')}</span></button>
       </div>`;
     } else {
       const on = opts.getMagnet();
-      opts.flyout.innerHTML = `<div class="fly-section"><div class="fly-h">MAGNET</div>
-        <button type="button" class="fly-row${on ? '' : ' is-active'}" data-rail-cmd="magnet-off"><span class="fly-name">Magnet off</span></button>
-        <button type="button" class="fly-row${on ? ' is-active' : ''}" data-rail-cmd="magnet-on"><span class="fly-name">Snap to OHLC</span></button>
+      opts.flyout.innerHTML = `<div class="fly-section"><div class="fly-h">${t('rail.magnet')}</div>
+        <button type="button" class="fly-row${on ? '' : ' is-active'}" data-rail-cmd="magnet-off"><span class="fly-name">${t('rail.magnetOff')}</span></button>
+        <button type="button" class="fly-row${on ? ' is-active' : ''}" data-rail-cmd="magnet-on"><span class="fly-name">${t('rail.magnetOn')}</span></button>
       </div>`;
     }
     placeFlyout(anchor);
@@ -680,6 +700,16 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
 
   renderRail();
   renderFav();
+  onLangChange(() => {
+    renderRail();
+    renderFav();
+    if (openMenu) {
+      const caret = opts.rail.querySelector<HTMLElement>(`[data-rail-caret="${openMenu}"]`);
+      if (!caret) return;
+      if (openMenu === 'zoom' || openMenu === 'magnet') openActionMenu(openMenu, caret);
+      else openGroupMenu(openMenu, caret);
+    }
+  });
 
   return {
     setActive,

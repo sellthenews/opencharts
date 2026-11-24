@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
+import { onLangChange, t } from './i18n';
+
 import type { FibOptions, FibToolKind } from './fib-settings';
 import {
   builtInOf,
@@ -78,10 +80,10 @@ export function initFibDialog(
       .map((level, i) => {
         const val = formatFibLevel(level.value);
         return `<div class="fib-level-row" data-index="${i}">
-          <input type="checkbox" class="fib-level-on" ${level.visible ? 'checked' : ''} aria-label="Show level ${val}" />
-          <input type="number" class="fib-level-value" step="any" value="${val}" aria-label="Level value" />
-          <input type="color" class="fib-level-color" value="${level.color}" aria-label="Level color" />
-          <button type="button" class="fib-level-remove" data-remove="${i}" title="Remove level" aria-label="Remove level">×</button>
+          <input type="checkbox" class="fib-level-on" ${level.visible ? 'checked' : ''} aria-label="${t('fib.showLevel', { n: val })}" />
+          <input type="number" class="fib-level-value" step="any" value="${val}" aria-label="${t('fib.levelValue')}" />
+          <input type="color" class="fib-level-color" value="${level.color}" aria-label="${t('fib.levelColor')}" />
+          <button type="button" class="fib-level-remove" data-remove="${i}" title="${t('fib.removeLevel')}" aria-label="${t('fib.removeLevel')}">×</button>
         </div>`;
       })
       .join('');
@@ -107,7 +109,7 @@ export function initFibDialog(
 
   function open(opts: FibOptions, nextKind: FibToolKind = 'fib'): void {
     kind = nextKind;
-    title.textContent = kind === 'fibext' ? 'Trend-Based Fib Extension' : 'Fib Retracement';
+    title.textContent = kind === 'fibext' ? t('fib.extTitle') : t('fib.title');
     snapshot = cloneFibOptions(sanitizeFibOptions(opts, builtInOf(kind)));
     savedNote.textContent = '';
     fillForm(snapshot);
@@ -161,7 +163,7 @@ export function initFibDialog(
     readForm();
     if (kind === 'fibext') saveFibExtDefaults(current);
     else saveFibDefaults(current);
-    savedNote.textContent = 'Saved as default for new drawings.';
+    savedNote.textContent = t('fib.saved');
     handlers.onStatus?.(kind === 'fibext' ? 'Saved Fib extension defaults for new drawings.' : 'Saved Fib defaults for new drawings.');
   });
 
@@ -181,6 +183,12 @@ export function initFibDialog(
       ev.preventDefault();
       close(true);
     }
+  });
+
+  onLangChange(() => {
+    if (root.hidden) return;
+    title.textContent = kind === 'fibext' ? t('fib.extTitle') : t('fib.title');
+    renderLevels();
   });
 
   return { open, close, isOpen: () => !root.hidden };

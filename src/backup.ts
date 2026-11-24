@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
+import { t } from './i18n';
+
 import { STORAGE_PREFIX } from './storage';
 
 export const BACKUP_FORMAT = 'opencharts-backup';
@@ -42,32 +44,32 @@ export function buildBackup(store: Storage = localStorage, at = new Date()): Ope
 }
 
 export function parseBackup(raw: string): { ok: true; backup: OpenChartsBackup } | { ok: false; error: string } {
-  if (raw.length > MAX_BYTES) return { ok: false, error: 'This backup file is too large to import.' };
+  if (raw.length > MAX_BYTES) return { ok: false, error: t('status.backupTooLarge') };
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return { ok: false, error: 'This file is not valid JSON.' };
+    return { ok: false, error: t('status.backupNotJson') };
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    return { ok: false, error: 'This is not a valid OpenCharts backup file.' };
+    return { ok: false, error: t('status.backupInvalid') };
   }
   const obj = parsed as Record<string, unknown>;
-  if (obj.format !== BACKUP_FORMAT) return { ok: false, error: 'This is not an OpenCharts backup file.' };
-  if (obj.version !== BACKUP_VERSION) return { ok: false, error: 'This backup version is not supported.' };
+  if (obj.format !== BACKUP_FORMAT) return { ok: false, error: t('status.backupNotOpencharts') };
+  if (obj.version !== BACKUP_VERSION) return { ok: false, error: t('status.backupVersion') };
   if (typeof obj.exportedAt !== 'string' || !obj.exportedAt) {
-    return { ok: false, error: 'This backup file is missing an export date.' };
+    return { ok: false, error: t('status.backupNoDate') };
   }
   if (!obj.data || typeof obj.data !== 'object' || Array.isArray(obj.data)) {
-    return { ok: false, error: 'This backup file is missing settings data.' };
+    return { ok: false, error: t('status.backupNoData') };
   }
   const data: Record<string, string> = {};
   for (const [key, value] of Object.entries(obj.data as Record<string, unknown>)) {
     if (!key.startsWith(STORAGE_PREFIX)) {
-      return { ok: false, error: 'This backup contains unexpected keys and was not imported.' };
+      return { ok: false, error: t('status.backupBadKeys') };
     }
     if (typeof value !== 'string') {
-      return { ok: false, error: 'This backup file has invalid values and was not imported.' };
+      return { ok: false, error: t('status.backupBadValues') };
     }
     data[key] = value;
   }
@@ -118,7 +120,7 @@ export function initBackupUi(opts: { setStatus: (text: string, error?: boolean) 
     try {
       applyBackup(pending.data, mode);
     } catch {
-      opts.setStatus('Could not write the imported settings.', true);
+      opts.setStatus(t('status.backupWriteFailed'), true);
       closeModal();
       return;
     }
@@ -143,7 +145,7 @@ export function initBackupUi(opts: { setStatus: (text: string, error?: boolean) 
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    opts.setStatus('Settings exported.');
+    opts.setStatus(t('status.settingsExported'));
   });
 
   importBtn.addEventListener('click', () => {
@@ -156,7 +158,7 @@ export function initBackupUi(opts: { setStatus: (text: string, error?: boolean) 
     fileInput.value = '';
     if (!file) return;
     if (file.size > MAX_BYTES) {
-      opts.setStatus('This backup file is too large to import.', true);
+      opts.setStatus(t('status.backupTooLarge'), true);
       return;
     }
     const raw = await file.text();

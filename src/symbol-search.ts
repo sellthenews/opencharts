@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
+import { onLangChange, t } from './i18n';
+
 import { STOCKS_PROXY_UNCONFIGURED, getStocksProxyUrl } from './config';
 import {
   type CategoryFilter,
@@ -68,7 +70,7 @@ export function initSymbolSearch(opts: {
     mode = 'chart';
     opts.modal.hidden = true;
     const title = opts.modal.querySelector('#sym-modal-title');
-    if (title) title.textContent = 'Search symbol';
+    if (title) title.textContent = t('sym.title');
   }
 
   function moveActive(delta: number): void {
@@ -199,7 +201,7 @@ export function initSymbolSearch(opts: {
     mode = nextMode;
     opts.modal.hidden = false;
     const title = opts.modal.querySelector('#sym-modal-title');
-    if (title) title.textContent = nextMode === 'add' ? 'Add to watchlist' : 'Search symbol';
+    if (title) title.textContent = nextMode === 'add' ? t('sym.addToWatch') : t('sym.title');
     if (query !== undefined) opts.input.value = query;
     active = 0;
     render();
@@ -286,6 +288,12 @@ export function initSymbolSearch(opts: {
     show(ev.key);
   });
 
+
+  onLangChange(() => {
+    if (!open) return;
+    const title = opts.modal.querySelector('#sym-modal-title');
+    if (title) title.textContent = mode === 'add' ? t('sym.addToWatch') : t('sym.title');
+  });
   return { open: show, close, setCurrent, ready };
 }
 

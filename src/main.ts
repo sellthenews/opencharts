@@ -46,6 +46,7 @@ import { initComparePanel } from './compare';
 import { loadAllSymbols } from './sources/catalog';
 import type { SymbolInfo } from './sources/catalog';
 import type { Tool } from './drawings-types';
+import { formatDate, formatNumber, initLang, localeOf, onLangChange, t } from './i18n';
 
 const DEFAULT_SOURCE = 'kraken';
 const DEFAULT_PAIR: PairId = 'XRPUSD';
@@ -69,9 +70,11 @@ function applyTheme(name: ThemeName): void {
   localStorage.setItem(THEME_KEY, name);
   persistLayout();
   const btn = document.querySelector<HTMLButtonElement>('#theme-btn');
-  if (btn) btn.textContent = name === 'light' ? 'Dark theme' : 'Light theme';
+  if (btn) btn.textContent = name === 'light' ? t('toolbar.darkTheme') : t('toolbar.lightTheme');
 }
 
+
+initLang();
 
 const appEl = document.querySelector<HTMLDivElement>('#app')!;
 appEl.dataset.sidebar = localStorage.getItem(SIDEBAR_KEY) !== 'off' ? 'on' : 'off';
@@ -126,7 +129,7 @@ let editingAlertId: string | null = null;
 function renderAlerts(): void {
   if (!alertListEl) return;
   if (!alerts.length) {
-    alertListEl.innerHTML = '<p class="watch-empty">No alerts.</p>';
+    alertListEl.innerHTML = `<p class="watch-empty">${t('alerts.none')}</p>`;
     return;
   }
   alertListEl.innerHTML = alerts
@@ -136,8 +139,8 @@ function renderAlerts(): void {
       return `<div class="alert-item${fired}" data-alert-id="${a.id}">
         <span>${alertLabel(a, src?.name ?? a.sourceId)}</span>
         <span class="alert-item-actions">
-          <button type="button" data-alert-edit="${a.id}" title="Edit alert">Edit</button>
-          <button type="button" data-alert-del="${a.id}" title="Remove alert">×</button>
+          <button type="button" data-alert-edit="${a.id}" title="${t('alerts.editTitle')}">${t('alerts.edit')}</button>
+          <button type="button" data-alert-del="${a.id}" title="${t('alerts.removeTitle')}">×</button>
         </span>
       </div>`;
     })
@@ -193,7 +196,7 @@ function evaluateAlerts(source: string, pair: PairId, last: number): void {
     a.enabled = false;
     changed = true;
     const src = getSource(a.sourceId);
-    const label = `Alert: ${alertLabel(a, src?.name ?? a.sourceId)}`;
+    const label = t('alerts.toast', { label: alertLabel(a, src?.name ?? a.sourceId) });
     showAlertToast(label);
     setStatus(label);
     notifyAlert('OpenCharts alert', label);
@@ -220,7 +223,7 @@ const chart: IChartApi = createChart(chartEl, {
   autoSize: true,
   ...themeChartOptions(theme === 'light'),
   ...interactionOptions(),
-  localization: { locale: 'en-US' },
+  localization: { locale: localeOf() },
 });
 
 const series: ISeriesApi<'Candlestick'> = chart.addSeries(CandlestickSeries, candleSeriesOptions());
@@ -285,7 +288,7 @@ function undoEditor(): boolean {
   const snap = editorHistory.undo();
   if (!snap) return false;
   applySnap(snap);
-  setStatus('Undo');
+  setStatus(t('status.undo'));
   return true;
 }
 
@@ -293,7 +296,7 @@ function redoEditor(): boolean {
   const snap = editorHistory.redo();
   if (!snap) return false;
   applySnap(snap);
-  setStatus('Redo');
+  setStatus(t('status.redo'));
   return true;
 }
 
@@ -308,7 +311,30 @@ function setChartInterval(id: IntervalId): void {
   intervalId = id;
   persistLayout();
   fillIntervals();
-  void loadChart();
+  
+function refreshLangChrome(): void {
+  applyTheme(theme);
+  const liveEl = document.querySelector<HTMLElement>('#live-status');
+  const live = (liveEl?.dataset.live ?? appEl.dataset.live ?? 'off') as LiveStatus;
+  setLiveStatus(live);
+  chart.applyOptions({ localization: { locale: localeOf() } });
+  document.querySelectorAll<HTMLOptionElement>('#draw-width option').forEach((opt) => {
+    opt.textContent = t('draw.px', { n: opt.value });
+  });
+  placeDrawBar();
+  renderAlerts();
+  const submit = alertForm?.querySelector<HTMLButtonElement>('[type="submit"]');
+  if (submit) submit.textContent = editingAlertId ? t('alerts.save') : t('alerts.add');
+  if (lastCandles.length) {
+    const src = currentSource();
+    const aggregated = !src.nativeIntervals.includes(intervalId);
+    setStatus(describeCandles(src.name, formatPairLabel(sourceId, pairId), lastCandles, aggregated));
+  }
+}
+
+onLangChange(() => refreshLangChrome());
+
+void loadChart();
 }
 
 drawings.setOnPersist(() => recordHistory());
@@ -360,7 +386,7 @@ indicators.setOnPaneResize((stretches) => {
 });
 
 function isoDate(ts: number): string {
-  return new Date(ts * 1000).toISOString().slice(0, 10);
+  return formatDate(ts);
 }
 
 function priceFormatFor(price: number): { type: 'price'; precision: number; minMove: number } {
@@ -472,7 +498,7 @@ alertForm?.addEventListener('submit', (ev) => {
   const input = document.querySelector<HTMLInputElement>('#alert-price');
   if (input) input.value = '';
   const submit = alertForm.querySelector('button[type="submit"]');
-  if (submit) submit.textContent = 'Add';
+  if (submit) submit.textContent = t('alerts.add');
 });
 
 alertListEl?.addEventListener('click', (ev) => {
@@ -498,7 +524,7 @@ alertListEl?.addEventListener('click', (ev) => {
               : 'price';
     }
     const submit = alertForm?.querySelector('button[type="submit"]');
-    if (submit) submit.textContent = 'Save';
+    if (submit) submit.textContent = t('alerts.save');
     priceEl?.focus();
     return;
   }
@@ -515,10 +541,10 @@ document.querySelector('#alert-notify-btn')?.addEventListener('click', () => {
   requestAlertPermission();
   setStatus(
     typeof Notification === 'undefined'
-      ? 'Notifications are not available in this browser.'
+      ? t('status.notificationsUnavailable')
       : Notification.permission === 'denied'
-        ? 'Notifications are blocked in the browser settings.'
-        : 'Notifications enabled. Alerts work while this tab is open.',
+        ? t('status.notificationsBlocked')
+        : t('status.notificationsEnabled'),
   );
 });
 
@@ -578,10 +604,10 @@ function syncIndicatorContext(): void {
 function onIndicatorAdded(item: IndicatorInstance): void {
   if (item.kind === 'vwapAnchor' && item.params.anchor == null) {
     pendingAnchorId = item.id;
-    setStatus('Click the chart to set the VWAP anchor.');
+    setStatus(t('status.clickVwapAnchor'));
   } else if (item.kind === 'vpfr' && (item.params.anchor == null || item.params.end == null)) {
     pendingVpfr = { id: item.id, step: 0 };
-    setStatus('Click the chart to set the start of the fixed range.');
+    setStatus(t('status.clickVpfrStart'));
   }
 }
 
@@ -731,7 +757,7 @@ function setLiveStatus(status: LiveStatus): void {
   const el = document.querySelector<HTMLElement>('#live-status');
   if (el) {
     el.dataset.live = status;
-    el.textContent = status === 'live' ? 'Live' : status === 'connecting' ? 'Connecting…' : 'Offline';
+    el.textContent = status === 'live' ? t('toolbar.live') : status === 'connecting' ? t('toolbar.connecting') : t('toolbar.offline');
   }
   appEl.dataset.live = status;
 }
@@ -769,7 +795,7 @@ function syncLiveChart(): void {
 function describeCandles(srcName: string, pairLabel: string, candles: Candle[], aggregated: boolean): string {
   const first = isoDate(candles[0]!.time);
   const last = isoDate(candles[candles.length - 1]!.time);
-  return `${srcName} · ${pairLabel} · ${intervalId}${aggregated ? ' · aggregated' : ''} · ${candles.length} candles · ${first} – ${last}`;
+  return t('status.candles', { source: srcName, pair: pairLabel, interval: intervalId, extra: aggregated ? t('status.aggregated') : '', count: formatNumber(candles.length), first, last });
 }
 
 async function loadChart(): Promise<void> {
@@ -790,7 +816,7 @@ async function loadChart(): Promise<void> {
   } else {
     setChartLoading('full');
     if (!hadData) setReady(false);
-    setStatus(`Loading ${src.name} · ${pairLabel} · ${intervalId}…`);
+    setStatus(t('status.loadingChart', { source: src.name, pair: pairLabel, interval: intervalId }));
   }
 
   try {
@@ -864,7 +890,7 @@ importFile.addEventListener('change', async () => {
     drawings.importJson(await file.text());
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    setStatus(`Drawing import failed: ${message}`, true);
+    setStatus(t('status.drawingImportFailed', { message }), true);
   }
 });
 
@@ -872,10 +898,10 @@ function extendSelectedFib(): void {
   const d = drawings.getSelected();
   if (drawings.toggleExtendRight()) {
     const on = d?.type === 'fib' ? (d.fib?.extendLines ?? true) : d?.type === 'fibext' ? (d as { extendRight?: boolean }).extendRight : true;
-    setStatus(on ? 'Extended Fib lines to the right.' : 'Fib lines no longer extend to the right.');
+    setStatus(on ? t('status.fibExtended') : t('status.fibNotExtended'));
     return;
   }
-  setStatus('Select a Fib retracement or trend-based Fib extension, then click Extend right.');
+  setStatus(t('status.selectFibExtend'));
 }
 
 fillSources();
@@ -894,7 +920,7 @@ symbolSearch = initSymbolSearch({
   onAdd: (src, pair) => {
     const added = watchlist.addItem(src, pair);
     const label = formatPairLabel(src, pair);
-    setStatus(added ? `Added ${label} to the watchlist.` : `${label} is already on the watchlist.`);
+    setStatus(added ? t('status.addedWatch', { name: label }) : t('status.alreadyWatch', { name: label }));
   },
 });
 symbolSearch.setCurrent(sourceId, pairId);
@@ -993,7 +1019,7 @@ chart.subscribeClick((param) => {
       item.id === id ? { ...item, params: { ...item.params, anchor: time } } : item,
     );
     persistIndicators(indicatorItems);
-    setStatus('Anchored VWAP start set.');
+    setStatus(t('status.vwapSet'));
     return;
   }
   if (pendingVpfr) {
@@ -1004,7 +1030,7 @@ chart.subscribeClick((param) => {
       );
       pendingVpfr = { id, step: 1 };
       persistIndicators(indicatorItems);
-      setStatus('Click the chart to set the end of the fixed range.');
+      setStatus(t('status.clickVpfrEnd'));
       return;
     }
     pendingVpfr = null;
@@ -1012,7 +1038,7 @@ chart.subscribeClick((param) => {
       item.id === id ? { ...item, params: { ...item.params, end: time } } : item,
     );
     persistIndicators(indicatorItems);
-    setStatus('Fixed range volume profile set.');
+    setStatus(t('status.vpfrSet'));
   }
 });
 
@@ -1147,13 +1173,13 @@ initChartMenu(
       chart.timeScale().fitContent();
       chart.timeScale().scrollToRealTime();
       series.priceScale().applyOptions({ autoScale: true });
-      setStatus('Chart view reset.');
+      setStatus(t('status.chartReset'));
     },
     copyPrice: (price) => {
       const text = String(price);
       void navigator.clipboard?.writeText(text).then(
-        () => setStatus(`Copied price ${text}`),
-        () => setStatus(`Could not copy price ${text}`, true),
+        () => setStatus(t('status.copiedPrice', { price: text })),
+        () => setStatus(t('status.couldNotCopy', { price: text }), true),
       );
     },
     addAlert: (price) => {
@@ -1162,7 +1188,7 @@ initChartMenu(
       const last = lastCandles[lastCandles.length - 1]?.close;
       if (selected?.type === 'hline') {
         alerts.push(createAlert(sourceId, pairId, selected.price, 'cross', { kind: 'hline', drawingId: selected.id }));
-        setStatus(`Added alert on horizontal line at ${selected.price}`);
+        setStatus(t('status.alertHline', { price: selected.price }));
       } else if (selected?.type === 'trend') {
         alerts.push(
           createAlert(sourceId, pairId, selected.p2.price, 'cross', {
@@ -1172,11 +1198,11 @@ initChartMenu(
             p2: selected.p2,
           }),
         );
-        setStatus('Added alert on trend line cross');
+        setStatus(t('status.alertTrend'));
       } else {
         const direction = last !== undefined && price < last ? 'below' : 'above';
         alerts.push(createAlert(sourceId, pairId, price, direction));
-        setStatus(`Added alert at ${price}`);
+        setStatus(t('status.alertAt', { price }));
       }
       saveAlerts(alerts);
       renderAlerts();
@@ -1191,7 +1217,7 @@ initChartMenu(
     },
     clearDrawings: () => {
       drawings.clearAll();
-      setStatus('Removed all drawings.');
+      setStatus(t('status.removedAll'));
     },
     exportDrawings: () => exportDrawingsFile(),
     importDrawings: () => importFile.click(),
@@ -1203,7 +1229,7 @@ initChartMenu(
     openSettings: () => openFibSettings(),
     canRemove: () => drawings.getSelected() !== null,
     removeDrawing: () => {
-      if (drawings.deleteSelected()) setStatus('Removed drawing.');
+      if (drawings.deleteSelected()) setStatus(t('status.removedDrawing'));
     },
     watchlistLabel: () => formatPairLabel(sourceId, pairId),
     isOnWatchlist: () => watchlist.hasItem(sourceId, pairId),
@@ -1211,10 +1237,10 @@ initChartMenu(
       const label = formatPairLabel(sourceId, pairId);
       if (watchlist.hasItem(sourceId, pairId)) {
         watchlist.removeItem(sourceId, pairId);
-        setStatus(`Removed ${label} from the watchlist.`);
+        setStatus(t('status.removedWatch', { name: label }));
       } else {
         watchlist.addItem(sourceId, pairId);
-        setStatus(`Added ${label} to the watchlist.`);
+        setStatus(t('status.addedWatch', { name: label }));
       }
     },
   },
@@ -1311,7 +1337,11 @@ function placeDrawBar(): void {
   if (drawColor) drawColor.value = color.length === 7 ? color : '#5b9cf6';
   if (drawWidth) drawWidth.value = String(d.style?.width ?? 1);
   if (drawLineStyle) drawLineStyle.value = d.style?.lineStyle ?? 'solid';
-  if (drawLock) drawLock.textContent = d.style?.locked ? 'Unlock' : 'Lock';
+  if (drawLock) {
+    const locked = Boolean(d.style?.locked);
+    drawLock.textContent = locked ? t('draw.unlock') : t('draw.lock');
+    drawLock.title = drawLock.textContent;
+  }
   if (drawSettings) drawSettings.hidden = d.type !== 'fib' && d.type !== 'fibext';
   drawBar.style.left = '8px';
   drawBar.style.top = '8px';
@@ -1345,7 +1375,7 @@ openFibSettings = (): void => {
     fibDialog.open(fibExtOptionsOf(d), 'fibext');
     return;
   }
-  setStatus('Select a Fib retracement or trend-based Fib extension to edit its settings.');
+  setStatus(t('status.selectFibSettings'));
 };
 
 drawings.setOnEdit((d) => {
@@ -1376,9 +1406,9 @@ toolRail = initToolRail({
     toolRail?.refreshActions();
   },
   onClearAll: () => {
-    if (window.confirm('Remove all drawings from this chart?')) {
+    if (window.confirm(t('menu.confirmRemoveAll'))) {
       drawings.clearAll();
-      setStatus('Removed all drawings.');
+      setStatus(t('status.removedAll'));
     }
   },
   onZoomIn: () => {
@@ -1457,7 +1487,7 @@ if (intervalHint) {
     redo: () => redoEditor(),
     applyInterval: (id) => {
       setChartInterval(id);
-      setStatus(`Interval ${id}`);
+      setStatus(t('status.interval', { id }));
     },
   });
 }

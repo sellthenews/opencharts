@@ -1933,3 +1933,23 @@ html[data-theme="light"] #rail-flyout {
   width: 28px;
   padding: 6px 0;
 }
+
+
+#lang-select {
+  max-width: 11.5rem;
+  min-width: 7.5rem;
+}
+
+html[dir="rtl"] #charts,
+html[dir="rtl"] #chart-wrap,
+html[dir="rtl"] #chart,
+html[dir="rtl"] #draw-overlay,
+html[dir="rtl"] #vp-overlay,
+html[dir="rtl"] #fav-bar,
+html[dir="rtl"] #draw-bar,
+html[dir="rtl"] #ohlc-legend,
+html[dir="rtl"] #ind-labels,
+html[dir="rtl"] #compare-legend,
+html[dir="rtl"] #cursor-dot {
+  direction: ltr;
+}

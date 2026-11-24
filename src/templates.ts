@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
+import { onLangChange, t } from './i18n';
+
 import './storage';
 import type { DrawStyle } from './drawings-types';
 import type { FibOptions } from './fib-settings';
@@ -137,14 +139,14 @@ export function initTemplatesUi(opts: {
     if (!listEl) return;
     const items = loadTemplates();
     if (!items.length) {
-      listEl.innerHTML = '<p class="settings-templates-empty">No templates yet</p>';
+      listEl.innerHTML = `<p class="settings-templates-empty">${t('tpl.empty')}</p>`;
       return;
     }
     listEl.innerHTML = items
       .map(
-        (t) => `<div class="settings-template-row">
-          <button type="button" role="menuitem" data-template-load="${t.id}">${escapeHtml(t.name)}</button>
-          <button type="button" data-template-del="${t.id}" title="Delete template" aria-label="Delete ${escapeHtml(t.name)}">×</button>
+        (tpl) => `<div class="settings-template-row">
+          <button type="button" role="menuitem" data-template-load="${tpl.id}">${escapeHtml(tpl.name)}</button>
+          <button type="button" data-template-del="${tpl.id}" title="${t('tpl.delete')}" aria-label="${t('tpl.delete')} ${escapeHtml(tpl.name)}">×</button>
         </div>`,
       )
       .join('');
@@ -156,18 +158,18 @@ export function initTemplatesUi(opts: {
 
   saveBtn?.addEventListener('click', (ev) => {
     ev.stopPropagation();
-    const name = window.prompt('Template name', 'My template');
+    const name = window.prompt(t('status.templateName'), t('status.templateDefault'));
     if (name === null) return;
     const trimmed = name.trim();
     if (!trimmed) {
-      opts.setStatus('Enter a template name.', true);
+      opts.setStatus(t('status.enterTemplateName'), true);
       return;
     }
     const items = loadTemplates();
     items.push(snapshotTemplate(trimmed, opts.getIndicators(), opts.getPanes(), opts.getLineStyle()));
     saveTemplates(items);
     render();
-    opts.setStatus(`Saved template “${trimmed}”.`);
+    opts.setStatus(t('status.savedTemplate', { name: trimmed }));
   });
 
   listEl?.addEventListener('click', (ev) => {
@@ -178,10 +180,10 @@ export function initTemplatesUi(opts: {
       const items = loadTemplates();
       const hit = items.find((t) => t.id === id);
       if (!hit) return;
-      if (!window.confirm(`Delete template “${hit.name}”?`)) return;
+      if (!window.confirm(t('status.deleteTemplateConfirm', { name: hit.name }))) return;
       saveTemplates(items.filter((t) => t.id !== id));
       render();
-      opts.setStatus(`Deleted template “${hit.name}”.`);
+      opts.setStatus(t('status.deletedTemplate', { name: hit.name }));
       return;
     }
     const loadBtn = (ev.target as HTMLElement).closest<HTMLElement>('[data-template-load]');
@@ -192,10 +194,11 @@ export function initTemplatesUi(opts: {
     applyTemplateStyles(hit);
     opts.setLineStyle(hit.styles.line);
     opts.applyIndicators(cloneIndicators(hit.indicators), hit.panes);
-    opts.setStatus(`Loaded template “${hit.name}”.`);
+    opts.setStatus(t('status.loadedTemplate', { name: hit.name }));
   });
 
   document.querySelector('#settings-btn')?.addEventListener('click', () => render());
+  onLangChange(() => render());
   render();
   return { render };
 }

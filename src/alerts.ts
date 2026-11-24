@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
+import { t } from './i18n';
+
 import './storage';
 import type { PairId } from './sources';
 import { PAIR_LABELS } from './sources';
@@ -167,12 +169,12 @@ export function checkAlert(alert: PriceAlert, last: number, ctx?: AlertCheckCont
 
 export function alertLabel(alert: PriceAlert, sourceName: string): string {
   const pair = PAIR_LABELS[alert.pairId] ?? alert.pairId;
-  if (alert.kind === 'indicator' && alert.indicatorKind === 'macd') return `${pair} ${sourceName} · MACD crosses signal`;
-  if (alert.kind === 'indicator' && alert.indicatorKind === 'rsi') return `${pair} ${sourceName} · RSI crosses ${alert.price}`;
-  if (alert.kind === 'trend') return `${pair} ${sourceName} · trend line cross`;
-  if (alert.kind === 'hline') return `${pair} ${sourceName} · line ${alert.price}`;
+  if (alert.kind === 'indicator' && alert.indicatorKind === 'macd') return t('alerts.macdCross', { pair, source: sourceName });
+  if (alert.kind === 'indicator' && alert.indicatorKind === 'rsi') return t('alerts.rsiCross', { pair, source: sourceName, price: alert.price });
+  if (alert.kind === 'trend') return t('alerts.trendCross', { pair, source: sourceName });
+  if (alert.kind === 'hline') return t('alerts.hline', { pair, source: sourceName, price: alert.price });
   const dir = alert.direction === 'below' ? '≤' : '≥';
-  return `${pair} ${sourceName} ${dir} ${alert.price}`;
+  return t('alerts.priceDir', { pair, source: sourceName, dir, price: alert.price });
 }
 
 let audioCtx: AudioContext | null = null;

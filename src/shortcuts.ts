@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
+import { t } from './i18n';
+
 import type { IntervalId } from './sources';
 import { INTERVALS } from './sources';
 import type { Tool } from './drawings-types';
@@ -65,7 +67,7 @@ export function initShortcuts(opts: {
 
   function showHint(): void {
     opts.hint.hidden = buffer.length === 0;
-    opts.hint.textContent = buffer ? `Interval: ${buffer} (Enter)` : '';
+    opts.hint.textContent = buffer ? t('hint.interval', { buffer }) : '';
     if (hideTimer !== null) window.clearTimeout(hideTimer);
     if (buffer) {
       hideTimer = window.setTimeout(() => {

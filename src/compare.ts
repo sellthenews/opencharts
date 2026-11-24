@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
+import { t } from './i18n';
+
 import { LineSeries } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import type { Candle, IntervalId, PairId } from './sources';
@@ -154,7 +156,7 @@ export class CompareOverlay {
         const label = formatPairLabel(item.sourceId, item.pairId);
         return `<span class="compare-leg-item" data-compare-key="${this.keyOf(item)}">
           <i style="background:${item.color}"></i>${label} ${text}
-          <button type="button" data-compare-remove="${this.keyOf(item)}" title="Remove" aria-label="Remove ${label}">×</button>
+          <button type="button" data-compare-remove="${this.keyOf(item)}" title="${t('compare.remove')}" aria-label="${t('compare.removeTitle', { name: label })}">×</button>
         </span>`;
       })
       .join('');
@@ -202,7 +204,7 @@ export function initComparePanel(opts: {
         return `<div class="compare-list-row">
           <span class="compare-swatch" style="background:${item.color}"></span>
           <span>${label}</span>
-          <button type="button" data-compare-remove="${item.sourceId}:${item.pairId}" title="Remove" aria-label="Remove ${label}">×</button>
+          <button type="button" data-compare-remove="${item.sourceId}:${item.pairId}" title="${t('compare.remove')}" aria-label="${t('compare.removeTitle', { name: label })}">×</button>
         </div>`;
       })
       .join('');

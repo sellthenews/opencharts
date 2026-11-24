@@ -19,49 +19,53 @@
         <div class="brand" title="OpenCharts">OpenCharts</div>
 
         <label class="field">
-          <span>Exchange</span>
+          <span data-i18n="toolbar.exchange">Exchange</span>
           <select id="source" data-source></select>
         </label>
 
         <label class="field field-pair">
-          <span>Pair</span>
-          <button type="button" id="pair-btn" title="Search symbol (start typing)">XRP/USD</button>
+          <span data-i18n="toolbar.pair">Pair</span>
+          <button type="button" id="pair-btn" title="Search symbol (start typing)" data-i18n-title="toolbar.searchSymbol">XRP/USD</button>
           <select id="pair" data-pair class="visually-hidden" tabindex="-1" aria-hidden="true"></select>
         </label>
 
-        <div class="group" role="group" aria-label="Interval" id="intervals"></div>
-        <div class="group" id="layout-btns" role="group" aria-label="Chart layout">
-          <button type="button" data-panes="1" class="is-active" title="One chart">1</button>
-          <button type="button" data-panes="2" title="Two charts">2</button>
-          <button type="button" data-panes="4" title="Four charts">4</button>
+        <div class="group" role="group" aria-label="Interval" id="intervals" data-i18n-aria="toolbar.interval"></div>
+        <div class="group" id="layout-btns" role="group" aria-label="Chart layout" data-i18n-aria="toolbar.layout">
+          <button type="button" data-panes="1" class="is-active" title="One chart" data-i18n-title="toolbar.oneChart">1</button>
+          <button type="button" data-panes="2" title="Two charts" data-i18n-title="toolbar.twoCharts">2</button>
+          <button type="button" data-panes="4" title="Four charts" data-i18n-title="toolbar.fourCharts">4</button>
         </div>
-        <button type="button" id="ind-btn" title="Indicators">fx Indicators</button>
+        <button type="button" id="ind-btn" title="Indicators" data-i18n="toolbar.indicators" data-i18n-title="toolbar.indicatorsTitle">fx Indicators</button>
         <div class="compare-wrap">
-          <button type="button" id="compare-btn" title="Compare symbols in percent" aria-expanded="false" aria-controls="compare-pop">Compare</button>
+          <button type="button" id="compare-btn" title="Compare symbols in percent" data-i18n="toolbar.compare" data-i18n-title="toolbar.compareTitle" aria-expanded="false" aria-controls="compare-pop">Compare</button>
           <div id="compare-pop" hidden>
-            <input type="text" id="compare-search" placeholder="Add symbol" aria-label="Add symbol to compare" autocomplete="off" />
+            <input type="text" id="compare-search" placeholder="Add symbol" aria-label="Add symbol to compare" data-i18n-placeholder="toolbar.addSymbol" data-i18n-aria="toolbar.addSymbolCompare" autocomplete="off" />
             <div id="compare-results" class="compare-results"></div>
             <div id="compare-list" class="compare-list"></div>
           </div>
         </div>
-        <button type="button" id="sidebar-btn" aria-pressed="true" title="Watchlist and alerts panel">Panel</button>
-        <button type="button" id="theme-btn" title="Switch light/dark theme">Light theme</button>
+        <button type="button" id="sidebar-btn" aria-pressed="true" title="Watchlist and alerts panel" data-i18n="toolbar.panel" data-i18n-title="toolbar.panelTitle">Panel</button>
+        <button type="button" id="theme-btn" title="Switch light/dark theme" data-i18n-title="toolbar.themeTitle">Light theme</button>
         <div class="settings-wrap">
-          <button type="button" id="settings-btn" title="Settings" aria-label="Settings" aria-haspopup="menu" aria-expanded="false" aria-controls="settings-menu">
+          <button type="button" id="settings-btn" title="Settings" aria-label="Settings" data-i18n-title="toolbar.settings" data-i18n-aria="toolbar.settings" aria-haspopup="menu" aria-expanded="false" aria-controls="settings-menu">
             <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M6.5 1.2h3l.35 1.7c.42.16.81.39 1.16.67l1.65-.7 1.5 2.6-1.35 1.15c.08.4.12.8.12 1.22s-.04.82-.12 1.22l1.35 1.15-1.5 2.6-1.65-.7a5.3 5.3 0 0 1-1.16.67L9.5 14.8h-3l-.35-1.7a5.3 5.3 0 0 1-1.16-.67l-1.65.7-1.5-2.6 1.35-1.15A5.4 5.4 0 0 1 3 8.94c0-.42.04-.82.12-1.22L1.77 6.57l1.5-2.6 1.65.7c.35-.28.74-.51 1.16-.67L6.5 1.2ZM8 6.4A1.6 1.6 0 1 0 8 9.6 1.6 1.6 0 0 0 8 6.4Z"/></svg>
-            Settings
+            <span data-i18n="toolbar.settings">Settings</span>
           </button>
           <div id="settings-menu" hidden role="menu" aria-labelledby="settings-btn">
-            <button type="button" role="menuitem" id="settings-export">Export data</button>
-            <button type="button" role="menuitem" id="settings-import">Import data</button>
-            <button type="button" role="menuitem" id="settings-save-template">Save template…</button>
-            <div id="settings-templates" class="settings-templates" role="group" aria-label="Templates"></div>
+            <button type="button" role="menuitem" id="settings-export" data-i18n="toolbar.exportData">Export data</button>
+            <button type="button" role="menuitem" id="settings-import" data-i18n="toolbar.importData">Import data</button>
+            <button type="button" role="menuitem" id="settings-save-template" data-i18n="toolbar.saveTemplate">Save template…</button>
+            <div id="settings-templates" class="settings-templates" role="group" aria-label="Templates" data-i18n-aria="toolbar.templates"></div>
           </div>
         </div>
         <input type="file" id="backup-file" accept="application/json,.json" hidden />
-        <span id="live-status" class="live-status" data-live="off" title="Public Kraken WebSocket (OHLC and ticker)">Offline</span>
+        <label class="field field-lang">
+          <span class="visually-hidden" data-i18n="toolbar.language">Language</span>
+          <select id="lang-select" aria-label="Language" data-i18n-aria="toolbar.language"></select>
+        </label>
+        <span id="live-status" class="live-status" data-live="off" title="Public Kraken WebSocket (OHLC and ticker)" data-i18n-title="toolbar.liveTitle">Offline</span>
         <div id="interval-hint" class="interval-hint" hidden></div>
-        <div id="status" class="status" role="status">Loading…</div>
+        <div id="status" class="status" role="status" data-i18n="toolbar.loading">Loading…</div>
       </header>
 
         <div class="workspace-body">
@@ -77,27 +81,27 @@
           <div id="ind-labels"></div>
           <div id="chart-loader" hidden>
             <div class="chart-skeleton" aria-hidden="true"></div>
-            <div class="chart-spinner" role="status" aria-label="Loading chart"></div>
+            <div class="chart-spinner" role="status" aria-label="Loading chart" data-i18n-aria="loader.chart"></div>
           </div>
           <div id="cursor-dot" hidden></div>
           <div id="draw-bar" hidden>
-            <input type="color" id="draw-color" title="Color" aria-label="Line color" value="#5b9cf6" />
-            <select id="draw-width" title="Width" aria-label="Line width">
+            <input type="color" id="draw-color" title="Color" aria-label="Line color" data-i18n-title="draw.color" data-i18n-aria="draw.lineColor" value="#5b9cf6" />
+            <select id="draw-width" title="Width" aria-label="Line width" data-i18n-title="draw.width" data-i18n-aria="draw.lineWidth">
               <option value="1">1 px</option>
               <option value="2">2 px</option>
               <option value="3">3 px</option>
               <option value="4">4 px</option>
             </select>
-            <select id="draw-linestyle" title="Line style" aria-label="Line style">
-              <option value="solid">Solid</option>
-              <option value="dashed">Dashed</option>
-              <option value="dotted">Dotted</option>
+            <select id="draw-linestyle" title="Line style" aria-label="Line style" data-i18n-title="draw.style" data-i18n-aria="draw.style">
+              <option value="solid" data-i18n="draw.solid">Solid</option>
+              <option value="dashed" data-i18n="draw.dashed">Dashed</option>
+              <option value="dotted" data-i18n="draw.dotted">Dotted</option>
             </select>
-            <button type="button" id="draw-settings" title="Settings" aria-label="Settings" hidden>
+            <button type="button" id="draw-settings" title="Settings" aria-label="Settings" data-i18n-title="draw.settings" data-i18n-aria="draw.settings" hidden>
               <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M6.5 1.2h3l.35 1.7c.42.16.81.39 1.16.67l1.65-.7 1.5 2.6-1.35 1.15c.08.4.12.8.12 1.22s-.04.82-.12 1.22l1.35 1.15-1.5 2.6-1.65-.7a5.3 5.3 0 0 1-1.16.67L9.5 14.8h-3l-.35-1.7a5.3 5.3 0 0 1-1.16-.67l-1.65.7-1.5-2.6 1.35-1.15A5.4 5.4 0 0 1 3 8.94c0-.42.04-.82.12-1.22L1.77 6.57l1.5-2.6 1.65.7c.35-.28.74-.51 1.16-.67L6.5 1.2ZM8 6.4A1.6 1.6 0 1 0 8 9.6 1.6 1.6 0 0 0 8 6.4Z"/></svg>
             </button>
-            <button type="button" id="draw-lock" title="Lock">Lock</button>
-            <button type="button" id="draw-delete" title="Delete">Delete</button>
+            <button type="button" id="draw-lock" title="Lock" data-i18n="draw.lock" data-i18n-title="draw.lock">Lock</button>
+            <button type="button" id="draw-delete" title="Delete" data-i18n="draw.delete" data-i18n-title="draw.delete">Delete</button>
           </div>
             <div id="fav-bar" hidden></div>
         </div>
@@ -107,29 +111,29 @@
       </div>
         </div>
       <footer class="site-foot">
-        <a href="https://github.com/sellthenews/opencharts/blob/main/LICENSE">Open source (AGPL-3.0)</a>
+        <a href="https://github.com/sellthenews/opencharts/blob/main/LICENSE" data-i18n="toolbar.openSource">Open source (AGPL-3.0)</a>
       </footer>
       </div>
       <div id="sidebar">
-        <aside id="watchlist" aria-label="Watchlists"></aside>
-        <aside id="alerts-panel" aria-label="Price alerts">
-          <h2>Price alerts</h2>
-          <p class="alert-note">Alerts work while this tab is open</p>
+        <aside id="watchlist" aria-label="Watchlists" data-i18n-aria="watch.lists"></aside>
+        <aside id="alerts-panel" aria-label="Price alerts" data-i18n-aria="alerts.title">
+          <h2 data-i18n="alerts.title">Price alerts</h2>
+          <p class="alert-note" data-i18n="alerts.note">Alerts work while this tab is open</p>
           <form id="alert-form" class="alert-form">
-            <select id="alert-kind" aria-label="Alert type">
-              <option value="price">Price</option>
-              <option value="rsi-70">RSI crosses 70</option>
-              <option value="rsi-30">RSI crosses 30</option>
-              <option value="macd-signal">MACD crosses signal</option>
+            <select id="alert-kind" aria-label="Alert type" data-i18n-aria="alerts.type">
+              <option value="price" data-i18n="alerts.price">Price</option>
+              <option value="rsi-70" data-i18n="alerts.rsi70">RSI crosses 70</option>
+              <option value="rsi-30" data-i18n="alerts.rsi30">RSI crosses 30</option>
+              <option value="macd-signal" data-i18n="alerts.macdSignal">MACD crosses signal</option>
             </select>
-            <select id="alert-dir" aria-label="Direction">
-              <option value="above">Price ≥</option>
-              <option value="below">Price ≤</option>
+            <select id="alert-dir" aria-label="Direction" data-i18n-aria="alerts.dir">
+              <option value="above" data-i18n="alerts.priceAbove">Price ≥</option>
+              <option value="below" data-i18n="alerts.priceBelow">Price ≤</option>
             </select>
-            <input type="number" id="alert-price" step="any" min="0" placeholder="Level" />
-            <button type="submit">Add</button>
+            <input type="number" id="alert-price" step="any" min="0" placeholder="Level" data-i18n-placeholder="alerts.level" />
+            <button type="submit" data-i18n="alerts.add">Add</button>
           </form>
-          <button type="button" id="alert-notify-btn" class="alert-notify-btn">Enable notifications</button>
+          <button type="button" id="alert-notify-btn" class="alert-notify-btn" data-i18n="alerts.enableNotify">Enable notifications</button>
           <div id="alert-list" class="alert-list"></div>
         </aside>
       </div>
@@ -137,18 +141,18 @@
         <div class="sym-modal-backdrop"></div>
         <div class="sym-modal-box" role="dialog" aria-modal="true" aria-labelledby="sym-modal-title">
           <div class="ind-modal-head">
-            <h2 id="sym-modal-title">Search symbol</h2>
-            <button type="button" id="sym-modal-close" aria-label="Close">×</button>
+            <h2 id="sym-modal-title" data-i18n="sym.title">Search symbol</h2>
+            <button type="button" id="sym-modal-close" aria-label="Close" data-i18n-aria="sym.close">×</button>
           </div>
-          <input id="sym-search" type="search" placeholder="Name or ticker, e.g. sol or aapl" autocomplete="off" />
+          <input id="sym-search" type="search" placeholder="Name or ticker, e.g. sol or aapl" data-i18n-placeholder="sym.placeholder" autocomplete="off" />
           <div class="sym-filter-rows">
-            <div id="sym-cats" class="sym-filters" role="group" aria-label="Asset type">
-              <button type="button" data-sym-cat="all" class="is-active">All</button>
-              <button type="button" data-sym-cat="crypto">Crypto</button>
-              <button type="button" data-sym-cat="stocks">Stocks</button>
+            <div id="sym-cats" class="sym-filters" role="group" aria-label="Asset type" data-i18n-aria="sym.assetType">
+              <button type="button" data-sym-cat="all" class="is-active" data-i18n="sym.all">All</button>
+              <button type="button" data-sym-cat="crypto" data-i18n="sym.crypto">Crypto</button>
+              <button type="button" data-sym-cat="stocks" data-i18n="sym.stocks">Stocks</button>
             </div>
-            <div id="sym-filters" class="sym-filters" role="group" aria-label="Exchange">
-              <button type="button" data-sym-filter="all" class="is-active">All</button>
+            <div id="sym-filters" class="sym-filters" role="group" aria-label="Exchange" data-i18n-aria="sym.exchange">
+              <button type="button" data-sym-filter="all" class="is-active" data-i18n="sym.all">All</button>
               <button type="button" data-sym-filter="kraken">Kraken</button>
               <button type="button" data-sym-filter="binance">Binance</button>
               <button type="button" data-sym-filter="coinbase">Coinbase</button>
@@ -163,76 +167,76 @@
         <div class="ind-modal-backdrop"></div>
         <div class="ind-modal-box" role="dialog" aria-modal="true" aria-labelledby="ind-modal-title">
           <div class="ind-modal-head">
-            <h2 id="ind-modal-title">Indicators</h2>
-            <button type="button" id="ind-modal-close" aria-label="Close">×</button>
+            <h2 id="ind-modal-title" data-i18n="ind.title">Indicators</h2>
+            <button type="button" id="ind-modal-close" aria-label="Close" data-i18n-aria="sym.close">×</button>
           </div>
-          <input id="ind-search" type="search" placeholder="Search indicator" autocomplete="off" />
+          <input id="ind-search" type="search" placeholder="Search indicator" data-i18n-placeholder="ind.search" autocomplete="off" />
           <div id="ind-catalog"></div>
         </div>
       </div>
     </div>
     <input type="file" id="import-file" accept="application/json,.json" hidden />
-    <div id="chart-menu" hidden role="menu" aria-label="Chart menu">
-      <button type="button" role="menuitem" data-chart-menu="reset">Reset chart</button>
-      <button type="button" role="menuitem" data-chart-menu="copy-price">Copy price</button>
-      <button type="button" role="menuitem" data-chart-menu="add-alert">Add alert</button>
-      <button type="button" role="menuitem" data-chart-menu="watchlist">Add symbol to watchlist</button>
-      <button type="button" role="menuitem" data-chart-menu="remove" hidden>Remove</button>
-      <button type="button" role="menuitem" data-chart-menu="clear-drawings">Remove all drawings</button>
-      <button type="button" role="menuitem" data-chart-menu="export">Export drawings</button>
-      <button type="button" role="menuitem" data-chart-menu="import">Import drawings</button>
-      <button type="button" role="menuitem" data-chart-menu="settings" hidden>Settings…</button>
-      <button type="button" role="menuitem" data-chart-menu="extend">Extend Fib right</button>
+    <div id="chart-menu" hidden role="menu" aria-label="Chart menu" data-i18n-aria="menu.chartMenu">
+      <button type="button" role="menuitem" data-chart-menu="reset" data-i18n="menu.reset">Reset chart</button>
+      <button type="button" role="menuitem" data-chart-menu="copy-price" data-i18n="menu.copyPrice">Copy price</button>
+      <button type="button" role="menuitem" data-chart-menu="add-alert" data-i18n="menu.addAlert">Add alert</button>
+      <button type="button" role="menuitem" data-chart-menu="watchlist" data-i18n="menu.addWatchGeneric">Add symbol to watchlist</button>
+      <button type="button" role="menuitem" data-chart-menu="remove" hidden data-i18n="menu.remove">Remove</button>
+      <button type="button" role="menuitem" data-chart-menu="clear-drawings" data-i18n="menu.removeAll">Remove all drawings</button>
+      <button type="button" role="menuitem" data-chart-menu="export" data-i18n="menu.export">Export drawings</button>
+      <button type="button" role="menuitem" data-chart-menu="import" data-i18n="menu.import">Import drawings</button>
+      <button type="button" role="menuitem" data-chart-menu="settings" hidden data-i18n="menu.settings">Settings…</button>
+      <button type="button" role="menuitem" data-chart-menu="extend" data-i18n="menu.extendFib">Extend Fib right</button>
     </div>
     <div id="fib-modal" hidden>
       <div class="fib-modal-backdrop"></div>
       <div class="fib-modal-box" role="dialog" aria-modal="true" aria-labelledby="fib-modal-title" tabindex="-1">
         <div class="ind-modal-head">
-          <h2 id="fib-modal-title">Fib Retracement</h2>
-          <button type="button" id="fib-modal-close" aria-label="Close">×</button>
+          <h2 id="fib-modal-title" data-i18n="fib.title">Fib Retracement</h2>
+          <button type="button" id="fib-modal-close" aria-label="Close" data-i18n-aria="sym.close">×</button>
         </div>
         <div class="fib-tabs" role="tablist">
-          <button type="button" class="is-active" data-fib-tab="style" role="tab" aria-selected="true">Style</button>
+          <button type="button" class="is-active" data-fib-tab="style" role="tab" aria-selected="true" data-i18n="fib.style">Style</button>
         </div>
         <div id="fib-style" class="fib-tab-body">
           <div id="fib-levels" class="fib-levels"></div>
           <div class="fib-level-actions">
-            <button type="button" id="fib-add-level">Add level</button>
+            <button type="button" id="fib-add-level" data-i18n="fib.addLevel">Add level</button>
           </div>
-          <label class="fib-row"><input type="checkbox" id="fib-bg" /> Background
+          <label class="fib-row"><input type="checkbox" id="fib-bg" /> <span data-i18n="fib.background">Background</span>
             <input type="range" id="fib-bg-opacity" min="2" max="40" value="8" />
             <span id="fib-bg-opacity-val">8%</span>
           </label>
-          <label class="fib-row"><input type="checkbox" id="fib-reverse" /> Reverse</label>
-          <label class="fib-row"><input type="checkbox" id="fib-prices" /> Prices</label>
-          <label class="fib-row"><input type="checkbox" id="fib-show-levels" /> Levels</label>
-          <label class="fib-row">Labels
+          <label class="fib-row"><input type="checkbox" id="fib-reverse" /> <span data-i18n="fib.reverse">Reverse</span></label>
+          <label class="fib-row"><input type="checkbox" id="fib-prices" /> <span data-i18n="fib.prices">Prices</span></label>
+          <label class="fib-row"><input type="checkbox" id="fib-show-levels" /> <span data-i18n="fib.levels">Levels</span></label>
+          <label class="fib-row"><span data-i18n="fib.labels">Labels</span>
             <select id="fib-labels">
-              <option value="left">Left</option>
-              <option value="right">Right</option>
+              <option value="left" data-i18n="fib.left">Left</option>
+              <option value="right" data-i18n="fib.right">Right</option>
             </select>
-            <select id="fib-label-valign" aria-label="Label vertical position">
-              <option value="top">Top</option>
-              <option value="middle">Middle</option>
-              <option value="bottom">Bottom</option>
-            </select>
-          </label>
-          <label class="fib-row"><input type="checkbox" id="fib-trend" /> Trend line
-            <select id="fib-trend-style" aria-label="Trend line style">
-              <option value="solid">Solid</option>
-              <option value="dashed">Dashed</option>
-              <option value="dotted">Dotted</option>
+            <select id="fib-label-valign" aria-label="Label vertical position" data-i18n-aria="fib.labelValign">
+              <option value="top" data-i18n="fib.top">Top</option>
+              <option value="middle" data-i18n="fib.middle">Middle</option>
+              <option value="bottom" data-i18n="fib.bottom">Bottom</option>
             </select>
           </label>
-          <label class="fib-row"><input type="checkbox" id="fib-extend" /> Extend lines</label>
+          <label class="fib-row"><input type="checkbox" id="fib-trend" /> <span data-i18n="fib.trend">Trend line</span>
+            <select id="fib-trend-style" aria-label="Trend line style" data-i18n-aria="fib.trendStyle">
+              <option value="solid" data-i18n="draw.solid">Solid</option>
+              <option value="dashed" data-i18n="draw.dashed">Dashed</option>
+              <option value="dotted" data-i18n="draw.dotted">Dotted</option>
+            </select>
+          </label>
+          <label class="fib-row"><input type="checkbox" id="fib-extend" /> <span data-i18n="fib.extend">Extend lines</span></label>
         </div>
         <div class="fib-modal-foot">
-          <button type="button" id="fib-reset">Reset to defaults</button>
-          <button type="button" id="fib-save-default">Save as default</button>
+          <button type="button" id="fib-reset" data-i18n="fib.reset">Reset to defaults</button>
+          <button type="button" id="fib-save-default" data-i18n="fib.saveDefault">Save as default</button>
           <span id="fib-saved-note" class="fib-saved-note"></span>
           <span class="fib-foot-spacer"></span>
-          <button type="button" id="fib-cancel">Cancel</button>
-          <button type="button" id="fib-ok">OK</button>
+          <button type="button" id="fib-cancel" data-i18n="fib.cancel">Cancel</button>
+          <button type="button" id="fib-ok" data-i18n="fib.ok">OK</button>
         </div>
       </div>
     </div>
@@ -241,13 +245,13 @@
       <div class="fib-modal-backdrop"></div>
       <div class="fib-modal-box" role="dialog" aria-modal="true" aria-labelledby="backup-modal-title" tabindex="-1">
         <div class="ind-modal-head">
-          <h2 id="backup-modal-title">Import data</h2>
-          <button type="button" id="backup-cancel" aria-label="Cancel">×</button>
+          <h2 id="backup-modal-title" data-i18n="backup.title">Import data</h2>
+          <button type="button" id="backup-cancel" aria-label="Cancel" data-i18n-aria="fib.cancel">×</button>
         </div>
-        <p>Replace all current OpenCharts settings, or merge only the keys from this file?</p>
+        <p data-i18n="backup.prompt">Replace all current OpenCharts settings, or merge only the keys from this file?</p>
         <div class="backup-actions">
-          <button type="button" id="backup-replace">Replace all</button>
-          <button type="button" id="backup-merge">Merge</button>
+          <button type="button" id="backup-replace" data-i18n="backup.replace">Replace all</button>
+          <button type="button" id="backup-merge" data-i18n="backup.merge">Merge</button>
         </div>
       </div>
     </div>
