@@ -291,32 +291,38 @@ async function fetchCoinbase(): Promise<SymbolInfo[]> {
   return items;
 }
 
-async function fetchBitstamp(): Promise<SymbolInfo[]> {
-  const rows = await fetchJson<Array<Record<string, unknown>>>('https://www.bitstamp.net/api/v2/trading-pairs-info/');
-  const items: SymbolInfo[] = [];
-  for (const row of rows) {
-    const trading = String(row.trading ?? '');
-    if (trading && trading.toLowerCase() !== 'enabled') continue;
-    const native = String(row.url_symbol ?? '');
-    const name = String(row.name ?? '');
-    if (!native) continue;
-    let base = '';
-    let quote = '';
-    if (name.includes('/')) {
-      const [b, q] = name.split('/');
-      base = (b ?? '').trim().toUpperCase();
-      quote = (q ?? '').trim().toUpperCase();
-    } else {
-      const parts = splitKnownQuote(native);
-      if (parts) {
-        base = parts.base;
-        quote = parts.quote;
-      }
-    }
-    if (!base || !quote) continue;
-    items.push(makeInfo('bitstamp', `${base}${quote}`, native, base, quote));
-  }
-  return items;
+/** Static list: Bitstamp trading-pairs-info is blocked by CORS in the browser. */
+const BITSTAMP_PAIRS: [string, string, string, string][] = [
+  ['BTCUSD', 'btcusd', 'BTC', 'USD'],
+  ['BTCEUR', 'btceur', 'BTC', 'EUR'],
+  ['BTCGBP', 'btcgbp', 'BTC', 'GBP'],
+  ['BTCUSDT', 'btcusdt', 'BTC', 'USDT'],
+  ['ETHUSD', 'ethusd', 'ETH', 'USD'],
+  ['ETHEUR', 'etheur', 'ETH', 'EUR'],
+  ['ETHGBP', 'ethgbp', 'ETH', 'GBP'],
+  ['ETHBTC', 'ethbtc', 'ETH', 'BTC'],
+  ['XRPUSD', 'xrpusd', 'XRP', 'USD'],
+  ['XRPEUR', 'xrpeur', 'XRP', 'EUR'],
+  ['XRPBTC', 'xrpbtc', 'XRP', 'BTC'],
+  ['SOLUSD', 'solusd', 'SOL', 'USD'],
+  ['SOLEUR', 'soleur', 'SOL', 'EUR'],
+  ['USDTUSD', 'usdtusd', 'USDT', 'USD'],
+  ['USDTEUR', 'usdteur', 'USDT', 'EUR'],
+  ['USDCUSD', 'usdcusd', 'USDC', 'USD'],
+  ['LTCUSD', 'ltcusd', 'LTC', 'USD'],
+  ['LTCEUR', 'ltceur', 'LTC', 'EUR'],
+  ['BCHUSD', 'bchusd', 'BCH', 'USD'],
+  ['ADAUSD', 'adausd', 'ADA', 'USD'],
+  ['ADAEUR', 'adaeur', 'ADA', 'EUR'],
+  ['DOGEUSD', 'dogeusd', 'DOGE', 'USD'],
+  ['LINKUSD', 'linkusd', 'LINK', 'USD'],
+  ['DOTUSD', 'dotusd', 'DOT', 'USD'],
+  ['AVAXUSD', 'avaxusd', 'AVAX', 'USD'],
+  ['XLMUSD', 'xlmusd', 'XLM', 'USD'],
+];
+
+function fetchBitstamp(): Promise<SymbolInfo[]> {
+  return Promise.resolve(BITSTAMP_PAIRS.map(([id, native, base, quote]) => makeInfo('bitstamp', id, native, base, quote)));
 }
 
 function fetchYahoo(): Promise<SymbolInfo[]> {

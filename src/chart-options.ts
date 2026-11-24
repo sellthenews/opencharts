@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
-import { ColorType, CrosshairMode, LineStyle } from 'lightweight-charts';
-import type { CandlestickSeriesPartialOptions, DeepPartial, ChartOptions } from 'lightweight-charts';
+import { ColorType, CrosshairMode, LineStyle, TickMarkType } from 'lightweight-charts';
+import type { CandlestickSeriesPartialOptions, DeepPartial, ChartOptions, Time } from 'lightweight-charts';
 
 export const CHART_FONT = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
@@ -102,4 +102,24 @@ export function isApplePlatform(): boolean {
 /** Ctrl on Windows/Linux, Command on Apple — temporary magnet override. */
 export function isMagnetModifier(ev: { ctrlKey: boolean; metaKey: boolean }): boolean {
   return isApplePlatform() ? ev.metaKey : ev.ctrlKey;
+}
+
+export function formatTimeTick(time: Time, tickMarkType: TickMarkType, locale: string): string {
+  const sec =
+    typeof time === 'number'
+      ? time
+      : Date.UTC((time as { year: number; month: number; day: number }).year, (time as { year: number; month: number; day: number }).month - 1, (time as { year: number; month: number; day: number }).day) / 1000;
+  const d = new Date(sec * 1000);
+  const loc = locale || 'en-US';
+  const utc = { timeZone: 'UTC' } as const;
+  if (tickMarkType === TickMarkType.Year) return new Intl.DateTimeFormat(loc, { year: 'numeric', ...utc }).format(d);
+  if (tickMarkType === TickMarkType.Month) return new Intl.DateTimeFormat(loc, { month: 'short', year: 'numeric', ...utc }).format(d);
+  if (tickMarkType === TickMarkType.DayOfMonth) return new Intl.DateTimeFormat(loc, { day: 'numeric', month: 'short', ...utc }).format(d);
+  if (tickMarkType === TickMarkType.TimeWithSeconds) {
+    return new Intl.DateTimeFormat(loc, { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', ...utc }).format(d);
+  }
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) {
+    return new Intl.DateTimeFormat(loc, { day: 'numeric', month: 'short', ...utc }).format(d);
+  }
+  return new Intl.DateTimeFormat(loc, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', ...utc }).format(d);
 }

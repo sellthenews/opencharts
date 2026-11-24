@@ -24,6 +24,8 @@ export const BUILTIN_INTERVALS: IntervalDef[] = [
   { id: '3h', short: '3', group: 'hours', seconds: 10800 },
   { id: '4h', short: '4', group: 'hours', seconds: 14400 },
   { id: '1D', short: '1D', group: 'days', seconds: 86400 },
+  { id: '2D', short: '2D', group: 'days', seconds: 172800 },
+  { id: '3D', short: '3D', group: 'days', seconds: 259200 },
   { id: '1W', short: '1W', group: 'days', seconds: 604800 },
   { id: '1M', short: '1M', group: 'days', seconds: 0 },
 ];
@@ -68,7 +70,7 @@ export function intervalLabel(id: string): string {
   if (id === '2h') return '2H';
   if (id === '3h') return '3H';
   if (id === '4h') return '4H';
-  if (id === '1D' || id === '1W' || id === '1M') return id;
+  if (/^\d+[DWM]$/.test(id)) return id;
   const m = CUSTOM_RE.exec(id.trim());
   if (m) {
     const n = Number(m[1]);
@@ -128,7 +130,7 @@ export function parseIntervalId(raw: string): string | null {
   if (!m) return null;
   const n = Number(m[1]);
   const u = m[2]!.toLowerCase();
-  const id = `${n}${u}`;
+  const id = u === 'd' ? `${n}D` : `${n}${u}`;
   if (BY_ID.has(id)) return id;
   if (u === 'm' && n === 60) return '1h';
   if (u === 'm' && n === 240) return '4h';

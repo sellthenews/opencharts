@@ -844,7 +844,7 @@ export class IndicatorHost {
         ctx.fillStyle = 'rgba(224, 227, 234, 0.85)';
         ctx.font = '10px system-ui, sans-serif';
         ctx.fillText('Approx. from OHLCV (no bid/ask)', Math.max(8, x - 80), 14);
-      } else if ((item.kind === 'rsi' || item.kind === 'macd') && (item.params.divergences ?? 'on') === 'on') {
+      } else if ((item.kind === 'rsi' || item.kind === 'macd') && (item.params.divergences ?? 'off') === 'on') {
         const srcKind = item.kind;
         const ctxData = this.plotCtx();
         const plots = indicatorPlots(item, data, ctxData);

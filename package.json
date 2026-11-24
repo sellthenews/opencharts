@@ -10,6 +10,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4173",
     "test:e2e": "playwright test",
+    "test:unit": "node --experimental-strip-types --import ./unit/resolve-ts.mjs --test unit/*.test.ts",
     "worker:dev": "wrangler dev --local --config worker/wrangler.toml",
     "worker:test": "node --experimental-strip-types --test worker/test.ts"
   },

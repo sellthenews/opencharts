@@ -239,14 +239,14 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
   },
   { kind: 'aroon', name: 'Aroon', short: 'Aroon', aliases: ['aroon'], group: 'trend', defaults: { period: 25 }, fields: [periodField()], pane: 'osc' },
   { kind: 'adx', name: 'ADX/DMI', short: 'ADX', aliases: ['dmi', 'adx'], group: 'trend', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
-  { kind: 'rsi', name: 'RSI', short: 'RSI', aliases: ['rsi'], group: 'momentum', defaults: { period: 14, divergences: 'on', tf: 'chart' }, fields: [periodField(), DIV_FIELD, TF_FIELD], pane: 'osc' },
+  { kind: 'rsi', name: 'RSI', short: 'RSI', aliases: ['rsi'], group: 'momentum', defaults: { period: 14, divergences: 'off', tf: 'chart' }, fields: [periodField(), DIV_FIELD, TF_FIELD], pane: 'osc' },
   {
     kind: 'macd',
     name: 'MACD',
     short: 'MACD',
     aliases: ['macd'],
     group: 'momentum',
-    defaults: { fast: 12, slow: 26, signal: 9, divergences: 'on', tf: 'chart' },
+    defaults: { fast: 12, slow: 26, signal: 9, divergences: 'off', tf: 'chart' },
     fields: [
       { key: 'fast', label: 'Fast', min: 2, max: 200, step: 1 },
       { key: 'slow', label: 'Slow', min: 3, max: 400, step: 1 },

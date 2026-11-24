@@ -6,10 +6,11 @@ import {
   CandlestickSeries,
   CrosshairMode,
   LineStyle,
+  PriceScaleMode,
   createChart,
 } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
-import { candleSeriesOptions, interactionOptions, isMagnetModifier, themeChartOptions } from './chart-options';
+import { candleSeriesOptions, formatTimeTick, interactionOptions, isMagnetModifier, themeChartOptions } from './chart-options';
 import { getCachedCandles, setCachedCandles } from './candle-cache';
 import { ohlcLegendHtml } from './ohlc-legend';
 import { DrawingLayer } from './drawings';
@@ -25,6 +26,7 @@ import { lookupSymbol } from './sources/catalog';
 import type { Candle, IntervalId, PairId } from './sources';
 import { initSymbolSearch } from './symbol-search';
 import { initChartMenu } from './chart-menu';
+import { askConfirm } from './confirm-dialog';
 import { initFibDialog } from './fib-dialog';
 import { fibExtOptionsOf, fibOptionsOf } from './fib-settings';
 import { initBackupUi } from './backup';
@@ -230,6 +232,7 @@ const chart: IChartApi = createChart(chartEl, {
   ...interactionOptions(),
   localization: { locale: localeOf() },
 });
+chart.applyOptions({ timeScale: { tickMarkFormatter: formatTimeTick, timeVisible: true } });
 
 const series: ISeriesApi<'Candlestick'> = chart.addSeries(CandlestickSeries, candleSeriesOptions());
 
@@ -324,7 +327,7 @@ function refreshLangChrome(): void {
   const liveEl = document.querySelector<HTMLElement>('#live-status');
   const live = (liveEl?.dataset.live ?? appEl.dataset.live ?? 'off') as LiveStatus;
   setLiveStatus(live);
-  chart.applyOptions({ localization: { locale: localeOf() } });
+  chart.applyOptions({ localization: { locale: localeOf() }, timeScale: { tickMarkFormatter: formatTimeTick, timeVisible: true } });
   document.querySelectorAll<HTMLOptionElement>('#draw-width option').forEach((opt) => {
     opt.textContent = t('draw.px', { n: opt.value });
   });
@@ -1552,11 +1555,28 @@ function setCursorMode(mode: CursorModeState): void {
   applyCursorAppearance();
 }
 
+let drawBarCollapsed = false;
+
+function syncDrawBarLayout(): void {
+  const open = Boolean(drawBar && !drawBar.hidden && !drawBarCollapsed);
+  wrapEl.classList.toggle('is-draw-open', open);
+  if (drawBar) drawBar.classList.toggle('is-collapsed', drawBarCollapsed);
+  const collapseBtn = document.querySelector<HTMLButtonElement>('#draw-collapse');
+  if (collapseBtn) {
+    collapseBtn.textContent = drawBarCollapsed ? '▸' : '▾';
+    const label = drawBarCollapsed ? t('draw.expandBar') : t('draw.collapseBar');
+    collapseBtn.title = label;
+    collapseBtn.setAttribute('aria-label', label);
+    collapseBtn.setAttribute('aria-expanded', drawBarCollapsed ? 'false' : 'true');
+  }
+}
+
 function placeDrawBar(): void {
   if (!drawBar) return;
   const d = drawings.getSelected();
   if (!d) {
     drawBar.hidden = true;
+    syncDrawBarLayout();
     return;
   }
   drawBar.hidden = false;
@@ -1579,6 +1599,7 @@ function placeDrawBar(): void {
   drawBar.style.top = '8px';
   drawBar.style.right = 'auto';
   drawBar.style.transform = 'none';
+  syncDrawBarLayout();
 }
 
 function activateCursorTool(): void {
@@ -1638,10 +1659,11 @@ toolRail = initToolRail({
     toolRail?.refreshActions();
   },
   onClearAll: () => {
-    if (window.confirm(t('menu.confirmRemoveAll'))) {
+    void askConfirm(t('menu.confirmRemoveAll'), t('menu.remove')).then((ok) => {
+      if (!ok) return;
       drawings.clearAll();
       setStatus(t('status.removedAll'));
-    }
+    });
   },
   onZoomIn: () => {
     const ts = chart.timeScale();
@@ -1692,6 +1714,47 @@ drawPrice?.addEventListener('keydown', (ev) => {
 drawDelete?.addEventListener('click', () => {
   drawings.deleteSelected();
 });
+document.querySelector('#draw-collapse')?.addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  drawBarCollapsed = !drawBarCollapsed;
+  syncDrawBarLayout();
+});
+
+function syncScaleButtons(): void {
+  const mode = series.priceScale().options().mode;
+  const logBtn = document.querySelector<HTMLButtonElement>('#scale-btns [data-scale="log"]');
+  const pctBtn = document.querySelector<HTMLButtonElement>('#scale-btns [data-scale="pct"]');
+  if (logBtn) {
+    const on = mode === PriceScaleMode.Logarithmic;
+    logBtn.classList.toggle('is-on', on);
+    logBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+  if (pctBtn) {
+    const on = mode === PriceScaleMode.Percentage;
+    pctBtn.classList.toggle('is-on', on);
+    pctBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+}
+
+document.querySelector('#scale-btns')?.addEventListener('click', (ev) => {
+  const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-scale]');
+  const kind = btn?.dataset.scale;
+  if (!kind) return;
+  const scale = series.priceScale();
+  if (kind === 'log') {
+    const on = scale.options().mode !== PriceScaleMode.Logarithmic;
+    scale.applyOptions({ mode: on ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal, autoScale: true });
+  } else if (kind === 'pct') {
+    const on = scale.options().mode !== PriceScaleMode.Percentage;
+    scale.applyOptions({ mode: on ? PriceScaleMode.Percentage : PriceScaleMode.Normal, autoScale: true });
+  } else if (kind === 'auto') {
+    scale.applyOptions({ autoScale: true });
+    scale.setAutoScale(true);
+    chart.timeScale().scrollToRealTime();
+  }
+  syncScaleButtons();
+});
+syncScaleButtons();
 
 let drawBarDrag: { x: number; y: number; left: number; top: number } | null = null;
 drawBar?.addEventListener('mousedown', (ev) => {

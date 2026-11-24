@@ -2,6 +2,7 @@
 // Copyright (C) 2026 OpenCharts contributors
 
 import { t } from './i18n';
+import { askConfirm } from './confirm-dialog';
 
 export interface ChartMenuHandlers {
   resetView: () => void;
@@ -88,7 +89,11 @@ export function initChartMenu(
     else if (action === 'add-alert' && lastPrice !== null) handlers.addAlert(lastPrice);
     else if (action === 'remove') handlers.removeDrawing?.();
     else if (action === 'clear-drawings') {
-      if (window.confirm(t('menu.confirmRemoveAll'))) handlers.clearDrawings();
+      close();
+      void askConfirm(t('menu.confirmRemoveAll'), t('menu.remove')).then((ok) => {
+        if (ok) handlers.clearDrawings();
+      });
+      return;
     } else if (action === 'export') handlers.exportDrawings?.();
     else if (action === 'import') handlers.importDrawings?.();
     else if (action === 'extend') handlers.extendFib?.();

@@ -41,13 +41,28 @@ export function nextCompareColor(items: CompareItem[]): string {
   return COMPARE_COLORS.find((c) => !used.has(c)) ?? COMPARE_COLORS[items.length % COMPARE_COLORS.length]!;
 }
 
-export function toPercentSeries(candles: Candle[], fromTime: number): { time: UTCTimestamp; value: number }[] {
-  const first = candles.find((c) => c.time >= fromTime) ?? candles[0];
+function isValidClose(c: Candle): boolean {
+  return Number.isFinite(c.time) && Number.isFinite(c.close) && c.close > 0;
+}
+
+export function cleanCompareCandles(candles: Candle[]): Candle[] {
+  return candles.filter(isValidClose);
+}
+
+export function toPercentSeries(candles: Candle[], fromTime: number, times?: number[]): { time: UTCTimestamp; value: number }[] {
+  const clean = cleanCompareCandles(candles);
+  const first = clean.find((c) => c.time >= fromTime) ?? clean[0];
   if (!first || !first.close) return [];
   const ref = first.close;
-  return candles
-    .filter((c) => c.time >= first.time)
-    .map((c) => ({ time: c.time as UTCTimestamp, value: ((c.close / ref) - 1) * 100 }));
+  const byTime = new Map(clean.filter((c) => c.time >= first.time).map((c) => [c.time, c]));
+  const stamps = times?.filter((t) => t >= first.time) ?? [...byTime.keys()].sort((a, b) => a - b);
+  const out: { time: UTCTimestamp; value: number }[] = [];
+  for (const t of stamps) {
+    const c = byTime.get(t);
+    if (!c) continue;
+    out.push({ time: t as UTCTimestamp, value: (c.close / ref - 1) * 100 });
+  }
+  return out;
 }
 
 export async function fetchCompareCandles(sourceId: string, pairId: PairId, intervalId: IntervalId): Promise<Candle[]> {
@@ -65,6 +80,7 @@ export class CompareOverlay {
   private data = new Map<string, Candle[]>();
   private items: CompareItem[] = [];
   private from = 0;
+  private axisVisible = localStorage.getItem('opencharts:compare-axis') === 'on';
 
   constructor(
     private readonly chart: IChartApi,
@@ -101,12 +117,27 @@ export class CompareOverlay {
       });
       this.series.set(key, s);
     }
+    this.applyAxis();
+    this.paint();
+  }
+
+  axisIsVisible(): boolean {
+    return this.axisVisible;
+  }
+
+  setAxisVisible(on: boolean): void {
+    this.axisVisible = on;
+    localStorage.setItem('opencharts:compare-axis', on ? 'on' : 'off');
+    this.applyAxis();
+    this.renderLegend();
+  }
+
+  private applyAxis(): void {
     this.chart.priceScale('left').applyOptions({
-      visible: items.length > 0,
+      visible: this.axisVisible && this.items.length > 0,
       borderVisible: false,
       scaleMargins: { top: 0.05, bottom: 0.08 },
     });
-    this.paint();
   }
 
   setCandles(item: CompareItem, candles: Candle[]): void {
@@ -124,19 +155,28 @@ export class CompareOverlay {
   }
 
   private paint(): void {
-    for (const item of this.items) {
+    const cleaned = this.items.map((item) => {
       const key = this.keyOf(item);
-      const s = this.series.get(key);
-      const candles = this.data.get(key);
+      return { item, key, candles: cleanCompareCandles(this.data.get(key) ?? []) };
+    });
+    const times = new Set<number>();
+    for (const row of cleaned) {
+      for (const c of row.candles) {
+        if (c.time >= this.from) times.add(c.time);
+      }
+    }
+    const aligned = [...times].sort((a, b) => a - b);
+    for (const row of cleaned) {
+      const s = this.series.get(row.key);
       if (!s) continue;
-      s.setData(candles?.length ? toPercentSeries(candles, this.from) : []);
+      s.setData(row.candles.length ? toPercentSeries(row.candles, this.from, aligned) : []);
     }
     this.renderLegend();
   }
 
   lastPct(item: CompareItem): number | null {
-    const candles = this.data.get(this.keyOf(item));
-    if (!candles?.length) return null;
+    const candles = cleanCompareCandles(this.data.get(this.keyOf(item)) ?? []);
+    if (!candles.length) return null;
     const pts = toPercentSeries(candles, this.from);
     const last = pts[pts.length - 1];
     return last ? last.value : null;
@@ -149,7 +189,10 @@ export class CompareOverlay {
       return;
     }
     this.legend.hidden = false;
-    this.legend.innerHTML = this.items
+    const axisLabel = this.axisVisible ? t('compare.hideAxis') : t('compare.showAxis');
+    this.legend.innerHTML =
+      `<button type="button" class="compare-axis-btn" data-compare-axis="${this.axisVisible ? 'on' : 'off'}">${axisLabel}</button>` +
+      this.items
       .map((item) => {
         const pct = this.lastPct(item);
         const text = pct === null ? '…' : `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
@@ -285,6 +328,13 @@ export function initComparePanel(opts: {
   };
   opts.list.addEventListener('click', onRemove);
   opts.legend.addEventListener('click', onRemove);
+  opts.legend.addEventListener('click', (ev) => {
+    const btn = (ev.target as HTMLElement).closest<HTMLElement>('[data-compare-axis]');
+    if (!btn) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    overlay.setAxisVisible(!overlay.axisIsVisible());
+  });
   document.addEventListener('mousedown', (ev) => {
     if (opts.pop.hidden) return;
     const t = ev.target as Node;

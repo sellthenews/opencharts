@@ -9,6 +9,7 @@
     <meta name="description" content="OpenCharts – free charts for everyone." />
     <meta property="og:title" content="OpenCharts" />
     <meta property="og:description" content="OpenCharts – free charts for everyone." />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
@@ -84,6 +85,11 @@
             <div class="chart-spinner" role="status" aria-label="Loading chart" data-i18n-aria="loader.chart"></div>
           </div>
           <div id="cursor-dot" hidden></div>
+          <div id="scale-btns" role="group" aria-label="Price scale" data-i18n-aria="scale.aria">
+            <button type="button" data-scale="log" title="Log scale" data-i18n-title="scale.logTitle" aria-pressed="false">log</button>
+            <button type="button" data-scale="pct" title="Percentage scale" data-i18n-title="scale.percentTitle" aria-pressed="false">%</button>
+            <button type="button" data-scale="auto" title="Auto scale / reset" data-i18n-title="scale.autoTitle">A</button>
+          </div>
           <div id="draw-bar" hidden>
             <input type="color" id="draw-color" title="Color" aria-label="Line color" data-i18n-title="draw.color" data-i18n-aria="draw.lineColor" value="#5b9cf6" />
             <select id="draw-width" title="Width" aria-label="Line width" data-i18n-title="draw.width" data-i18n-aria="draw.lineWidth">
@@ -106,6 +112,7 @@
             </button>
             <button type="button" id="draw-lock" title="Lock" data-i18n="draw.lock" data-i18n-title="draw.lock">Lock</button>
             <button type="button" id="draw-delete" title="Delete" data-i18n="draw.delete" data-i18n-title="draw.delete">Delete</button>
+            <button type="button" id="draw-collapse" title="Collapse style bar" data-i18n-title="draw.collapseBar" aria-label="Collapse style bar" data-i18n-aria="draw.collapseBar">▾</button>
           </div>
             <div id="fav-bar" hidden></div>
         </div>
@@ -259,5 +266,16 @@
         </div>
       </div>
     </div>
-</body>
+
+      <div id="confirm-modal" hidden>
+        <div class="confirm-backdrop"></div>
+        <div class="confirm-box" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+          <p id="confirm-title"></p>
+          <div class="confirm-actions">
+            <button type="button" id="confirm-cancel">Cancel</button>
+            <button type="button" id="confirm-ok" class="danger">Remove</button>
+          </div>
+        </div>
+      </div>
+  </body>
 </html>

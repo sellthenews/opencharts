@@ -471,9 +471,27 @@ button.danger:hover {
 
 .alert-form {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 4px;
   margin-bottom: 6px;
+  min-width: 0;
+}
+
+.alert-form select,
+.alert-form input,
+.alert-form button {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.alert-form #alert-kind {
+  grid-column: 1 / -1;
+}
+
+.alert-form button[type="submit"] {
+  grid-column: 1 / -1;
 }
 
 .alert-form input {
@@ -2092,4 +2110,124 @@ html[dir="rtl"] #cursor-dot {
   padding: 3px 6px;
   font: inherit;
   font-variant-numeric: tabular-nums;
+}
+
+#chart-wrap.is-draw-open #chart,
+#chart-wrap:has(#draw-bar:not([hidden]):not(.is-collapsed)) #chart,
+#chart-wrap.is-draw-open #draw-overlay,
+#chart-wrap:has(#draw-bar:not([hidden]):not(.is-collapsed)) #draw-overlay,
+#chart-wrap.is-draw-open #vp-overlay,
+#chart-wrap:has(#draw-bar:not([hidden]):not(.is-collapsed)) #vp-overlay {
+  top: 36px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+#chart-wrap.is-draw-open #ohlc-legend,
+#chart-wrap:has(#draw-bar:not([hidden]):not(.is-collapsed)) #ohlc-legend {
+  top: 44px;
+}
+
+#chart-wrap.is-draw-open #ind-labels,
+#chart-wrap.is-draw-open #compare-legend,
+#chart-wrap:has(#draw-bar:not([hidden]):not(.is-collapsed)) #ind-labels,
+#chart-wrap:has(#draw-bar:not([hidden]):not(.is-collapsed)) #compare-legend {
+  top: 36px;
+}
+
+#draw-bar.is-collapsed {
+  padding: 2px;
+  gap: 0;
+}
+
+#draw-bar.is-collapsed > :not(#draw-collapse) {
+  display: none;
+}
+
+#draw-collapse {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  line-height: 1;
+}
+
+#scale-btns {
+  position: absolute;
+  right: 58px;
+  bottom: 42px;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+#scale-btns button {
+  min-width: 32px;
+  padding: 3px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  background: color-mix(in srgb, var(--bar) 88%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+}
+
+#scale-btns button.is-on,
+#scale-btns button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--heading);
+}
+
+#confirm-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#confirm-modal[hidden] {
+  display: none;
+}
+
+.confirm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.confirm-box {
+  position: relative;
+  z-index: 1;
+  min-width: 16em;
+  max-width: min(22em, calc(100vw - 32px));
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+
+.confirm-box p {
+  margin: 0 0 14px;
+  font-size: 14px;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.compare-axis-btn {
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bar) 88%, transparent);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
 }
