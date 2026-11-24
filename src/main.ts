@@ -977,11 +977,24 @@ declare global {
       handlePage: (handle: string, drawingId?: string | null) => { x: number; y: number } | null;
       getPriceRange: () => { from: number; to: number } | null;
       getBarSpacing: () => number;
+      getCrosshair: () => { time: number; price: number } | null;
+      priceToCoordinate: (price: number) => number | null;
     };
   }
 }
 
 let openFibSettings: () => void = () => {};
+
+let lastCrosshair: { time: number; price: number } | null = null;
+chart.subscribeCrosshairMove((param) => {
+  if (param.time === undefined || !param.point) {
+    lastCrosshair = null;
+    return;
+  }
+  const driven = drawings.getDrivenCrosshair();
+  const price = driven?.price ?? series.coordinateToPrice(param.point.y);
+  lastCrosshair = price === null ? null : { time: param.time as number, price };
+});
 
 window.__opencharts = {
   getDrawings: () => drawings.getDrawings(),
@@ -1041,6 +1054,12 @@ window.__opencharts = {
   handlePage: (handle, drawingId) => drawings.handlePage(handle, drawingId),
   getPriceRange: () => series.priceScale().getVisibleRange(),
   getBarSpacing: () => chart.timeScale().options().barSpacing,
+  getCrosshair: () => {
+    const driven = drawings.getDrivenCrosshair();
+    if (driven) return driven;
+    return lastCrosshair;
+  },
+  priceToCoordinate: (price) => drawings.priceToCoordinate(price),
 };
 
 initChartMenu(
@@ -1110,6 +1129,10 @@ initChartMenu(
       return t === 'fib' || t === 'fibext';
     },
     openSettings: () => openFibSettings(),
+    canRemove: () => drawings.getSelected() !== null,
+    removeDrawing: () => {
+      if (drawings.deleteSelected()) setStatus('Removed drawing.');
+    },
     watchlistLabel: () => formatPairLabel(sourceId, pairId),
     isOnWatchlist: () => watchlist.hasItem(sourceId, pairId),
     toggleWatchlist: () => {

@@ -15,6 +15,8 @@ export interface ChartMenuHandlers {
   toggleWatchlist?: () => void;
   canOpenSettings?: () => boolean;
   openSettings?: () => void;
+  canRemove?: () => boolean;
+  removeDrawing?: () => void;
 }
 
 function formatPrice(price: number): string {
@@ -38,6 +40,11 @@ export function initChartMenu(
   function open(ev: MouseEvent): void {
     ev.preventDefault();
     lastPrice = priceAt(ev.clientX, ev.clientY);
+    const removeItem = menu.querySelector<HTMLElement>('[data-chart-menu="remove"]');
+    if (removeItem) {
+      const can = handlers.canRemove?.() ?? false;
+      removeItem.hidden = !can;
+    }
     const priceItem = menu.querySelector<HTMLElement>('[data-chart-menu="copy-price"]');
     const alertItem = menu.querySelector<HTMLElement>('[data-chart-menu="add-alert"]');
     const label = lastPrice === null ? '—' : formatPrice(lastPrice);
@@ -77,6 +84,7 @@ export function initChartMenu(
     if (action === 'reset') handlers.resetView();
     else if (action === 'copy-price' && lastPrice !== null) handlers.copyPrice(lastPrice);
     else if (action === 'add-alert' && lastPrice !== null) handlers.addAlert(lastPrice);
+    else if (action === 'remove') handlers.removeDrawing?.();
     else if (action === 'clear-drawings') {
       if (window.confirm('Remove all drawings from this chart?')) handlers.clearDrawings();
     } else if (action === 'export') handlers.exportDrawings?.();

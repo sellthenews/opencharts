@@ -327,6 +327,9 @@ export class DrawingLayer {
   private lastDpr = 0;
   private lastHit: { x: number; y: number; logical: Point } | null = null;
   private capturedPointer: number | null = null;
+  private drivenCrosshair: Point | null = null;
+  private lastViewKey = '';
+  private viewRaf = 0;
   private drag: {
     mode: 'point' | 'move';
     handle?: HandleName;
@@ -345,17 +348,21 @@ export class DrawingLayer {
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(this.wrap);
     this.resize();
-    this.chart.timeScale().subscribeVisibleLogicalRangeChange(() => this.scheduleRedraw());
+    this.chart.timeScale().subscribeVisibleLogicalRangeChange(() => this.paintFrame());
+    this.chart.timeScale().subscribeVisibleTimeRangeChange(() => this.paintFrame());
     window.addEventListener('resize', this.onWinResize);
 
     this.wrap.addEventListener('pointerdown', this.onWrapPointerDown, true);
     window.addEventListener('pointermove', this.onWinPointerMove);
     window.addEventListener('pointerup', this.onWinPointerUp);
     window.addEventListener('pointercancel', this.onWinPointerUp);
+    this.wrap.addEventListener('contextmenu', this.onContextMenu, true);
+    this.wrap.addEventListener('wheel', () => this.paintFrame(), { passive: true, capture: true });
     this.wrap.addEventListener('dblclick', (ev) => this.onDblClick(ev));
     this.wrap.addEventListener('mousedown', (ev) => this.onEmptyClick(ev));
     window.addEventListener('keydown', this.onKey);
     this.syncPointerEvents();
+    this.startViewWatch();
   }
 
   getDrawings(): Drawing[] {
@@ -511,7 +518,7 @@ export class DrawingLayer {
     const width = this.canvas.getBoundingClientRect().width;
     const hs = this.handlesOf(d).map((h) => {
       if (d.type === 'hline') {
-        const yy = this.series.priceToCoordinate(d.price);
+        const yy = this.priceToY(d.price);
         return yy === null ? null : { x: width / 2, y: yy };
       }
       return this.pointToXy(h.point);
@@ -629,7 +636,13 @@ export class DrawingLayer {
     window.removeEventListener('pointercancel', this.onWinPointerUp);
     window.removeEventListener('keydown', this.onKey);
     window.removeEventListener('resize', this.onWinResize);
+    window.removeEventListener('pointermove', this.onWinPointerMove);
+    window.removeEventListener('pointerup', this.onWinPointerUp);
+    window.removeEventListener('pointercancel', this.onWinPointerUp);
+    this.wrap.removeEventListener('contextmenu', this.onContextMenu, true);
     if (this.rafId) cancelAnimationFrame(this.rafId);
+    if (this.viewRaf) cancelAnimationFrame(this.viewRaf);
+    this.viewRaf = 0;
   }
 
   private onWinResize = (): void => {
@@ -676,11 +689,7 @@ export class DrawingLayer {
   private onKey = (ev: KeyboardEvent): void => {
     if (this.typingTarget(ev.target) || this.modalOpen()) return;
     if (ev.key === 'Escape') {
-      this.draft = null;
-      this.drag = null;
-      if (this.selectedId) this.selectedId = null;
-      this.redraw();
-      this.emitSelect();
+      this.cancelInProgress(true);
     } else if (ev.key === 'Enter' && this.draft && isOpenEnded(this.draft.type)) {
       ev.preventDefault();
       this.finishOpenDraft();
@@ -726,6 +735,29 @@ export class DrawingLayer {
     this.paintFrame();
   }
 
+  private priceToY(price: number): number | null {
+    const direct = this.series.priceToCoordinate(price);
+    if (direct !== null) return direct;
+    const range = this.series.priceScale().getVisibleRange();
+    if (!range) return null;
+    const yFrom = this.series.priceToCoordinate(range.from);
+    const yTo = this.series.priceToCoordinate(range.to);
+    const span = range.to - range.from;
+    if (yFrom === null || yTo === null || span === 0) return null;
+    return yFrom + ((price - range.from) / span) * (yTo - yFrom);
+  }
+
+  private yToPrice(y: number): number | null {
+    const direct = this.series.coordinateToPrice(y);
+    if (direct !== null) return direct;
+    const range = this.series.priceScale().getVisibleRange();
+    if (!range) return null;
+    const yFrom = this.series.priceToCoordinate(range.from);
+    const yTo = this.series.priceToCoordinate(range.to);
+    if (yFrom === null || yTo === null || yTo === yFrom) return null;
+    return range.from + ((y - yFrom) / (yTo - yFrom)) * (range.to - range.from);
+  }
+
   private timeToX(time: number): number | null {
     const ts = this.chart.timeScale();
     const direct = ts.timeToCoordinate(time as Time);
@@ -749,14 +781,14 @@ export class DrawingLayer {
   }
 
   private xyToLogical(x: number, y: number, loose = false): Point | null {
-    const price = this.series.coordinateToPrice(y);
+    const price = this.yToPrice(y);
     const time = this.xToTime(x);
     if (price !== null && time !== null) return { time, price };
     if (!loose) return null;
     const rect = this.canvas.getBoundingClientRect();
     const cx = Math.min(Math.max(x, 0.5), Math.max(0.5, rect.width - 0.5));
     const cy = Math.min(Math.max(y, 0.5), Math.max(0.5, rect.height - 0.5));
-    const p2 = this.series.coordinateToPrice(cy);
+    const p2 = this.yToPrice(cy);
     const t2 = this.xToTime(cx);
     if (p2 === null || t2 === null) return this.lastHit?.logical ?? null;
     return { time: t2, price: p2 };
@@ -764,9 +796,82 @@ export class DrawingLayer {
 
   private pointToXy(p: Point): { x: number; y: number } | null {
     const x = this.timeToX(p.time);
-    const y = this.series.priceToCoordinate(p.price);
+    const y = this.priceToY(p.price);
     if (x === null || y === null) return null;
     return { x, y };
+  }
+
+  getDrivenCrosshair(): Point | null {
+    return this.drivenCrosshair ? { ...this.drivenCrosshair } : null;
+  }
+
+  priceToCoordinate(price: number): number | null {
+    return this.priceToY(price);
+  }
+
+  cancelInProgress(clearSelection = true): void {
+    const had = this.draft !== null || this.drag !== null || (clearSelection && this.selectedId !== null);
+    this.draft = null;
+    this.drag = null;
+    if (clearSelection) this.selectedId = null;
+    this.releaseCapturedPointer();
+    this.clearDrivenCrosshair();
+    this.syncPointerEvents();
+    this.wrap.style.cursor = '';
+    if (had || clearSelection) {
+      this.paintFrame();
+      this.emitSelect();
+    }
+  }
+
+  isDrawingToolActive(): boolean {
+    return this.tool !== 'cursor' || this.draft !== null;
+  }
+
+  private viewKey(): string {
+    try {
+      const lr = this.chart.timeScale().getVisibleLogicalRange();
+      const pr = this.series.priceScale().getVisibleRange();
+      const ts = this.chart.timeScale();
+      return `${lr?.from ?? ''}:${lr?.to ?? ''}:${pr?.from ?? ''}:${pr?.to ?? ''}:${ts.options().barSpacing}:${ts.options().rightOffset}:${this.canvas.width}x${this.canvas.height}`;
+    } catch {
+      return '';
+    }
+  }
+
+  private startViewWatch(): void {
+    if (this.viewRaf) return;
+    const tick = (): void => {
+      this.viewRaf = requestAnimationFrame(tick);
+      const key = this.viewKey();
+      if (key !== this.lastViewKey) {
+        this.lastViewKey = key;
+        this.paintFrame();
+      }
+    };
+    this.viewRaf = requestAnimationFrame(tick);
+  }
+
+  private syncCrosshair(logical: Point | null): void {
+    if (!logical) {
+      this.clearDrivenCrosshair();
+      return;
+    }
+    this.drivenCrosshair = { time: logical.time, price: logical.price };
+    try {
+      this.chart.setCrosshairPosition(logical.price, logical.time as Time, this.series);
+    } catch {
+      /* scale not ready */
+    }
+  }
+
+  private clearDrivenCrosshair(): void {
+    this.drivenCrosshair = null;
+    try {
+      this.chart.clearCrosshairPosition();
+    } catch {
+      /* ignore */
+    }
   }
 
   private eventPoint(ev: MouseEvent, loose = false): { x: number; y: number; logical: Point } | null {
@@ -808,9 +913,36 @@ export class DrawingLayer {
     }
   }
 
+  private onContextMenu = (ev: MouseEvent): void => {
+    if (this.layerHidden || this.isUiChrome(ev.target) || this.modalOpen()) return;
+    if (this.tool !== 'cursor' || this.draft) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      this.cancelInProgress(false);
+    }
+  };
+
   private onWrapPointerDown = (ev: PointerEvent): void => {
     if (this.layerHidden || this.isUiChrome(ev.target) || this.modalOpen()) return;
-    if (ev.button !== 0 && ev.button !== 2) return;
+    if (ev.button === 2) {
+      if (this.tool !== 'cursor' || this.draft) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        this.cancelInProgress(false);
+        return;
+      }
+      const rect = this.canvas.getBoundingClientRect();
+      const x = ev.clientX - rect.left;
+      const y = ev.clientY - rect.top;
+      const id = this.hitHandle(x, y)?.id ?? this.hitBody(x, y);
+      if (id && this.selectedId !== id) {
+        this.selectedId = id;
+        this.paintFrame();
+        this.emitSelect();
+      }
+      return;
+    }
+    if (ev.button !== 0) return;
     const rect = this.canvas.getBoundingClientRect();
     const x = ev.clientX - rect.left;
     const y = ev.clientY - rect.top;
@@ -842,6 +974,12 @@ export class DrawingLayer {
       this.onPointer(ev, 'move');
       return;
     }
+    if (this.tool !== 'cursor' && !this.layerHidden && !this.isUiChrome(ev.target)) {
+      const hit = this.eventPoint(ev, true);
+      this.syncCrosshair(hit?.logical ?? null);
+      return;
+    }
+    if (ev.buttons !== 0) this.paintFrame();
     this.onHoverPassthrough(ev);
   };
 
@@ -877,14 +1015,8 @@ export class DrawingLayer {
     }
     const loose = phase !== 'down' && !!(this.drag || this.draft || this.tool === 'brush');
     const hit = this.eventPoint(ev, loose);
+    if (hit && (this.drag || this.draft || this.tool !== 'cursor')) this.syncCrosshair(hit.logical);
     if (phase === 'down' && ev.button !== 0) {
-      if (this.tool === 'cursor' && hit) {
-        const handle = this.hitHandle(hit.x, hit.y);
-        const body = handle ? null : this.hitBody(hit.x, hit.y);
-        this.selectedId = handle?.id ?? body;
-        this.redraw();
-        this.emitSelect();
-      }
       return;
     }
     if (this.tool === 'brush') {
@@ -1731,8 +1863,8 @@ export class DrawingLayer {
       const right = opts.extendLines ? width : Math.max(t1, t2);
       const atLeft = opts.labels === 'left';
       const lx = atLeft ? left + 8 : right - 8;
-      const y0 = this.series.priceToCoordinate(fibRetracementPrice(ends.p1, ends.p2, 0, opts.reverse));
-      const y1 = this.series.priceToCoordinate(fibRetracementPrice(ends.p1, ends.p2, 1, opts.reverse));
+      const y0 = this.priceToY(fibRetracementPrice(ends.p1, ends.p2, 0, opts.reverse));
+      const y1 = this.priceToY(fibRetracementPrice(ends.p1, ends.p2, 1, opts.reverse));
       const h0: HandleName = opts.reverse ? 'p1' : 'p2';
       const h1: HandleName = opts.reverse ? 'p2' : 'p1';
       if (y0 !== null) out.push({ handle: h0, x: lx, y: y0, priceOnly: true, box: true });
@@ -1747,8 +1879,8 @@ export class DrawingLayer {
       const endX = opts.extendLines ? width : Math.max(a.x, b.x, c.x) + 40;
       const atLeft = opts.labels === 'left';
       const lx = atLeft ? startX + 8 : endX - 8;
-      const y0 = this.series.priceToCoordinate(fibExtensionPrice(d.a, d.b, d.c, 0, opts.reverse));
-      const y1 = this.series.priceToCoordinate(fibExtensionPrice(d.a, d.b, d.c, 1, opts.reverse));
+      const y0 = this.priceToY(fibExtensionPrice(d.a, d.b, d.c, 0, opts.reverse));
+      const y1 = this.priceToY(fibExtensionPrice(d.a, d.b, d.c, 1, opts.reverse));
       if (y0 !== null) out.push({ handle: 'c', x: lx, y: y0, priceOnly: true, box: true });
       if (y1 !== null) out.push({ handle: 'b', x: lx, y: y1, priceOnly: true, box: true });
     }
@@ -1764,7 +1896,7 @@ export class DrawingLayer {
     for (const h of this.handlesOf(d)) {
       let xy = this.pointToXy(h.point);
       if (d.type === 'hline') {
-        const yy = this.series.priceToCoordinate(d.price);
+        const yy = this.priceToY(d.price);
         if (yy === null) continue;
         xy = { x: width / 2, y: yy };
       }
@@ -1774,7 +1906,7 @@ export class DrawingLayer {
         xy = { x: xx, y: height / 2 };
       }
       if (d.type === 'hray' && h.handle === 'p2') {
-        const yy = this.series.priceToCoordinate(d.p1.price);
+        const yy = this.priceToY(d.p1.price);
         const xx = this.timeToX(d.p2.time);
         if (yy === null || xx === null) continue;
         xy = { x: xx, y: yy };
@@ -1817,7 +1949,7 @@ export class DrawingLayer {
     const width = this.canvas.getBoundingClientRect().width;
     const height = this.canvas.getBoundingClientRect().height;
     if (d.type === 'hline') {
-      const yy = this.series.priceToCoordinate(d.price);
+      const yy = this.priceToY(d.price);
       return yy === null ? null : Math.abs(y - yy);
     }
     if (d.type === 'vline') {
@@ -1825,7 +1957,7 @@ export class DrawingLayer {
       return xx === null ? null : Math.abs(x - xx);
     }
     if (d.type === 'hray') {
-      const yy = this.series.priceToCoordinate(d.p1.price);
+      const yy = this.priceToY(d.p1.price);
       const x1 = this.timeToX(d.p1.time);
       if (yy === null || x1 === null) return null;
       const goRight = d.p2.time >= d.p1.time;
@@ -2132,7 +2264,7 @@ export class DrawingLayer {
         const right = opts.extendLines ? width : Math.max(t1, t2);
         const ys: number[] = [];
         for (const level of visibleFibLevels(opts)) {
-          const yy = this.series.priceToCoordinate(fibRetracementPrice(ends.p1, ends.p2, level.value, opts.reverse));
+          const yy = this.priceToY(fibRetracementPrice(ends.p1, ends.p2, level.value, opts.reverse));
           if (yy === null) continue;
           ys.push(yy);
           if (x >= left - 8 && x <= right + 8) best = Math.min(best, Math.abs(y - yy));
@@ -2157,7 +2289,7 @@ export class DrawingLayer {
       const endX = opts.extendLines ? width : Math.max(a?.x ?? 0, b?.x ?? 0, c?.x ?? 0) + 40;
       const ys: number[] = [];
       for (const level of visibleFibLevels(opts)) {
-        const yy = this.series.priceToCoordinate(fibExtensionPrice(d.a, d.b, d.c, level.value, opts.reverse));
+        const yy = this.priceToY(fibExtensionPrice(d.a, d.b, d.c, level.value, opts.reverse));
         if (yy === null) continue;
         ys.push(yy);
         if (x >= startX - 8 && x <= endX + 8) best = Math.min(best, Math.abs(y - yy));
@@ -2170,8 +2302,8 @@ export class DrawingLayer {
       return Number.isFinite(best) ? best : null;
     }
     if (d.type === 'pricerange') {
-      const y1 = this.series.priceToCoordinate(d.p1.price);
-      const y2 = this.series.priceToCoordinate(d.p2.price);
+      const y1 = this.priceToY(d.p1.price);
+      const y2 = this.priceToY(d.p2.price);
       if (y1 === null || y2 === null) return null;
       const top = Math.min(y1, y2);
       const bottom = Math.max(y1, y2);
@@ -2281,7 +2413,7 @@ export class DrawingLayer {
     for (const h of this.handlesOf(d)) {
       let xy = this.pointToXy(h.point);
       if (d.type === 'hline') {
-        const yy = this.series.priceToCoordinate(d.price);
+        const yy = this.priceToY(d.price);
         if (yy === null) continue;
         xy = { x: width / 2, y: yy };
       }
@@ -2291,7 +2423,7 @@ export class DrawingLayer {
         xy = { x: xx, y: this.canvas.getBoundingClientRect().height / 2 };
       }
       if (d.type === 'hray' && h.handle === 'p2') {
-        const yy = this.series.priceToCoordinate(d.p1.price);
+        const yy = this.priceToY(d.p1.price);
         const xx = this.timeToX(d.p2.time);
         if (yy === null || xx === null) continue;
         xy = { x: xx, y: yy };
@@ -2355,7 +2487,7 @@ export class DrawingLayer {
     ctx.setLineDash(st.dash);
 
     if (d.type === 'hline') {
-      const y = this.series.priceToCoordinate(d.price);
+      const y = this.priceToY(d.price);
       if (y !== null) {
         const yy = Math.round(y) + 0.5;
         ctx.beginPath();
@@ -2373,7 +2505,7 @@ export class DrawingLayer {
         ctx.stroke();
       }
     } else if (d.type === 'hray') {
-      const y0 = this.series.priceToCoordinate(d.p1.price);
+      const y0 = this.priceToY(d.p1.price);
       const x0 = this.timeToX(d.p1.time);
       if (y0 !== null && x0 !== null) {
         const endX = d.p2.time >= d.p1.time ? width : 0;
@@ -2453,7 +2585,7 @@ export class DrawingLayer {
           if (k === 1) continue;
           const p = abcdProject(d.a, d.b, d.c, k);
           const xy = this.pointToXy(p);
-          const y = this.series.priceToCoordinate(p.price);
+          const y = this.priceToY(p.price);
           if (y === null) continue;
           ctx.beginPath();
           ctx.moveTo(c.x, y);
@@ -2468,8 +2600,8 @@ export class DrawingLayer {
     } else if (d.type === 'pricerange' || d.type === 'daterange' || d.type === 'datepricerange') {
       const x1 = this.timeToX(d.p1.time);
       const x2 = this.timeToX(d.p2.time);
-      const y1 = this.series.priceToCoordinate(d.p1.price);
-      const y2 = this.series.priceToCoordinate(d.p2.price);
+      const y1 = this.priceToY(d.p1.price);
+      const y2 = this.priceToY(d.p2.price);
       ctx.fillStyle = 'rgba(91, 156, 246, 0.14)';
       ctx.strokeStyle = selected ? SELECTED : COLOR;
       if (d.type === 'pricerange' && y1 !== null && y2 !== null) {
@@ -2523,9 +2655,9 @@ export class DrawingLayer {
 
       const x1 = this.timeToX(d.entry.time);
       const x2 = this.timeToX(d.target.time);
-      const yE = this.series.priceToCoordinate(d.entry.price);
-      const yT = this.series.priceToCoordinate(d.target.price);
-      const yS = this.series.priceToCoordinate(d.stop.price);
+      const yE = this.priceToY(d.entry.price);
+      const yT = this.priceToY(d.target.price);
+      const yS = this.priceToY(d.stop.price);
       if (x1 !== null && x2 !== null && yE !== null && yT !== null && yS !== null) {
         const left = Math.min(x1, x2);
         const w = Math.abs(x2 - x1);
@@ -3087,8 +3219,8 @@ export class DrawingLayer {
       for (let i = 0; i < levels.length - 1; i++) {
         const pa = fibExtensionPrice(d.a, d.b, d.c, levels[i]!.value, opts.reverse);
         const pb = fibExtensionPrice(d.a, d.b, d.c, levels[i + 1]!.value, opts.reverse);
-        const ya = this.series.priceToCoordinate(pa);
-        const yb = this.series.priceToCoordinate(pb);
+        const ya = this.priceToY(pa);
+        const yb = this.priceToY(pb);
         if (ya === null || yb === null) continue;
         ctx.globalAlpha = opts.backgroundOpacity;
         ctx.fillStyle = levels[i]!.color;
@@ -3100,7 +3232,7 @@ export class DrawingLayer {
     const placed: { y: number; text: string; color: string }[] = [];
     for (const level of levels) {
       const price = fibExtensionPrice(d.a, d.b, d.c, level.value, opts.reverse);
-      const y = this.series.priceToCoordinate(price);
+      const y = this.priceToY(price);
       if (y === null) continue;
       const key = isFibExtKeyLevel(level.value);
       ctx.beginPath();
@@ -3152,8 +3284,8 @@ export class DrawingLayer {
       for (let i = 0; i < levels.length - 1; i++) {
         const pa = fibRetracementPrice(ends.p1, ends.p2, levels[i]!.value, opts.reverse);
         const pb = fibRetracementPrice(ends.p1, ends.p2, levels[i + 1]!.value, opts.reverse);
-        const ya = this.series.priceToCoordinate(pa);
-        const yb = this.series.priceToCoordinate(pb);
+        const ya = this.priceToY(pa);
+        const yb = this.priceToY(pb);
         if (ya === null || yb === null) continue;
         ctx.globalAlpha = opts.backgroundOpacity;
         ctx.fillStyle = levels[i]!.color;
@@ -3164,7 +3296,7 @@ export class DrawingLayer {
     }
     for (const level of levels) {
       const price = fibRetracementPrice(ends.p1, ends.p2, level.value, opts.reverse);
-      const y = this.series.priceToCoordinate(price);
+      const y = this.priceToY(price);
       if (y === null) continue;
       const key = isFibKeyLevel(level.value);
       ctx.beginPath();
