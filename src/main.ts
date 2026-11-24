@@ -19,6 +19,7 @@ import type { IndicatorInstance } from './indicators/types';
 import { INTERVALS, formatPairLabel, getSource, sources } from './sources';
 import type { Candle, IntervalId, PairId } from './sources';
 import { initSymbolSearch } from './symbol-search';
+import { initChartMenu } from './chart-menu';
 import { loadLayout, saveLayout } from './layout';
 import { MiniChart } from './minichart';
 import type { MiniState } from './minichart';
@@ -250,7 +251,45 @@ function applySelection(nextSource: string, nextPair: PairId, reload = true): vo
   pairEl.value = pairId;
   persistLayout();
   watchlist?.highlight(sourceId, pairId);
-  if (reload) void loadChart();
+  if (reload) 
+initChartMenu(
+  wrapEl,
+  document.querySelector('#chart-menu')!,
+  (_x, y) => {
+    const rect = wrapEl.getBoundingClientRect();
+    return series.coordinateToPrice(y - rect.top);
+  },
+  {
+    resetView: () => {
+      chart.timeScale().applyOptions({ rightOffset: 6, barSpacing: 8 });
+      chart.timeScale().fitContent();
+      chart.timeScale().scrollToRealTime();
+      series.priceScale().applyOptions({ autoScale: true });
+      setStatus('Zresetowano widok wykresu.');
+    },
+    copyPrice: (price) => {
+      const text = String(price);
+      void navigator.clipboard?.writeText(text).then(
+        () => setStatus(`Skopiowano cenę ${text}`),
+        () => setStatus(`Nie udało się skopiować ceny ${text}`, true),
+      );
+    },
+    addAlert: (price) => {
+      const last = lastCandles[lastCandles.length - 1]?.close;
+      const direction = last !== undefined && price < last ? 'below' : 'above';
+      alerts.push(createAlert(sourceId, pairId, price, direction));
+      saveAlerts(alerts);
+      renderAlerts();
+      setStatus(`Dodano alert na ${price}`);
+    },
+    clearDrawings: () => {
+      drawings.clearAll();
+      setStatus('Usunięto wszystkie rysunki.');
+    },
+  },
+);
+
+void loadChart();
 }
 
 document.querySelector<HTMLButtonElement>('#theme-btn')?.addEventListener('click', () => {
