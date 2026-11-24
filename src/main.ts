@@ -26,6 +26,7 @@ import { initSymbolSearch } from './symbol-search';
 import { initChartMenu } from './chart-menu';
 import { initFibDialog } from './fib-dialog';
 import { fibExtOptionsOf, fibOptionsOf } from './fib-settings';
+import { initBackupUi } from './backup';
 import { fibExtensionPrice, fibRetracementPrice } from './drawings-math';
 import { initToolRail } from './tool-rail';
 import { loadLayout, saveLayout } from './layout';
@@ -206,6 +207,8 @@ function setStatus(text: string, error = false): void {
   statusEl.textContent = text;
   statusEl.classList.toggle('is-error', error);
 }
+
+initBackupUi({ setStatus });
 
 function currentSource() {
   const src = getSource(sourceId) ?? sources[0];

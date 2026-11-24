@@ -603,7 +603,7 @@ export class DrawingLayer {
   }
 
   private modalOpen(): boolean {
-    return Boolean(document.querySelector('#fib-modal:not([hidden]), #ind-modal:not([hidden]), #sym-modal:not([hidden])'));
+    return Boolean(document.querySelector('#fib-modal:not([hidden]), #ind-modal:not([hidden]), #sym-modal:not([hidden]), #backup-modal:not([hidden])'));
   }
 
   private onKey = (ev: KeyboardEvent): void => {

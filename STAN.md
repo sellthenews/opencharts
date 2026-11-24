@@ -245,3 +245,9 @@ Zrzut (lokalny, w `.gitignore`): `screenshots-test/fib-kierunek.png`.
 - Trend-based Fib Extension (24 XI 2026): osobny zestaw poziomów z zrzutu TV Mateusza (włączone: 0, 0.9, 1, 1.061, 1.155, 1.272, 1.414, 1.618; pozostałe na liście wyłączone). Domyślnie linia trendu kropkowana, Extend right, Background, Prices wyłączone, etykiety Values po lewej na środku. Paleta z tej samej rodziny co zniesienie, ale inna; 1 i 1.618 grubsze. Zapis `opencharts:fibext-defaults`. Na zrzucie TV nie było 2.618 ani 4.236 — nie dodałem ich. Duplikaty 1.061 i 1.414 z TV sprowadzone do jednego wpisu (włączonego).
 
 Zrzuty (lokalne, w `.gitignore`): `screenshots-test/fib-extension-domyslne.png`, `screenshots-test/fib-extension.png` (z włączonymi cenami).
+
+## Export / Import ustawień (24 XI 2026)
+
+- Przycisk Settings w pasku narzędzi (koło zębate): Export data i Import data. Backup JSON `{format:'opencharts-backup', version:1, exportedAt, data}` ze wszystkimi kluczami `opencharts:`. Import przez `input type=file`, walidacja, Replace all albo Merge, potem odświeżenie widoku. Bez serwera i logowania.
+
+Zrzut (lokalny, w `.gitignore`): `screenshots-test/eksport-import-menu.png`.
