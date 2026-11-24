@@ -1,15 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
-export type IntervalId = '1h' | '4h' | '1D' | '1W' | '1M';
+/** Builtin or custom interval id, e.g. `15m`, `1h`, `4h`, `1D`, or `6h`. */
+export type IntervalId = string;
 
-export const INTERVALS: { id: IntervalId; label: string }[] = [
-  { id: '1h', label: '1h' },
-  { id: '4h', label: '4h' },
-  { id: '1D', label: '1D' },
-  { id: '1W', label: '1W' },
-  { id: '1M', label: '1M' },
-];
+export { INTERVALS, isIntervalId, intervalLabel, parseIntervalId } from './intervals';
 
 export const PAIR_IDS = ['XRPUSD', 'BTCUSD', 'ETHUSD'] as const;
 export type PairId = string;
@@ -46,11 +41,19 @@ export interface DataSource {
   pairs: readonly PairDef[];
   /** Intervals the exchange serves natively. Others are aggregated in fetchCandles. */
   nativeIntervals: readonly IntervalId[];
-  fetchCandles(pairId: PairId, interval: IntervalId): Promise<Candle[]>;
+  fetchCandles(pairId: PairId, interval: IntervalId, opts?: CandleQuery): Promise<Candle[]>;
   fetchTicker(pairId: PairId): Promise<Ticker>;
 }
 
+export interface CandleQuery {
+  /** Return candles strictly older than this unix time (seconds). */
+  before?: number;
+  limit?: number;
+}
+
 export const MAX_CANDLES = 2500;
+export const MAX_HISTORY = 10_000;
+export const HISTORY_PAGE = 1000;
 
 export function pairsFromNative(map: Record<string, string>): PairDef[] {
   return PAIR_IDS.map((id) => ({ id, label: PAIR_LABELS[id], native: map[id] }));

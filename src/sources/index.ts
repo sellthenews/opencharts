@@ -18,7 +18,8 @@ export function getSource(id: string): DataSource | undefined {
   return sources.find((s) => s.id === id);
 }
 
-export type { Candle, DataSource, IntervalId, PairDef, PairId, Ticker } from './types';
-export { INTERVALS, PAIR_IDS, PAIR_LABELS } from './types';
+export type { Candle, CandleQuery, DataSource, IntervalId, PairDef, PairId, Ticker } from './types';
+export { HISTORY_PAGE, INTERVALS, MAX_HISTORY, PAIR_IDS, PAIR_LABELS, isIntervalId } from './types';
+export { BUILTIN_INTERVALS, DEFAULT_INTERVAL_FAVORITES, INTERVAL_FAV_KEY, intervalLabel, intervalSeconds, loadIntervalFavorites, parseIntervalId, saveIntervalFavorites, sourceIntervalFor } from './intervals';
 
 export { formatPairLabel, nativeSymbol, loadAllSymbols, cachedCounts } from './catalog';

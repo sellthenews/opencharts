@@ -20,7 +20,7 @@ import { IndicatorHud, initIndicatorModal } from './indicators/ui';
 import type { IndicatorInstance, IndicatorKind } from './indicators/types';
 import { macd, rsi } from './indicators/math';
 import { describeLoadError } from './load-error';
-import { INTERVALS, formatPairLabel, getSource, sources } from './sources';
+import { BUILTIN_INTERVALS, HISTORY_PAGE, MAX_HISTORY, formatPairLabel, getSource, intervalLabel, isIntervalId, loadIntervalFavorites, parseIntervalId, saveIntervalFavorites, sources } from './sources';
 import { lookupSymbol } from './sources/catalog';
 import type { Candle, IntervalId, PairId } from './sources';
 import { initSymbolSearch } from './symbol-search';
@@ -91,6 +91,11 @@ let toolRail: ReturnType<typeof initToolRail> | null = null;
 let sourceId = DEFAULT_SOURCE;
 let pairId: PairId = DEFAULT_PAIR;
 let intervalId: IntervalId = DEFAULT_INTERVAL;
+let intervalFavs = loadIntervalFavorites();
+let historyKey = '';
+let historyExhausted = false;
+let historyLoading = false;
+const HISTORY_LEFT_EDGE = 40;
 
 let paneCount: 1 | 2 | 4 = 1;
 const defaultExtras: MiniState[] = [
@@ -307,11 +312,13 @@ function activateTool(tool: Tool): void {
 }
 
 function setChartInterval(id: IntervalId): void {
-  if (id === intervalId) return;
+  if (!isIntervalId(id) || id === intervalId) return;
   intervalId = id;
   persistLayout();
   fillIntervals();
-  
+  void loadChart();
+}
+
 function refreshLangChrome(): void {
   applyTheme(theme);
   const liveEl = document.querySelector<HTMLElement>('#live-status');
@@ -330,12 +337,10 @@ function refreshLangChrome(): void {
     const aggregated = !src.nativeIntervals.includes(intervalId);
     setStatus(describeCandles(src.name, formatPairLabel(sourceId, pairId), lastCandles, aggregated));
   }
+  fillIntervals();
 }
 
 onLangChange(() => refreshLangChrome());
-
-void loadChart();
-}
 
 drawings.setOnPersist(() => recordHistory());
 const indicators = new IndicatorHost(chart, series);
@@ -347,7 +352,7 @@ indicators.setOnNeedTimeframe((tf) => {
 });
 
 async function loadHigherTf(tf: string): Promise<void> {
-  if (!INTERVALS.some((row) => row.id === tf) || pendingHtf.has(`${sourceId}:${pairId}:${tf}`)) return;
+  if (!isIntervalId(tf) || pendingHtf.has(`${sourceId}:${pairId}:${tf}`)) return;
   const interval = tf as IntervalId;
   const key = `${sourceId}:${pairId}:${interval}`;
   pendingHtf.add(key);
@@ -434,11 +439,75 @@ function fillPairs(): void {
   symbolSearch?.setCurrent(sourceId, pairId);
 }
 
+function escapeAttr(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function closeIntervalMenu(): void {
+  const menu = document.querySelector<HTMLElement>('#interval-menu');
+  const btn = document.querySelector<HTMLButtonElement>('#interval-menu-btn');
+  if (menu) menu.hidden = true;
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
+function toggleIntervalFav(id: string): void {
+  if (!isIntervalId(id)) return;
+  intervalFavs = intervalFavs.includes(id) ? intervalFavs.filter((x) => x !== id) : [...intervalFavs, id];
+  saveIntervalFavorites(intervalFavs);
+  fillIntervals();
+}
+
+function applyCustomInterval(raw: string): void {
+  const id = parseIntervalId(raw);
+  if (!id) return;
+  setChartInterval(id);
+  closeIntervalMenu();
+}
+
 function fillIntervals(): void {
-  intervalsEl.innerHTML = INTERVALS.map(
-    (i) =>
-      `<button type="button" class="interval${i.id === intervalId ? ' is-active' : ''}" data-interval="${i.id}">${i.label}</button>`,
-  ).join('');
+  const menuWasOpen = document.querySelector<HTMLElement>('#interval-menu') ? !document.querySelector<HTMLElement>('#interval-menu')!.hidden : false;
+  const favHtml = intervalFavs
+    .map((id) => {
+      const active = id === intervalId ? ' is-active' : '';
+      return `<button type="button" class="interval${active}" data-interval="${escapeAttr(id)}">${escapeAttr(intervalLabel(id))}</button>`;
+    })
+    .join('');
+  const groups: { id: 'minutes' | 'hours' | 'days'; label: string }[] = [
+    { id: 'minutes', label: t('interval.minutes') },
+    { id: 'hours', label: t('interval.hours') },
+    { id: 'days', label: t('interval.days') },
+  ];
+  const rows = groups
+    .map((group) => {
+      const items = BUILTIN_INTERVALS.filter((d) => d.group === group.id)
+        .map((d) => {
+          const starred = intervalFavs.includes(d.id);
+          const active = d.id === intervalId ? ' is-active' : '';
+          const starLabel = starred ? t('interval.removeFav') : t('interval.addFav');
+          return `<div class="interval-row">
+            <button type="button" class="interval-item${active}" data-pick-interval="${d.id}" role="option" aria-selected="${d.id === intervalId ? 'true' : 'false'}">${escapeAttr(intervalLabel(d.id))}</button>
+            <button type="button" class="interval-star${starred ? ' is-on' : ''}" data-fav="${d.id}" aria-pressed="${starred ? 'true' : 'false'}" title="${escapeAttr(starLabel)}" aria-label="${escapeAttr(starLabel)}">${starred ? '★' : '☆'}</button>
+          </div>`;
+        })
+        .join('');
+      return `<div class="interval-group-label">${escapeAttr(group.label)}</div>${items}`;
+    })
+    .join('');
+  const customActive = !BUILTIN_INTERVALS.some((d) => d.id === intervalId)
+    ? `<div class="interval-row"><button type="button" class="interval-item is-active" data-pick-interval="${escapeAttr(intervalId)}" role="option" aria-selected="true">${escapeAttr(intervalLabel(intervalId))}</button></div>`
+    : '';
+  intervalsEl.innerHTML = `<div class="interval-favs">${favHtml}</div>
+    <div class="interval-picker">
+      <button type="button" id="interval-menu-btn" class="interval-menu-btn" aria-expanded="${menuWasOpen ? 'true' : 'false'}" aria-haspopup="listbox" aria-controls="interval-menu" title="${escapeAttr(t('interval.list'))}" aria-label="${escapeAttr(t('interval.list'))}">${escapeAttr(intervalLabel(intervalId))} <span aria-hidden="true">▾</span></button>
+      <div id="interval-menu" class="interval-menu" role="listbox" aria-label="${escapeAttr(t('interval.list'))}" ${menuWasOpen ? '' : 'hidden'}>
+        ${rows}
+        ${customActive}
+        <div class="interval-custom">
+          <label for="interval-custom">${escapeAttr(t('interval.custom'))}</label>
+          <input id="interval-custom" type="text" spellcheck="false" autocomplete="off" placeholder="${escapeAttr(t('interval.customPlaceholder'))}" aria-label="${escapeAttr(t('interval.customPrompt'))}" />
+        </div>
+      </div>
+    </div>`;
 }
 
 function setReady(ready: boolean): void {
@@ -716,12 +785,14 @@ function showLastOhlc(): void {
   showOhlc(last, lastCandles.length - 1);
 }
 
-function applyPriceData(candles: Candle[], fit: boolean): void {
+function applyPriceData(candles: Candle[], fit: boolean, shift = 0): void {
   const range = !fit ? chart.timeScale().getVisibleLogicalRange() : null;
   lastCandles = candles;
+  restoringView = true;
   if (!candles.length) {
     series.setData([]);
     applyIndicators();
+    restoringView = false;
     return;
   }
   const mid = candles[Math.floor(candles.length / 2)]!;
@@ -740,9 +811,83 @@ function applyPriceData(candles: Candle[], fit: boolean): void {
   drawings.setTimeInfo(candles[candles.length - 1]!.time, step);
   drawings.setPriceData(candles.map((c) => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close })));
   if (fit) chart.timeScale().fitContent();
-  else if (range) chart.timeScale().setVisibleLogicalRange(range);
+  else if (range) {
+    chart.timeScale().setVisibleLogicalRange({
+      from: range.from + shift,
+      to: range.to + shift,
+    });
+  }
+  restoringView = false;
   evaluateAlerts(sourceId, pairId, candles[candles.length - 1]!.close);
   showLastOhlc();
+}
+
+function chartHistoryKey(): string {
+  return `${sourceId}:${pairId}:${intervalId}`;
+}
+
+function mergeCandleLists(a: Candle[], b: Candle[]): Candle[] {
+  const map = new Map<number, Candle>();
+  for (const c of a) map.set(c.time, c);
+  for (const c of b) map.set(c.time, c); // later list wins on overlap
+  return [...map.values()].sort((x, y) => x.time - y.time);
+}
+
+function capHistory(candles: Candle[]): Candle[] {
+  if (candles.length <= MAX_HISTORY) return candles;
+  return candles.slice(candles.length - MAX_HISTORY);
+}
+
+function resetHistoryPaging(): void {
+  const key = chartHistoryKey();
+  if (historyKey === key) return;
+  historyKey = key;
+  historyExhausted = false;
+  historyLoading = false;
+}
+
+async function loadOlderHistory(): Promise<number> {
+  if (historyLoading || historyExhausted || !lastCandles.length) return 0;
+  if (lastCandles.length >= MAX_HISTORY) {
+    historyExhausted = true;
+    return 0;
+  }
+  const key = chartHistoryKey();
+  const first = lastCandles[0]!.time;
+  const prevCount = lastCandles.length;
+  historyLoading = true;
+  const seq = loadSeq;
+  try {
+    const src = currentSource();
+    const older = await src.fetchCandles(pairId, intervalId, { before: first, limit: HISTORY_PAGE });
+    if (seq !== loadSeq || chartHistoryKey() !== key) return 0;
+    const added = older.filter((c) => c.time < first);
+    if (!added.length) {
+      historyExhausted = true;
+      return 0;
+    }
+    const merged = capHistory(mergeCandleLists(added, lastCandles));
+    const shift = merged.filter((c) => c.time < first).length - Math.max(0, prevCount + added.length - merged.length);
+    setCachedCandles(sourceId, pairId, intervalId, merged);
+    applyPriceData(merged, false, Math.max(0, shift));
+    const aggregated = !src.nativeIntervals.includes(intervalId);
+    const extra = src.id === 'kraken' && added.length ? t('status.olderFrom', { source: 'Binance' }) : '';
+    const base = describeCandles(src.name, formatPairLabel(sourceId, pairId), merged, aggregated);
+    setStatus(extra ? `${base}${extra}` : base);
+    return Math.max(0, shift);
+  } catch (err) {
+    console.error(err);
+    return 0;
+  } finally {
+    if (chartHistoryKey() === key) historyLoading = false;
+  }
+}
+
+function maybeLoadOlderHistory(): void {
+  if (historyLoading || historyExhausted || wrapEl.dataset.loading === 'full') return;
+  const range = chart.timeScale().getVisibleLogicalRange();
+  if (!range) return;
+  if (range.from <= HISTORY_LEFT_EDGE) void loadOlderHistory();
 }
 
 type LoaderMode = 'off' | 'full' | 'refresh';
@@ -800,6 +945,7 @@ function describeCandles(srcName: string, pairLabel: string, candles: Candle[], 
 
 async function loadChart(): Promise<void> {
   const seq = ++loadSeq;
+  resetHistoryPaging();
   syncIndicatorContext();
   const src = currentSource();
   const pairLabel = formatPairLabel(sourceId, pairId);
@@ -820,9 +966,10 @@ async function loadChart(): Promise<void> {
   }
 
   try {
-    const candles = await src.fetchCandles(pairId, intervalId);
+    const fresh = await src.fetchCandles(pairId, intervalId);
     if (seq !== loadSeq) return;
-    if (!candles.length) throw new Error('No candles in the API response');
+    if (!fresh.length) throw new Error('No candles in the API response');
+    const candles = capHistory(mergeCandleLists(cached ?? [], fresh));
     setCachedCandles(sourceId, pairId, intervalId, candles);
     applyPriceData(candles, !(cached?.length || hadData));
     drawings.setContext(src.id, pairId);
@@ -834,6 +981,7 @@ async function loadChart(): Promise<void> {
     resetHistory();
     void comparePanel?.reload();
     requestAnimationFrame(() => drawings.syncSize());
+    if (!historyExhausted && candles.length < MAX_HISTORY) void loadOlderHistory();
   } catch (err) {
     if (seq !== loadSeq) return;
     if (!cached?.length) {
@@ -867,9 +1015,48 @@ pairEl.addEventListener('change', () => {
 });
 
 intervalsEl.addEventListener('click', (ev) => {
-  const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-interval]');
-  if (!btn?.dataset.interval) return;
-  setChartInterval(btn.dataset.interval as IntervalId);
+  const fav = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-fav]');
+  if (fav?.dataset.fav) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const menu = document.querySelector<HTMLElement>('#interval-menu');
+    const wasOpen = menu ? !menu.hidden : false;
+    toggleIntervalFav(fav.dataset.fav);
+    if (wasOpen) {
+      const next = document.querySelector<HTMLElement>('#interval-menu');
+      const btn = document.querySelector<HTMLButtonElement>('#interval-menu-btn');
+      if (next) next.hidden = false;
+      if (btn) btn.setAttribute('aria-expanded', 'true');
+    }
+    return;
+  }
+  const menuBtn = (ev.target as HTMLElement).closest('#interval-menu-btn');
+  if (menuBtn) {
+    ev.preventDefault();
+    const menu = document.querySelector<HTMLElement>('#interval-menu');
+    if (!menu) return;
+    const open = menu.hidden;
+    menu.hidden = !open;
+    menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) document.querySelector<HTMLInputElement>('#interval-custom')?.focus();
+    return;
+  }
+  const pick = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-pick-interval], [data-interval]');
+  const id = pick?.dataset.pickInterval ?? pick?.dataset.interval;
+  if (!id) return;
+  setChartInterval(id as IntervalId);
+  closeIntervalMenu();
+});
+
+intervalsEl.addEventListener('keydown', (ev) => {
+  const input = ev.target as HTMLElement;
+  if (input.id !== 'interval-custom' || ev.key !== 'Enter') return;
+  ev.preventDefault();
+  applyCustomInterval((input as HTMLInputElement).value);
+});
+
+document.addEventListener('pointerdown', (ev) => {
+  if (!intervalsEl.contains(ev.target as Node)) closeIntervalMenu();
 });
 
 function exportDrawingsFile(): void {
@@ -998,7 +1185,10 @@ setSidebar(sidebarIsOn());
 document.querySelector('#sidebar-btn')?.addEventListener('click', () => setSidebar(!sidebarIsOn()));
 window.addEventListener('resize', () => resizeCharts());
 
-chart.timeScale().subscribeVisibleLogicalRangeChange(() => rememberChartView());
+chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
+  rememberChartView();
+  maybeLoadOlderHistory();
+});
 chart.timeScale().subscribeVisibleTimeRangeChange((range) => {
   if (!range) return;
   const from = typeof range.from === 'number' ? range.from : Number(range.from);
@@ -1071,6 +1261,7 @@ declare global {
       applySelection: (sourceId: string, pairId: PairId) => void;
       getVisibleLogicalRange: () => { from: number; to: number } | null;
       getCandles: () => { time: number; open: number; high: number; low: number; close: number }[];
+      loadOlderHistory: () => Promise<number>;
       timePriceToPage: (time: number, price: number) => { x: number; y: number } | null;
       handlePage: (handle: string, drawingId?: string | null) => { x: number; y: number } | null;
       getPriceRange: () => { from: number; to: number } | null;
@@ -1142,6 +1333,7 @@ window.__opencharts = {
     return range ? { from: range.from, to: range.to } : null;
   },
   getCandles: () => lastCandles.map((c) => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close })),
+  loadOlderHistory: () => loadOlderHistory(),
   timePriceToPage: (time, price) => {
     const x = chart.timeScale().timeToCoordinate(time as import('lightweight-charts').Time);
     const y = series.priceToCoordinate(price);

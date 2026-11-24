@@ -3,16 +3,26 @@
 
 import { aggregateCandles, sortDedup } from './aggregate';
 import { changePct, fetchJson } from './http';
-import type { Candle, DataSource, IntervalId, PairId, Ticker } from './types';
+import type { Candle, CandleQuery, DataSource, IntervalId, PairId, Ticker } from './types';
+import { HISTORY_PAGE } from './types';
+import { sourceIntervalFor } from './intervals';
+import { binance } from './binance';
 import { pairsFromNative } from './types';
 import { isKrakenTokenized, nativeSymbol } from './catalog';
 
-const NATIVE: Record<Exclude<IntervalId, '1M'>, number> = {
+/** Kraken public OHLC intervals in minutes. 1M is aggregated. */
+const NATIVE_MINUTES: Record<string, number> = {
+  '1m': 1,
+  '5m': 5,
+  '15m': 15,
+  '30m': 30,
   '1h': 60,
   '4h': 240,
   '1D': 1440,
   '1W': 10080,
 };
+
+const NATIVE_IDS = Object.keys(NATIVE_MINUTES);
 
 interface KrakenOhlcResponse {
   error: string[];
@@ -54,14 +64,23 @@ export const kraken: DataSource = {
     BTCUSD: 'XBTUSD',
     ETHUSD: 'ETHUSD',
   }),
-  nativeIntervals: ['1h', '4h', '1D', '1W'],
-  async fetchCandles(pairId: PairId, interval: IntervalId): Promise<Candle[]> {
+  nativeIntervals: NATIVE_IDS,
+  async fetchCandles(pairId: PairId, interval: IntervalId, opts?: CandleQuery): Promise<Candle[]> {
     const symbol = nativeSymbol(this, pairId);
-    if (interval === '1M') {
-      const weekly = await fetchInterval(symbol, NATIVE['1W']);
-      return aggregateCandles(weekly, '1M');
+    const srcId = sourceIntervalFor(NATIVE_IDS, interval) ?? '1h';
+    let candles: Candle[];
+    if (opts?.before !== undefined) {
+      // Kraken OHLC cannot page backwards (always the latest ~720 bars), so older history comes from Binance.
+      candles = await binance.fetchCandles(pairId, srcId, { before: opts.before, limit: opts.limit ?? HISTORY_PAGE });
+    } else {
+      candles = await fetchInterval(symbol, NATIVE_MINUTES[srcId] ?? 60);
     }
-    return fetchInterval(symbol, NATIVE[interval]);
+    if (srcId !== interval) {
+      candles = aggregateCandles(candles, interval);
+    }
+    if (opts?.before !== undefined) candles = candles.filter((c) => c.time < opts.before!);
+    if (opts?.limit && candles.length > opts.limit) candles = candles.slice(-opts.limit);
+    return candles;
   },
   async fetchTicker(pairId: PairId): Promise<Ticker> {
     const symbol = nativeSymbol(this, pairId);

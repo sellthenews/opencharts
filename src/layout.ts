@@ -3,6 +3,7 @@
 
 import './storage';
 import type { IntervalId, PairId } from './sources';
+import { isIntervalId } from './sources';
 import type { MiniState } from './minichart';
 
 export const LAYOUT_KEY = 'opencharts:layout';
@@ -16,8 +17,6 @@ export interface LayoutState {
   extras?: MiniState[];
 }
 
-const INTERVALS: IntervalId[] = ['1h', '4h', '1D', '1W', '1M'];
-
 export function loadLayout(): LayoutState | null {
   try {
     const raw = localStorage.getItem(LAYOUT_KEY);
@@ -25,7 +24,7 @@ export function loadLayout(): LayoutState | null {
     const p = JSON.parse(raw) as Partial<LayoutState>;
     if (typeof p.sourceId !== 'string' || !p.sourceId) return null;
     if (typeof p.pairId !== 'string' || !p.pairId) return null;
-    if (!INTERVALS.includes(p.intervalId as IntervalId)) return null;
+    if (!isIntervalId(p.intervalId)) return null;
     if (p.theme !== 'light' && p.theme !== 'dark') return null;
     const paneCount = p.paneCount === 2 || p.paneCount === 4 ? p.paneCount : 1;
     const extras = Array.isArray(p.extras) ? p.extras : undefined;

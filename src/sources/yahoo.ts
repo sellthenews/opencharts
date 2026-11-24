@@ -4,7 +4,8 @@
 import { STOCKS_PROXY_UNCONFIGURED, getStocksProxyUrl } from '../config';
 import { aggregateCandles, sortDedup } from './aggregate';
 import { changePct, fetchJson } from './http';
-import type { Candle, DataSource, IntervalId, PairId, Ticker } from './types';
+import type { Candle, CandleQuery, DataSource, IntervalId, PairId, Ticker } from './types';
+import { sourceIntervalFor } from './intervals';
 
 /**
  * Yahoo interval / range mapping:
@@ -14,12 +15,17 @@ import type { Candle, DataSource, IntervalId, PairId, Ticker } from './types';
  * - 1W: `1wk` + `range=max`
  * - 1M: `1mo` + `range=max`
  */
-const QUERY: Record<Exclude<IntervalId, '4h'>, { interval: string; range: string }> = {
+const QUERY: Record<string, { interval: string; range: string }> = {
+  '1m': { interval: '1m', range: '7d' },
+  '5m': { interval: '5m', range: '60d' },
+  '15m': { interval: '15m', range: '60d' },
+  '30m': { interval: '30m', range: '60d' },
   '1h': { interval: '1h', range: '3mo' },
   '1D': { interval: '1d', range: '5y' },
   '1W': { interval: '1wk', range: 'max' },
   '1M': { interval: '1mo', range: 'max' },
 };
+const NATIVE_IDS = Object.keys(QUERY);
 
 export const YAHOO_STOCKS: { id: string; name: string }[] = [
   { id: 'XRPN', name: 'Evernorth Holdings' },
@@ -113,15 +119,18 @@ export const yahoo: DataSource = {
   id: 'yahoo',
   name: 'Yahoo (via OpenCharts proxy)',
   pairs: YAHOO_STOCKS.map((s) => ({ id: s.id, label: s.id, native: s.id })),
-  nativeIntervals: ['1h', '1D', '1W', '1M'],
-  async fetchCandles(pairId: PairId, interval: IntervalId): Promise<Candle[]> {
+  nativeIntervals: NATIVE_IDS,
+  async fetchCandles(pairId: PairId, interval: IntervalId, opts?: CandleQuery): Promise<Candle[]> {
     const symbol = this.pairs.find((p) => p.id === pairId)?.native ?? pairId;
-    if (interval === '4h') {
-      const hourly = candlesFromChart(await fetchChart(symbol, QUERY['1h'].interval, QUERY['1h'].range));
-      return aggregateCandles(hourly, '4h');
-    }
-    const q = QUERY[interval];
-    return candlesFromChart(await fetchChart(symbol, q.interval, q.range));
+    const srcId = sourceIntervalFor(this.nativeIntervals, interval);
+    if (!srcId) throw new Error(`Yahoo: unsupported interval ${interval}`);
+    const q = QUERY[srcId];
+    if (!q) throw new Error(`Yahoo: unsupported interval ${interval}`);
+    let candles = candlesFromChart(await fetchChart(symbol, q.interval, q.range));
+    if (srcId !== interval) candles = aggregateCandles(candles, interval);
+    if (opts?.before !== undefined) candles = candles.filter((c) => c.time < opts.before!);
+    if (opts?.limit && candles.length > opts.limit) candles = candles.slice(-opts.limit);
+    return candles;
   },
   async fetchTicker(pairId: PairId): Promise<Ticker> {
     const symbol = this.pairs.find((p) => p.id === pairId)?.native ?? pairId;

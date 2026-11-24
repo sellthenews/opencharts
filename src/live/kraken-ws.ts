@@ -2,6 +2,7 @@
 // Copyright (C) 2026 OpenCharts contributors
 
 import type { Candle, IntervalId, PairId, Ticker } from '../sources/types';
+import { intervalSeconds } from '../sources/intervals';
 import { isKrakenTokenized, krakenWsName } from '../sources/catalog';
 import { isoToUnix } from './merge';
 
@@ -26,12 +27,14 @@ function wsSymbol(pair: string): string | undefined {
   return named;
 }
 
-const INTERVAL_MINUTES: Record<Exclude<IntervalId, '1M'>, number> = {
-  '1h': 60,
-  '4h': 240,
-  '1D': 1440,
-  '1W': 10080,
-};
+function intervalMinutes(id: IntervalId): number | null {
+  if (id === '1M') return 10080;
+  const sec = intervalSeconds(id);
+  if (sec === null || sec < 60) return null;
+  return Math.round(sec / 60);
+}
+
+const KRAKEN_WS_INTERVALS = new Set([1, 5, 15, 30, 60, 240, 1440, 10080, 21600]);
 
 export type LiveStatus = 'off' | 'connecting' | 'live';
 
@@ -143,8 +146,8 @@ export class KrakenLive {
     if (this.ws?.readyState !== WebSocket.OPEN) return;
     if (this.chartPair) {
       const symbol = wsSymbol(this.chartPair);
-      const interval = this.chartInterval === '1M' ? 10080 : INTERVAL_MINUTES[this.chartInterval ?? '1D'];
-      if (symbol && interval) {
+      const interval = intervalMinutes(this.chartInterval ?? '1D');
+      if (symbol && interval && KRAKEN_WS_INTERVALS.has(interval)) {
         this.ws.send(
           JSON.stringify({
             method: 'subscribe',

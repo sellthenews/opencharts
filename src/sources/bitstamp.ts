@@ -3,15 +3,23 @@
 
 import { aggregateCandles, sortDedup } from './aggregate';
 import { changePct, fetchJson } from './http';
-import type { Candle, DataSource, IntervalId, PairId, Ticker } from './types';
+import type { Candle, CandleQuery, DataSource, IntervalId, PairId, Ticker } from './types';
 import { MAX_CANDLES, pairsFromNative } from './types';
+import { sourceIntervalFor } from './intervals';
 import { nativeSymbol } from './catalog';
 
-const STEP: Record<Exclude<IntervalId, '1W' | '1M'>, number> = {
+const STEP: Record<string, number> = {
+  '1m': 60,
+  '3m': 180,
+  '5m': 300,
+  '15m': 900,
+  '30m': 1800,
   '1h': 3600,
+  '2h': 7200,
   '4h': 14400,
   '1D': 86400,
 };
+const NATIVE_IDS = Object.keys(STEP);
 
 interface BitstampOhlcResponse {
   data?: {
@@ -37,20 +45,21 @@ function toCandle(row: NonNullable<NonNullable<BitstampOhlcResponse['data']>['oh
   };
 }
 
-async function fetchStep(pair: string, step: number, maxCandles = MAX_CANDLES): Promise<Candle[]> {
+async function fetchStep(pair: string, step: number, opts?: CandleQuery): Promise<Candle[]> {
+  const maxCandles = opts?.limit ?? MAX_CANDLES;
   const collected: Candle[] = [];
-  let end: number | undefined;
+  let end: number | undefined = opts?.before !== undefined ? opts.before - 1 : undefined;
   let guard = 0;
   while (collected.length < maxCandles && guard < 12) {
     guard += 1;
     const url = new URL(`https://www.bitstamp.net/api/v2/ohlc/${encodeURIComponent(pair)}/`);
     url.searchParams.set('step', String(step));
-    url.searchParams.set('limit', '1000');
+    url.searchParams.set('limit', String(Math.min(1000, maxCandles - collected.length)));
     if (end !== undefined) url.searchParams.set('end', String(end));
     const data = await fetchJson<BitstampOhlcResponse>(url.toString());
     const rows = data.data?.ohlc ?? [];
     if (!rows.length) break;
-    collected.push(...rows.map(toCandle));
+    collected.push(...rows.map(toCandle).filter((c) => opts?.before === undefined || c.time < opts.before));
     const oldest = Math.min(...rows.map((r) => Number(r.timestamp)));
     if (end !== undefined && oldest >= end) break;
     end = oldest - 1;
@@ -67,14 +76,15 @@ export const bitstamp: DataSource = {
     BTCUSD: 'btcusd',
     ETHUSD: 'ethusd',
   }),
-  nativeIntervals: ['1h', '4h', '1D'],
-  async fetchCandles(pairId: PairId, interval: IntervalId): Promise<Candle[]> {
+  nativeIntervals: NATIVE_IDS,
+  async fetchCandles(pairId: PairId, interval: IntervalId, opts?: CandleQuery): Promise<Candle[]> {
     const pair = nativeSymbol(this, pairId);
-    if (interval === '1W' || interval === '1M') {
-      const daily = await fetchStep(pair, STEP['1D']);
-      return aggregateCandles(daily, interval);
-    }
-    return fetchStep(pair, STEP[interval]);
+    const srcId = sourceIntervalFor(this.nativeIntervals, interval);
+    if (!srcId || !STEP[srcId]) throw new Error(`Bitstamp: unsupported interval ${interval}`);
+    const raw = await fetchStep(pair, STEP[srcId], opts);
+    if (srcId === interval) return raw;
+    const aggregated = aggregateCandles(raw, interval);
+    return opts?.before !== undefined ? aggregated.filter((c) => c.time < opts.before!) : aggregated;
   },
   async fetchTicker(pairId: PairId): Promise<Ticker> {
     const pair = nativeSymbol(this, pairId);

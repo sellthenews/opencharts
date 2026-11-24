@@ -3,15 +3,20 @@
 
 import { aggregateCandles, sortDedup } from './aggregate';
 import { changePct, fetchJson } from './http';
-import type { Candle, DataSource, IntervalId, PairId, Ticker } from './types';
+import type { Candle, CandleQuery, DataSource, IntervalId, PairId, Ticker } from './types';
 import { MAX_CANDLES, pairsFromNative } from './types';
+import { sourceIntervalFor } from './intervals';
 import { nativeSymbol } from './catalog';
 
-/** Coinbase Exchange public candles: granularity in seconds. No native 4h / 1W / 1M. */
-const NATIVE_GRANULARITY: Partial<Record<IntervalId, number>> = {
+/** Coinbase Exchange public candles: granularity in seconds. */
+const NATIVE_GRANULARITY: Record<string, number> = {
+  '1m': 60,
+  '5m': 300,
+  '15m': 900,
   '1h': 3600,
   '1D': 86400,
 };
+const NATIVE_IDS = Object.keys(NATIVE_GRANULARITY);
 
 const PAGE = 300;
 
@@ -32,10 +37,11 @@ function rowToCandle(row: CoinbaseRow): Candle {
 async function fetchGranularity(
   product: string,
   granularity: number,
-  maxCandles = MAX_CANDLES,
+  opts?: CandleQuery,
 ): Promise<Candle[]> {
+  const maxCandles = opts?.limit ?? MAX_CANDLES;
   const collected: Candle[] = [];
-  let end = Math.floor(Date.now() / 1000);
+  let end = opts?.before !== undefined ? opts.before : Math.floor(Date.now() / 1000);
   let guard = 0;
   while (collected.length < maxCandles && guard < 16) {
     guard += 1;
@@ -46,7 +52,8 @@ async function fetchGranularity(
       `&end=${new Date(end * 1000).toISOString()}`;
     const rows = await fetchJson<CoinbaseRow[]>(url);
     if (!rows.length) break;
-    collected.push(...rows.map(rowToCandle));
+    const batch = rows.map(rowToCandle).filter((c) => opts?.before === undefined || c.time < opts.before);
+    collected.push(...batch);
     const oldest = Math.min(...rows.map((r) => Number(r[0])));
     if (oldest >= end) break;
     end = oldest;
@@ -63,20 +70,17 @@ export const coinbase: DataSource = {
     BTCUSD: 'BTC-USD',
     ETHUSD: 'ETH-USD',
   }),
-  nativeIntervals: ['1h', '1D'],
-  async fetchCandles(pairId: PairId, interval: IntervalId): Promise<Candle[]> {
+  nativeIntervals: NATIVE_IDS,
+  async fetchCandles(pairId: PairId, interval: IntervalId, opts?: CandleQuery): Promise<Candle[]> {
     const product = nativeSymbol(this, pairId);
-    if (interval === '4h') {
-      const hourly = await fetchGranularity(product, 3600);
-      return aggregateCandles(hourly, '4h');
-    }
-    if (interval === '1W' || interval === '1M') {
-      const daily = await fetchGranularity(product, 86400);
-      return aggregateCandles(daily, interval);
-    }
-    const gran = NATIVE_GRANULARITY[interval];
+    const srcId = sourceIntervalFor(this.nativeIntervals, interval);
+    if (!srcId) throw new Error(`Coinbase: unsupported interval ${interval}`);
+    const gran = NATIVE_GRANULARITY[srcId];
     if (!gran) throw new Error(`Coinbase: unsupported interval ${interval}`);
-    return fetchGranularity(product, gran);
+    const raw = await fetchGranularity(product, gran, opts);
+    if (srcId === interval) return raw;
+    const aggregated = aggregateCandles(raw, interval);
+    return opts?.before !== undefined ? aggregated.filter((c) => c.time < opts.before!) : aggregated;
   },
   async fetchTicker(pairId: PairId): Promise<Ticker> {
     const product = nativeSymbol(this, pairId);

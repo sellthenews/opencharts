@@ -2,13 +2,7 @@
 // Copyright (C) 2026 OpenCharts contributors
 
 import type { Candle, IntervalId } from './types';
-
-const STEP_SECONDS: Record<Exclude<IntervalId, '1M'>, number> = {
-  '1h': 3600,
-  '4h': 14400,
-  '1D': 86400,
-  '1W': 604800,
-};
+import { intervalSeconds } from './intervals';
 
 /** Monday 00:00 UTC of the ISO week containing `time`. */
 export function weekStartUtc(time: number): number {
@@ -27,7 +21,8 @@ export function monthStartUtc(time: number): number {
 export function bucketStart(time: number, interval: IntervalId): number {
   if (interval === '1M') return monthStartUtc(time);
   if (interval === '1W') return weekStartUtc(time);
-  const step = STEP_SECONDS[interval];
+  const step = intervalSeconds(interval);
+  if (!step) return time;
   return Math.floor(time / step) * step;
 }
 

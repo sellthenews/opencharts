@@ -2,6 +2,7 @@
 // Copyright (C) 2026 OpenCharts contributors
 
 import type { BandPoint, Candle, LinePoint, MacdPoint } from './types';
+import { intervalSeconds } from '../sources/intervals';
 
 export function sma(candles: Candle[], period: number): LinePoint[] {
   if (period < 1 || candles.length < period) return [];
@@ -837,10 +838,24 @@ export function mapToChartTimes(higher: LinePoint[], chart: Candle[]): LinePoint
   return out;
 }
 
-export const INTERVAL_RANK: Record<string, number> = { '1h': 1, '4h': 2, '1D': 3, '1W': 4, '1M': 5 };
+export function intervalRank(id: string): number {
+  if (id === '1M') return 10_000_000;
+  return intervalSeconds(id) ?? 0;
+}
+
+export const INTERVAL_RANK: Record<string, number> = {
+  '1m': 60,
+  '5m': 300,
+  '15m': 900,
+  '1h': 3600,
+  '4h': 14400,
+  '1D': 86400,
+  '1W': 604800,
+  '1M': 10_000_000,
+};
 
 export function isHigherTf(chart: string, tf: string): boolean {
-  return (INTERVAL_RANK[tf] ?? 0) > (INTERVAL_RANK[chart] ?? 0);
+  return intervalRank(tf) > intervalRank(chart);
 }
 
 export type DivergenceKind = 'regular-bull' | 'regular-bear' | 'hidden-bull' | 'hidden-bear';

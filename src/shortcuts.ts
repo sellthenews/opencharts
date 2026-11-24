@@ -4,7 +4,7 @@
 import { t } from './i18n';
 
 import type { IntervalId } from './sources';
-import { INTERVALS } from './sources';
+import { parseIntervalId } from './sources';
 import type { Tool } from './drawings-types';
 
 const TOOL_KEYS: Record<string, Tool> = {
@@ -14,23 +14,6 @@ const TOOL_KEYS: Record<string, Tool> = {
   f: 'fib',
 };
 
-const INTERVAL_ALIASES: Record<string, IntervalId> = {
-  '1': '1h',
-  '1h': '1h',
-  '60': '1h',
-  h: '1h',
-  '4': '4h',
-  '4h': '4h',
-  d: '1D',
-  '1d': '1D',
-  day: '1D',
-  w: '1W',
-  '1w': '1W',
-  week: '1W',
-  m: '1M',
-  '1m': '1M',
-  month: '1M',
-};
 
 export function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -49,10 +32,7 @@ export function isModalOpen(): boolean {
 }
 
 export function parseIntervalInput(raw: string): IntervalId | null {
-  const s = raw.trim().toLowerCase();
-  if (!s) return null;
-  if (s in INTERVAL_ALIASES) return INTERVAL_ALIASES[s]!;
-  return INTERVALS.find((i) => i.id.toLowerCase() === s)?.id ?? null;
+  return parseIntervalId(raw);
 }
 
 export function initShortcuts(opts: {
