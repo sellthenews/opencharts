@@ -94,7 +94,7 @@ test('group menu, pick tool, favorites persist after drag and reload', async ({ 
 
   await page.screenshot({ path: FAV_SHOT, fullPage: true });
 
-  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('opencharts:favorites') ?? 'null'));
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('opencharts:favorites-v2') ?? 'null'));
   expect(stored?.tools).toEqual(expect.arrayContaining(['trend', 'hline', 'extline', 'shortpos']));
 
   await page.reload();
@@ -117,15 +117,15 @@ test('clean localStorage shows the default favorites bar', async ({ page }) => {
     await expect(fav.locator(`[data-tool="${tool}"]`)).toBeVisible();
   }
   await expect(fav.locator('[data-tool="hline"]')).toHaveCount(0);
-  const stored = await page.evaluate(() => localStorage.getItem('opencharts:favorites'));
+  const stored = await page.evaluate(() => localStorage.getItem('opencharts:favorites-v2'));
   expect(stored).toBeNull();
   fs.mkdirSync(path.dirname(path.resolve('screenshots-test/ulubione-domyslne.png')), { recursive: true });
   await page.screenshot({ path: path.resolve('screenshots-test/ulubione-domyslne.png'), fullPage: true });
 });
 
-test('a stored favorites list is left unchanged', async ({ page }) => {
+test('a stored v2 favorites list is left unchanged', async ({ page }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('opencharts:favorites', JSON.stringify({ v: 1, tools: ['hline'], x: 24, y: 96 }));
+    localStorage.setItem('opencharts:favorites-v2', JSON.stringify({ v: 2, tools: ['hline'], x: 24, y: 96 }));
   });
   await page.goto('/');
   await waitReady(page);
@@ -134,7 +134,7 @@ test('a stored favorites list is left unchanged', async ({ page }) => {
   await expect(fav.locator('[data-tool="hline"]')).toBeVisible();
   await expect(fav.locator('[data-tool="trend"]')).toHaveCount(0);
   await expect(fav.locator('[data-tool="fib"]')).toHaveCount(0);
-  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('opencharts:favorites') ?? 'null'));
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('opencharts:favorites-v2') ?? 'null'));
   expect(stored?.tools).toEqual(['hline']);
   const box = await fav.boundingBox();
   expect(box).toBeTruthy();
@@ -142,4 +142,56 @@ test('a stored favorites list is left unchanged', async ({ page }) => {
   expect(wrap).toBeTruthy();
   expect(Math.abs(box!.x - (wrap!.x + 24))).toBeLessThan(6);
   expect(Math.abs(box!.y - (wrap!.y + 96))).toBeLessThan(6);
+});
+
+test('legacy empty favorites list migrates to the default set and shows the bar', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('opencharts:favorites', JSON.stringify({ v: 1, tools: [], x: 40, y: 200 }));
+  });
+  await page.goto('/');
+  await waitReady(page);
+  const fav = page.locator('#fav-bar');
+  await expect(fav).toBeVisible();
+  for (const tool of ['brush', 'channel', 'fib', 'xabcd', 'fibext', 'callout', 'trend', 'rect', 'path', 'ray', 'abcd', 'longpos', 'text', 'note']) {
+    await expect(fav.locator(`[data-tool="${tool}"]`)).toBeVisible();
+  }
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('opencharts:favorites-v2') ?? 'null'));
+  expect(stored?.v).toBe(2);
+  expect(stored?.tools[0]).toBe('brush');
+  expect(stored?.tools).toEqual(expect.arrayContaining(['fib', 'trend', 'note']));
+  expect(stored?.tools.length).toBeGreaterThanOrEqual(20);
+  const box = await fav.boundingBox();
+  const wrap = await page.locator('#chart-wrap').boundingBox();
+  expect(box).toBeTruthy();
+  expect(wrap).toBeTruthy();
+  expect(Math.abs(box!.y - (wrap!.y + 200))).toBeGreaterThan(40);
+  expect(Math.abs(box!.y - (wrap!.y + 48))).toBeLessThan(16);
+});
+
+test('legacy custom favorites list is merged with defaults and stays visible', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('opencharts:favorites', JSON.stringify({ v: 1, tools: ['hline', 'fib', 'extline'], x: 16, y: 160 }));
+  });
+  await page.goto('/');
+  await waitReady(page);
+  const fav = page.locator('#fav-bar');
+  await expect(fav).toBeVisible();
+  await expect(fav.locator('[data-tool="hline"]')).toBeVisible();
+  await expect(fav.locator('[data-tool="extline"]')).toBeVisible();
+  await expect(fav.locator('[data-tool="fib"]')).toBeVisible();
+  await expect(fav.locator('[data-tool="brush"]')).toBeVisible();
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('opencharts:favorites-v2') ?? 'null') as { v: number; tools: string[] } | null);
+  expect(stored?.v).toBe(2);
+  const tools = stored?.tools ?? [];
+  expect(tools[0]).toBe('brush');
+  expect(tools.indexOf('fib')).toBeGreaterThanOrEqual(0);
+  expect(tools.indexOf('fib')).toBeLessThan(tools.indexOf('hline'));
+  expect(tools.indexOf('hline')).toBeLessThan(tools.indexOf('extline'));
+  await page.reload();
+  await waitReady(page);
+  await expect(page.locator('#fav-bar')).toBeVisible();
+  const again = await page.evaluate(() => JSON.parse(localStorage.getItem('opencharts:favorites-v2') ?? 'null'));
+  expect(again?.tools).toEqual(tools);
+  fs.mkdirSync(path.dirname(path.resolve('screenshots-test/ulubione-migracja.png')), { recursive: true });
+  await page.screenshot({ path: path.resolve('screenshots-test/ulubione-migracja.png'), fullPage: true });
 });

@@ -71,10 +71,11 @@ export interface RailGroup {
 }
 
 const FAV_KEY = 'opencharts:favorites';
+const FAV_KEY_V2 = 'opencharts:favorites-v2';
 const LAST_KEY = 'opencharts:rail-last';
 const DEFAULT_FAV_TOP = 48;
 
-/** Shown when opencharts:favorites is missing. An existing key, even with tools: [], is left alone. */
+/** Default set used for first visits and the one-time v2 favorites migration. */
 export const DEFAULT_FAV_TOOLS: Tool[] = [
   'brush',
   'channel',
@@ -213,7 +214,7 @@ export const RAIL_GROUPS: RailGroup[] = [
 ];
 
 interface FavState {
-  v: 1;
+  v: 2;
   tools: Tool[];
   x: number;
   y: number;
@@ -242,16 +243,37 @@ function isToolId(id: unknown): id is Tool {
   return typeof id === 'string' && id in TOOL_DEFS && id !== 'cursor';
 }
 
+function mergeDefaultFav(existing: readonly Tool[]): Tool[] {
+  const seen = new Set<Tool>(DEFAULT_FAV_TOOLS);
+  const extras = existing.filter((id) => {
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+  return [...DEFAULT_FAV_TOOLS, ...extras];
+}
+
+function parseFavTools(raw: string | null): Tool[] | null {
+  if (!raw) return null;
+  try {
+    const p = JSON.parse(raw) as Partial<FavState>;
+    if (!Array.isArray(p.tools)) return null;
+    return p.tools.filter(isToolId);
+  } catch {
+    return null;
+  }
+}
+
 function loadFav(): { state: FavState; stored: boolean; placed: boolean } {
   try {
-    const raw = localStorage.getItem(FAV_KEY);
-    if (raw) {
-      const p = JSON.parse(raw) as Partial<FavState>;
+    const v2raw = localStorage.getItem(FAV_KEY_V2);
+    if (v2raw) {
+      const p = JSON.parse(v2raw) as Partial<FavState>;
       if (Array.isArray(p.tools)) {
         const placed = typeof p.x === 'number' && typeof p.y === 'number';
         return {
           state: {
-            v: 1,
+            v: 2,
             tools: p.tools.filter(isToolId),
             x: typeof p.x === 'number' ? p.x : 0,
             y: typeof p.y === 'number' ? p.y : DEFAULT_FAV_TOP,
@@ -261,15 +283,21 @@ function loadFav(): { state: FavState; stored: boolean; placed: boolean } {
         };
       }
     }
+    const legacyTools = parseFavTools(localStorage.getItem(FAV_KEY));
+    if (legacyTools) {
+      const state: FavState = { v: 2, tools: mergeDefaultFav(legacyTools), x: 0, y: DEFAULT_FAV_TOP };
+      saveFav(state);
+      return { state, stored: true, placed: false };
+    }
   } catch {
     /* ignore */
   }
-  return { state: { v: 1, tools: [...DEFAULT_FAV_TOOLS], x: 0, y: DEFAULT_FAV_TOP }, stored: false, placed: false };
+  return { state: { v: 2, tools: [...DEFAULT_FAV_TOOLS], x: 0, y: DEFAULT_FAV_TOP }, stored: false, placed: false };
 }
 
 function saveFav(state: FavState): void {
   try {
-    localStorage.setItem(FAV_KEY, JSON.stringify(state));
+    localStorage.setItem(FAV_KEY_V2, JSON.stringify({ ...state, v: 2 }));
   } catch {
     /* quota */
   }

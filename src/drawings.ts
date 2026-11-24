@@ -339,6 +339,7 @@ export class DrawingLayer {
     this.canvas.addEventListener('mousedown', (ev) => this.onPointer(ev, 'down'));
     this.canvas.addEventListener('mousemove', (ev) => this.onPointer(ev, 'move'));
     this.wrap.addEventListener('dblclick', (ev) => this.onDblClick(ev));
+    this.wrap.addEventListener('mousedown', (ev) => this.onEmptyClick(ev));
     window.addEventListener('mouseup', (ev) => this.onPointer(ev, 'up'));
     this.wrap.addEventListener('mousemove', (ev) => this.onHoverPassthrough(ev));
     window.addEventListener('keydown', this.onKey);
@@ -579,17 +580,44 @@ export class DrawingLayer {
     });
   }
 
+  private onEmptyClick(ev: MouseEvent): void {
+    if (ev.button !== 0 || this.tool !== 'cursor' || this.draft || this.drag || this.layerHidden) return;
+    const target = ev.target as HTMLElement | null;
+    if (target?.closest('#draw-bar, #fav-bar, #tool-rail, #chart-menu, .modal, [data-modal]')) return;
+    const rect = this.canvas.getBoundingClientRect();
+    const x = ev.clientX - rect.left;
+    const y = ev.clientY - rect.top;
+    if (this.hitHandle(x, y) || this.hitBody(x, y)) return;
+    if (!this.selectedId) return;
+    this.selectedId = null;
+    this.redraw();
+    this.emitSelect();
+  }
+
+  private typingTarget(target: EventTarget | null): boolean {
+    const el = target as HTMLElement | null;
+    if (!el) return false;
+    if (el.isContentEditable || el.closest('[contenteditable="true"]')) return true;
+    const tag = el.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !!el.closest('input, textarea, select');
+  }
+
+  private modalOpen(): boolean {
+    return Boolean(document.querySelector('#fib-modal:not([hidden]), #ind-modal:not([hidden]), #sym-modal:not([hidden])'));
+  }
+
   private onKey = (ev: KeyboardEvent): void => {
+    if (this.typingTarget(ev.target) || this.modalOpen()) return;
     if (ev.key === 'Escape') {
       this.draft = null;
       this.drag = null;
+      if (this.selectedId) this.selectedId = null;
       this.redraw();
+      this.emitSelect();
     } else if (ev.key === 'Enter' && this.draft && isOpenEnded(this.draft.type)) {
       ev.preventDefault();
       this.finishOpenDraft();
     } else if (ev.key === 'Delete' || ev.key === 'Backspace') {
-      const target = ev.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')) return;
       if (this.deleteSelected()) ev.preventDefault();
     }
   };

@@ -845,18 +845,10 @@ function placeDrawBar(): void {
   if (drawLineStyle) drawLineStyle.value = d.style?.lineStyle ?? 'solid';
   if (drawLock) drawLock.textContent = d.style?.locked ? 'Unlock' : 'Lock';
   if (drawSettings) drawSettings.hidden = d.type !== 'fib' && d.type !== 'fibext';
-  const anchor = drawings.selectionAnchor();
-  if (anchor) {
-    const top = Math.max(8, anchor.y - 40);
-    const left = Math.min(Math.max(8, anchor.x), wrapEl.clientWidth - 8);
-    drawBar.style.left = `${left}px`;
-    drawBar.style.top = `${top}px`;
-    drawBar.style.transform = 'translateX(-50%)';
-  } else {
-    drawBar.style.left = '50%';
-    drawBar.style.top = '8px';
-    drawBar.style.transform = 'translateX(-50%)';
-  }
+  drawBar.style.left = '8px';
+  drawBar.style.top = '8px';
+  drawBar.style.right = 'auto';
+  drawBar.style.transform = 'none';
 }
 
 function activateCursorTool(): void {

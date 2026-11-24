@@ -26,7 +26,7 @@ Podgląd: http://127.0.0.1:4173 (`npm run build && npm run preview`). Testy: `np
 - Pary: wyszukiwarka wszystkich par spot z oficjalnych API Krakena, Binance, Coinbase i Bitstamp (filtr giełdy, podpowiedzi, cache 24 h). Domyślnie XRP/USD, BTC/USD, ETH/USD; interwały 1h, 4h, 1D, 1W, 1M (agregacja gdy trzeba).
 - Wskaźniki lokalne, włączanie/okres w UI, `localStorage`.
 - Obserwowane: wiele list (My list, Crypto), dodawanie/usuwanie, cena i zmiana 24h, klik otwiera wykres; odświeżanie 45 s gdy karta widoczna; pozycje Krakena też z tickera WS.
-- Rysunki: narzędzia P1–P3 z listy poniżej; rysowanie klik-klik z podglądem, magnes do OHLC, cienkie wygładzone linie, kółka-uchwyty po zaznaczeniu, pływający pasek stylu (kolor, grubość, styl, blokada, usuń), Delete/Backspace, po narysowaniu powrót do kursora. JSON i `localStorage` per giełda+para, wraz ze stylem. Linia pozioma ma etykietę ceny na osi.
+- Rysunki: narzędzia P1–P3 z listy poniżej; rysowanie klik-klik z podglądem, magnes do OHLC, cienkie wygładzone linie, kółka-uchwyty po zaznaczeniu, pływający pasek stylu (kolor, grubość, styl, blokada, usuń; ukryty, aż rysunek jest zaznaczony, wtedy mały w lewym górnym rogu wykresu, znika po kliknięciu w puste miejsce albo Esc), Delete/Backspace (nie gdy fokus jest w polu tekstowym), po narysowaniu powrót do kursora. JSON i `localStorage` per giełda+para, wraz ze stylem. Linia pozioma ma etykietę ceny na osi.
 - Live Kraken: `wss://ws.kraken.com/v2`, kanały `ohlc` i `ticker`, ponowne łączenie.
 - Deploy Pages z `main` (`.github/workflows/pages.yml`) na https://sellthenews.github.io/opencharts/.
 - Runtime w `vendor/lightweight-charts@5.3.0/` (Apache 2.0, bez CDN).
@@ -208,7 +208,7 @@ Zrzut (lokalny, w `.gitignore`): `screenshots-test/stocks-yahoo.png` (XRPN z zam
 
 - Lewy pasek w grupach: kursor, linie, Fibonacci, formacje, prognozy i mierniki, pędzel, tekst, kształty. Na dole: linijka (zakres daty i ceny), zoom (przybliż / oddal / dopasuj), magnes, zablokuj wszystkie rysunki, ukryj wszystkie, kosz (z potwierdzeniem). Klik ikony grupy włącza ostatnio użyte narzędzie w tej grupie (ikona się zmienia, stan w `opencharts:rail-last`); mały trójkąt otwiera menu z nagłówkami sekcji po angielsku (np. FORECASTING / MEASURERS) i gwiazdką przy każdym narzędziu. Esc albo klik poza menu zamyka je.
 - W menu są tylko narzędzia, które działają. Nie ma sekcji VOLUME-BASED (Anchored VWAP, profil wolumenu), Ghost feed ani innych pozycji, których nie implementujemy.
-- Gwiazdka dodaje narzędzie do pływającego paska ulubionych (ciemna pastylka, uchwyt z sześcioma kropkami, przeciąganie). Lista i pozycja są w `opencharts:favorites`. Gdy brak klucza, pasek jest widoczny z domyślnym zestawem narzędzi, wyśrodkowany w górnej części wykresu. Zapisana lista (także pusta po świadomym usunięciu) nie jest nadpisywana. Pusty pasek jest ukryty.
+- Gwiazdka dodaje narzędzie do pływającego paska ulubionych (ciemna pastylka, uchwyt z sześcioma kropkami, przeciąganie). Aktualna lista i pozycja są w `opencharts:favorites-v2`. Gdy brak klucza, pasek jest widoczny z domyślnym zestawem narzędzi, wyśrodkowany w górnej części wykresu. Jednorazowa migracja ze starego `opencharts:favorites` (także pusta lista) zapisuje unię: najpierw zestaw domyślny, potem własne narzędzia bez duplikatów, pokazuje pasek i zeruje pozycję. Po migracji lista v2 (także pusta po świadomym usunięciu) nie jest nadpisywana. Pusty pasek jest ukryty.
 - Eksport / import rysunków oraz „Extend Fib right” są w menu kontekstowym, nie na lewym pasku.
 
 Zrzuty (lokalne, w `.gitignore`): `screenshots-test/pasek-menu.png`, `screenshots-test/pasek-ulubione.png`. Folder `screenshots-test/ref/` z referencyjnymi zdjęciami też jest ignorowany i nie trafia do repo.
@@ -230,6 +230,13 @@ Zrzuty (lokalne, w `.gitignore`): `screenshots-test/watchlist-menu.png`, `screen
 - Okno Style: dwuklik na rysunku, „Settings…” w menu prawego przycisku oraz koło zębate na pasku stylu. Lista poziomów (checkbox, wartość, kolor, dodaj/usuń), Background, Reverse, Prices, Levels, Labels (lewo/prawo), Extend lines, OK / Cancel / Reset to defaults / Save as default. UI po angielsku. Ustawienia per rysunek zapisują się z rysunkiem.
 
 Zrzuty (lokalne, w `.gitignore`): `screenshots-test/fib-wykres.png`, `screenshots-test/fib-ustawienia.png`, `screenshots-test/ulubione-domyslne.png`.
+
+## Ulubione v2 i pasek stylu (24 XI 2026)
+
+- Jednorazowa migracja `opencharts:favorites` → `opencharts:favorites-v2`: unia zestawu domyślnego i wcześniej dodanych narzędzi (kolejność: domyślne, potem własne), pasek widoczny, pozycja wyzerowana. Drugi raz nie migrujemy.
+- Pasek edycji rysunku jest domyślnie ukryty, pojawia się po zaznaczeniu, stoi mały w lewym górnym rogu wykresu i znika po kliknięciu w puste miejsce albo Esc.
+
+Zrzuty (lokalne, w `.gitignore`): `screenshots-test/fib-zaznaczony.png`, `screenshots-test/ulubione-migracja.png`.
 
 - Kierunek zniesienia (24 XI 2026, poprawka): jak w TradingView — pierwszy punkt to poziom 1, drugi to poziom 0, poziomy >1 za pierwszym punktem. Reverse odwraca to (0 na pierwszym punkcie). Stare rysunki bez Reverse przechodzą na nowy kierunek. Extension: 0 na C, 1 = C+(B−A) — wzór już był poprawny.
 
