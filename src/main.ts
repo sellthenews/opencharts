@@ -32,12 +32,18 @@ import { initToolRail } from './tool-rail';
 import { loadLayout, saveLayout } from './layout';
 import { MiniChart } from './minichart';
 import type { MiniState } from './minichart';
-import { alertLabel, checkAlert, createAlert, loadAlerts, saveAlerts } from './alerts';
+import { alertLabel, checkAlert, createAlert, loadAlerts, notifyAlert, requestAlertPermission, saveAlerts, trendPriceAt } from './alerts';
 import type { PriceAlert } from './alerts';
 import { KrakenLive, type LiveStatus } from './live/kraken-ws';
 import { mergeLiveCandle } from './live/merge';
 import { WatchlistPanel } from './watchlist';
 import type { WatchState } from './watchlist';
+import { EditorHistory } from './history';
+import { initShortcuts, parseIntervalInput } from './shortcuts';
+import { initComparePanel } from './compare';
+import { loadAllSymbols } from './sources/catalog';
+import type { SymbolInfo } from './sources/catalog';
+import type { Tool } from './drawings-types';
 
 const DEFAULT_SOURCE = 'kraken';
 const DEFAULT_PAIR: PairId = 'XRPUSD';
@@ -113,6 +119,7 @@ const alertListEl = document.querySelector<HTMLDivElement>('#alert-list');
 const alertForm = document.querySelector<HTMLFormElement>('#alert-form');
 const alertToast = document.querySelector<HTMLDivElement>('#alert-toast');
 let toastTimer: number | null = null;
+let editingAlertId: string | null = null;
 
 function renderAlerts(): void {
   if (!alertListEl) return;
@@ -126,7 +133,10 @@ function renderAlerts(): void {
       const fired = a.enabled ? '' : ' is-fired';
       return `<div class="alert-item${fired}" data-alert-id="${a.id}">
         <span>${alertLabel(a, src?.name ?? a.sourceId)}</span>
-        <button type="button" data-alert-del="${a.id}" title="Remove alert">×</button>
+        <span class="alert-item-actions">
+          <button type="button" data-alert-edit="${a.id}" title="Edit alert">Edit</button>
+          <button type="button" data-alert-del="${a.id}" title="Remove alert">×</button>
+        </span>
       </div>`;
     })
     .join('');
@@ -142,16 +152,37 @@ function showAlertToast(text: string): void {
   }, 8000);
 }
 
+function lineAlertContext(): NonNullable<Parameters<typeof checkAlert>[2]> {
+  return {
+    lines: drawings.getDrawings().map((d) => ({
+      id: d.id,
+      type: d.type,
+      price: 'price' in d ? d.price : undefined,
+      p1: 'p1' in d ? d.p1 : undefined,
+      p2: 'p2' in d ? d.p2 : undefined,
+    })),
+  };
+}
+
 function evaluateAlerts(source: string, pair: PairId, last: number): void {
   let changed = false;
+  const prev = lastCandles.length >= 2 ? lastCandles[lastCandles.length - 2] : undefined;
+  const ctx = {
+    ...lineAlertContext(),
+    time: lastCandles[lastCandles.length - 1]?.time,
+    prev: prev?.close,
+    prevTime: prev?.time,
+  };
   for (const a of alerts) {
     if (a.sourceId !== source || a.pairId !== pair || !a.enabled) continue;
-    if (!checkAlert(a, last)) continue;
+    if (!checkAlert(a, last, ctx)) continue;
     a.enabled = false;
     changed = true;
     const src = getSource(a.sourceId);
-    showAlertToast(`Alert: ${alertLabel(a, src?.name ?? a.sourceId)}`);
-    setStatus(`Alert: ${alertLabel(a, src?.name ?? a.sourceId)}`);
+    const label = `Alert: ${alertLabel(a, src?.name ?? a.sourceId)}`;
+    showAlertToast(label);
+    setStatus(label);
+    notifyAlert('OpenCharts alert', label);
   }
   if (changed) {
     saveAlerts(alerts);
@@ -196,6 +227,77 @@ chart.subscribeCrosshairMove((param) => {
 });
 
 const drawings = new DrawingLayer(chart, series, overlayEl, wrapEl);
+
+type EditorSnap = {
+  drawings: ReturnType<DrawingLayer['getDrawings']>;
+  indicators: IndicatorInstance[];
+  panes?: number[];
+};
+const editorHistory = new EditorHistory<EditorSnap>();
+let historyReady = false;
+let applyingHistory = false;
+let comparePanel: ReturnType<typeof initComparePanel> | null = null;
+let compareCatalog: SymbolInfo[] = [];
+
+function currentSnap(): EditorSnap {
+  return {
+    drawings: drawings.getDrawings(),
+    indicators: structuredClone(indicatorItems),
+    panes: paneStretches ? [...paneStretches] : undefined,
+  };
+}
+
+function applySnap(snap: EditorSnap): void {
+  applyingHistory = true;
+  drawings.replaceDrawings(snap.drawings);
+  indicatorItems = structuredClone(snap.indicators);
+  paneStretches = snap.panes;
+  saveIndicatorSettings(indicatorItems, sourceId, pairId, paneStretches);
+  applyIndicators();
+  applyingHistory = false;
+}
+
+function recordHistory(): void {
+  if (applyingHistory || !historyReady) return;
+  editorHistory.record(currentSnap());
+}
+
+function resetHistory(): void {
+  editorHistory.reset(currentSnap());
+  historyReady = true;
+}
+
+function undoEditor(): boolean {
+  const snap = editorHistory.undo();
+  if (!snap) return false;
+  applySnap(snap);
+  setStatus('Undo');
+  return true;
+}
+
+function redoEditor(): boolean {
+  const snap = editorHistory.redo();
+  if (!snap) return false;
+  applySnap(snap);
+  setStatus('Redo');
+  return true;
+}
+
+function activateTool(tool: Tool): void {
+  drawings.setTool(tool);
+  toolRail?.setActive(tool);
+  appEl.dataset.tool = tool;
+}
+
+function setChartInterval(id: IntervalId): void {
+  if (id === intervalId) return;
+  intervalId = id;
+  persistLayout();
+  fillIntervals();
+  void loadChart();
+}
+
+drawings.setOnPersist(() => recordHistory());
 const indicators = new IndicatorHost(chart, series);
 indicators.setPaneStretches(paneStretches);
 const vpOverlay = document.querySelector<HTMLCanvasElement>('#vp-overlay');
@@ -287,23 +389,60 @@ document.querySelector<HTMLButtonElement>('#theme-btn')?.addEventListener('click
 
 alertForm?.addEventListener('submit', (ev) => {
   ev.preventDefault();
+  requestAlertPermission();
   const price = Number(document.querySelector<HTMLInputElement>('#alert-price')?.value);
   const direction = document.querySelector<HTMLSelectElement>('#alert-dir')?.value === 'below' ? 'below' : 'above';
   if (!Number.isFinite(price) || price <= 0) return;
-  alerts.push(createAlert(sourceId, pairId, price, direction));
+  if (editingAlertId) {
+    alerts = alerts.map((a) =>
+      a.id === editingAlertId ? { ...a, price, direction, kind: 'price', enabled: true, drawingId: undefined, p1: undefined, p2: undefined } : a,
+    );
+    editingAlertId = null;
+  } else {
+    alerts.push(createAlert(sourceId, pairId, price, direction));
+  }
   saveAlerts(alerts);
   renderAlerts();
   const input = document.querySelector<HTMLInputElement>('#alert-price');
   if (input) input.value = '';
+  const submit = alertForm.querySelector('button[type="submit"]');
+  if (submit) submit.textContent = 'Add';
 });
 
 alertListEl?.addEventListener('click', (ev) => {
+  const edit = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-alert-edit]');
+  if (edit) {
+    const id = edit.getAttribute('data-alert-edit');
+    const item = alerts.find((a) => a.id === id);
+    if (!item) return;
+    editingAlertId = item.id;
+    const priceEl = document.querySelector<HTMLInputElement>('#alert-price');
+    const dirEl = document.querySelector<HTMLSelectElement>('#alert-dir');
+    if (priceEl) priceEl.value = String(item.price);
+    if (dirEl) dirEl.value = item.direction === 'below' ? 'below' : 'above';
+    const submit = alertForm?.querySelector('button[type="submit"]');
+    if (submit) submit.textContent = 'Save';
+    priceEl?.focus();
+    return;
+  }
   const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-alert-del]');
   if (!btn) return;
   const id = btn.getAttribute('data-alert-del');
   alerts = alerts.filter((a) => a.id !== id);
+  if (editingAlertId === id) editingAlertId = null;
   saveAlerts(alerts);
   renderAlerts();
+});
+
+document.querySelector('#alert-notify-btn')?.addEventListener('click', () => {
+  requestAlertPermission();
+  setStatus(
+    typeof Notification === 'undefined'
+      ? 'Notifications are not available in this browser.'
+      : Notification.permission === 'denied'
+        ? 'Notifications are blocked in the browser settings.'
+        : 'Notifications enabled. Alerts work while this tab is open.',
+  );
 });
 
 renderAlerts();
@@ -340,6 +479,7 @@ function persistIndicators(items: IndicatorInstance[]): void {
   paneStretches = indicators.getPaneStretches();
   saveIndicatorSettings(indicatorItems, sourceId, pairId, paneStretches);
   applyIndicators();
+  recordHistory();
 }
 
 function syncIndicatorContext(): void {
@@ -542,6 +682,8 @@ async function loadChart(): Promise<void> {
     setReady(true);
     setChartLoading('off');
     watchlist?.highlight(sourceId, pairId);
+    resetHistory();
+    void comparePanel?.reload();
     requestAnimationFrame(() => drawings.syncSize());
   } catch (err) {
     if (seq !== loadSeq) return;
@@ -577,13 +719,8 @@ pairEl.addEventListener('change', () => {
 
 intervalsEl.addEventListener('click', (ev) => {
   const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-interval]');
-  if (!btn) return;
-  intervalId = btn.dataset.interval as IntervalId;
-  persistLayout();
-  intervalsEl.querySelectorAll('.interval').forEach((el) => {
-    el.classList.toggle('is-active', el === btn);
-  });
-  void loadChart();
+  if (!btn?.dataset.interval) return;
+  setChartInterval(btn.dataset.interval as IntervalId);
 });
 
 function exportDrawingsFile(): void {
@@ -716,7 +853,10 @@ chart.timeScale().subscribeVisibleTimeRangeChange((range) => {
   if (!range) return;
   const from = typeof range.from === 'number' ? range.from : Number(range.from);
   const to = typeof range.to === 'number' ? range.to : Number(range.to);
-  if (Number.isFinite(from) && Number.isFinite(to)) indicators.setVisibleTimeRange(from, to);
+  if (Number.isFinite(from) && Number.isFinite(to)) {
+    indicators.setVisibleTimeRange(from, to);
+    comparePanel?.setVisibleFrom(from);
+  }
 });
 
 chart.subscribeClick((param) => {
@@ -765,6 +905,14 @@ declare global {
       exportDrawings: () => string;
       importDrawings: (raw: string) => void;
       getIndicators: () => IndicatorInstance[];
+      undo: () => boolean;
+      redo: () => boolean;
+      getInterval: () => IntervalId;
+      getTool: () => Tool;
+      getAlerts: () => PriceAlert[];
+      parseInterval: (raw: string) => IntervalId | null;
+      checkAlert: typeof checkAlert;
+      trendPriceAt: typeof trendPriceAt;
       getWatchState: () => WatchState;
       applySelection: (sourceId: string, pairId: PairId) => void;
       getVisibleLogicalRange: () => { from: number; to: number } | null;
@@ -797,6 +945,14 @@ window.__opencharts = {
   exportDrawings: () => drawings.exportJson(),
   importDrawings: (raw) => drawings.importJson(raw),
   getIndicators: () => indicatorItems,
+  undo: () => undoEditor(),
+  redo: () => redoEditor(),
+  getInterval: () => intervalId,
+  getTool: () => drawings.getTool(),
+  getAlerts: () => alerts,
+  parseInterval: (raw) => parseIntervalInput(raw),
+  checkAlert,
+  trendPriceAt,
   getWatchState: () => watchlist.getState(),
   applySelection: (src, pair) => applySelection(src, pair, true),
   getVisibleLogicalRange: () => {
@@ -836,12 +992,37 @@ initChartMenu(
       );
     },
     addAlert: (price) => {
+      requestAlertPermission();
+      const selected = drawings.getSelected();
       const last = lastCandles[lastCandles.length - 1]?.close;
-      const direction = last !== undefined && price < last ? 'below' : 'above';
-      alerts.push(createAlert(sourceId, pairId, price, direction));
+      if (selected?.type === 'hline') {
+        alerts.push(createAlert(sourceId, pairId, selected.price, 'cross', { kind: 'hline', drawingId: selected.id }));
+        setStatus(`Added alert on horizontal line at ${selected.price}`);
+      } else if (selected?.type === 'trend') {
+        alerts.push(
+          createAlert(sourceId, pairId, selected.p2.price, 'cross', {
+            kind: 'trend',
+            drawingId: selected.id,
+            p1: selected.p1,
+            p2: selected.p2,
+          }),
+        );
+        setStatus('Added alert on trend line cross');
+      } else {
+        const direction = last !== undefined && price < last ? 'below' : 'above';
+        alerts.push(createAlert(sourceId, pairId, price, direction));
+        setStatus(`Added alert at ${price}`);
+      }
       saveAlerts(alerts);
       renderAlerts();
-      setStatus(`Added alert at ${price}`);
+    },
+    alertMenuLabel: (price) => {
+      const selected = drawings.getSelected();
+      if (selected?.type === 'hline') return `Add alert on horizontal line (${selected.price})`;
+      if (selected?.type === 'trend') return 'Add alert on trend line';
+      if (price === null) return 'Add alert';
+      const label = Math.abs(price) >= 1000 ? price.toFixed(2) : Math.abs(price) >= 1 ? price.toFixed(4) : price.toFixed(6);
+      return `Add alert at ${label}`;
     },
     clearDrawings: () => {
       drawings.clearAll();
@@ -972,6 +1153,7 @@ function placeDrawBar(): void {
 function activateCursorTool(): void {
   drawings.setTool('cursor');
   toolRail?.setActive('cursor');
+  appEl.dataset.tool = 'cursor';
 }
 
 drawings.setOnToolDone(() => activateCursorTool());
@@ -1007,8 +1189,7 @@ toolRail = initToolRail({
   flyout: document.querySelector('#rail-flyout')!,
   favBar: document.querySelector('#fav-bar')!,
   onTool: (tool) => {
-    drawings.setTool(tool);
-    toolRail?.setActive(tool);
+    activateTool(tool);
   },
   getCursorMode: () => cursorMode,
   setCursorMode: (mode) => setCursorMode(mode),
@@ -1097,6 +1278,43 @@ chart.subscribeCrosshairMove((param) => {
 });
 
 applyCursorAppearance();
+
+const intervalHint = document.querySelector<HTMLElement>('#interval-hint');
+if (intervalHint) {
+  initShortcuts({
+    hint: intervalHint,
+    setTool: (tool) => activateTool(tool),
+    undo: () => undoEditor(),
+    redo: () => redoEditor(),
+    applyInterval: (id) => {
+      setChartInterval(id);
+      setStatus(`Interval ${id}`);
+    },
+  });
+}
+
+void loadAllSymbols().then((loaded) => {
+  compareCatalog = loaded.items;
+});
+const compareBtn = document.querySelector<HTMLElement>('#compare-btn');
+const comparePop = document.querySelector<HTMLElement>('#compare-pop');
+const compareSearch = document.querySelector<HTMLInputElement>('#compare-search');
+const compareResults = document.querySelector<HTMLElement>('#compare-results');
+const compareList = document.querySelector<HTMLElement>('#compare-list');
+const compareLegend = document.querySelector<HTMLElement>('#compare-legend');
+if (compareBtn && comparePop && compareSearch && compareResults && compareList && compareLegend) {
+  comparePanel = initComparePanel({
+    btn: compareBtn,
+    pop: comparePop,
+    search: compareSearch,
+    results: compareResults,
+    list: compareList,
+    legend: compareLegend,
+    chart,
+    getContext: () => ({ sourceId, pairId, intervalId }),
+    getCatalog: () => compareCatalog,
+  });
+}
 
 void loadChart();
 

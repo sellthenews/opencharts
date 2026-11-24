@@ -316,6 +316,8 @@ export class DrawingLayer {
   private layerHidden = false;
   private onToolDone: (() => void) | null = null;
   private onSelect: ((d: Drawing | null) => void) | null = null;
+  private onPersist: (() => void) | null = null;
+  private muteHistory = false;
   private onEdit: ((d: Drawing) => void) | null = null;
   private ro: ResizeObserver;
   private rafId = 0;
@@ -352,6 +354,33 @@ export class DrawingLayer {
 
   getSelectedId(): string | null {
     return this.selectedId;
+  }
+
+  getTool(): Tool {
+    return this.tool;
+  }
+
+  setOnPersist(cb: () => void): void {
+    this.onPersist = cb;
+  }
+
+  replaceDrawings(next: Drawing[]): void {
+    this.drawings = structuredClone(next);
+    if (!this.drawings.some((d) => d.id === this.selectedId)) this.selectedId = null;
+    this.draft = null;
+    this.muteHistory = true;
+    this.persist();
+    this.muteHistory = false;
+    this.redraw();
+    this.emitSelect();
+  }
+
+  pickAt(clientX: number, clientY: number): Drawing | null {
+    const rect = this.canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    const id = this.hitHandle(x, y)?.id ?? this.hitBody(x, y);
+    return this.drawings.find((d) => d.id === id) ?? null;
   }
 
   getAbcdScreen(): { a: { x: number; y: number }; b: { x: number; y: number }; c: { x: number; y: number }; d: { x: number; y: number }; drawing: Extract<Drawing, { type: 'abcd' }> } | null {
@@ -635,6 +664,7 @@ export class DrawingLayer {
 
   private persist(): void {
     save(this.sourceId, this.pairId, this.drawings);
+    if (!this.muteHistory) this.onPersist?.();
   }
 
   private resize(): void {

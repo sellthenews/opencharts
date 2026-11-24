@@ -5,6 +5,7 @@ export interface ChartMenuHandlers {
   resetView: () => void;
   copyPrice: (price: number) => void;
   addAlert: (price: number) => void;
+  alertMenuLabel?: (price: number | null) => string;
   clearDrawings: () => void;
   exportDrawings?: () => void;
   importDrawings?: () => void;
@@ -45,8 +46,9 @@ export function initChartMenu(
       priceItem.toggleAttribute('disabled', lastPrice === null);
     }
     if (alertItem) {
-      alertItem.textContent = lastPrice === null ? 'Add alert at this price' : `Add alert at ${label}`;
-      alertItem.toggleAttribute('disabled', lastPrice === null);
+      alertItem.textContent = handlers.alertMenuLabel?.(lastPrice) ?? (lastPrice === null ? 'Add alert' : `Add alert at ${label}`);
+      const disabled = lastPrice === null && !handlers.alertMenuLabel?.(lastPrice);
+      alertItem.toggleAttribute('disabled', disabled);
     }
     const watchItem = menu.querySelector<HTMLElement>('[data-chart-menu="watchlist"]');
     if (watchItem) {

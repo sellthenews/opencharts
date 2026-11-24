@@ -264,3 +264,14 @@ Zrzut (lokalny, w `.gitignore`): `screenshots-test/eksport-import-menu.png`.
 - Watchlista: przeciąganie kolejności i między sekcjami, Add section (menu listy i prawy przycisk), nazwa dwuklikiem, zwijanie, przeciąganie sekcji, usuwanie sekcji z potwierdzeniem (aktywa wracają do listy bez sekcji). Migracja istniejącej listy, klucz `opencharts:watchlists` (objęty Export/Import).
 
 Zrzuty (lokalne, w `.gitignore`): `screenshots-test/wskazniki-okno.png`, `screenshots-test/wskazniki-wykres.png`, `screenshots-test/watchlista-sekcje.png`.
+
+## Skróty, alerty i Compare (24 XI 2026)
+
+- Skróty jak w TV: Alt+T/H/V/F (trend, pozioma, pionowa, Fib), Ctrl+Z / Ctrl+Y (także Cmd) cofa i przywraca rysunki oraz wskaźniki, Del usuwa zaznaczenie, Esc odznacza. Litera otwiera wyszukiwarkę symbolu; liczba+Enter zmienia interwał. Bez kolizji z polami tekstowymi.
+- Alerty: „Add alert” z menu prawego przycisku na wykresie albo na linii (poziom ceny albo przecięcie trendu/poziomej). Dźwięk i Notification API, zgoda dopiero po kliknięciu (Add albo „Enable notifications”). Lista z edycją i usuwaniem, zapis `opencharts:alerts`, notka „Alerts work while this tab is open”.
+- Compare: nakładka innych symboli w %, liczona od pierwszej widocznej świecy, kilka symboli, kolory i legenda. Klucz `opencharts:compare` (Export/Import).
+
+Nie weszły do tego pusha: szablony zestawów wskaźników/stylów oraz przyspieszenie liczenia wskaźników (Web Worker / inkrementalnie).
+
+Zrzuty (lokalne, w `.gitignore`): `screenshots-test/alerty.png`, `screenshots-test/compare.png`.
+

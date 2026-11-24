@@ -280,7 +280,7 @@ export function initSymbolSearch(opts: {
     }
     if (open) return;
     if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
-    if (ev.key.length !== 1 || !/[A-Za-z0-9]/.test(ev.key)) return;
+    if (ev.key.length !== 1 || !/[A-Za-z]/.test(ev.key)) return;
     if (isTextField(ev.target)) return;
     ev.preventDefault();
     show(ev.key);

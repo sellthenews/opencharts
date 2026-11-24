@@ -1733,3 +1733,151 @@ html[data-theme="light"] #rail-flyout {
 .watch-menu button:hover {
   background: var(--btn);
 }
+
+.interval-hint {
+  font-size: 12px;
+  color: var(--heading);
+  background: var(--btn);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.alert-note {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--muted, #8b92a5);
+  line-height: 1.35;
+}
+
+.alert-notify-btn {
+  margin: 0 0 8px;
+  font: inherit;
+  font-size: 11px;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.alert-item-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+
+.compare-wrap {
+  position: relative;
+}
+
+#compare-pop {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 30;
+  width: 260px;
+  margin-top: 4px;
+  background: var(--bar);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.toolbar {
+  position: relative;
+}
+
+#compare-search {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--btn);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font: inherit;
+}
+
+.compare-results,
+.compare-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.compare-results button,
+.compare-list-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  border: 0;
+  border-radius: 4px;
+  padding: 5px 6px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.compare-results button:hover,
+.compare-list-row:hover {
+  background: var(--btn);
+}
+
+.compare-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.compare-legend {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  pointer-events: auto;
+  max-width: 60%;
+}
+
+.compare-leg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: color-mix(in srgb, var(--bar) 88%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--heading);
+}
+
+.compare-leg-item i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.compare-leg-item button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0 0 0 2px;
+}
