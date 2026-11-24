@@ -275,3 +275,10 @@ Nie weszły do tego pusha: szablony zestawów wskaźników/stylów oraz przyspie
 
 Zrzuty (lokalne, w `.gitignore`): `screenshots-test/alerty.png`, `screenshots-test/compare.png`.
 
+## Szablony i liczenie inkrementalne (24 XI 2026)
+
+- Settings: Save template… zapisuje zestaw wskaźników (z parametrami i stylami) oraz domyślne style Fib, Fib Ext i linii pod nazwą, klucz `opencharts:templates` (Export/Import). Kliknięcie nazwy ładuje zestaw na bieżący wykres.
+- Przy aktualizacji ostatniej świecy albo dopisaniu nowej host nie przebudowuje serii, tylko przelicza ogon i robi `update`/`setData` na istniejących seriach.
+
+Zrzut (lokalny, w `.gitignore`): `screenshots-test/szablony.png`.
+

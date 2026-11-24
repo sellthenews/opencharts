@@ -35,6 +35,7 @@ import {
   wma,
 } from './math';
 import { CATALOG_BY_KIND, type IndicatorInstance, type LinePoint } from './types';
+import { canPatchCandles, indicatorPlots, plotsFromTail, type PlotPoint } from './plot';
 
 function lineBase(color: string, width: 1 | 2 | 3 | 4 = 1) {
   return {
@@ -95,6 +96,32 @@ const PALETTE = ['#42a5f5', '#26a69a', '#ab47bc', '#ff9800', '#ef5350', '#f5d76e
 
 export type PaneMap = Record<string, number>;
 
+export type ApplyTiming = { mode: 'full' | 'patch'; ms: number };
+
+function itemsSignature(items: IndicatorInstance[]): string {
+  return JSON.stringify(
+    items.map((i) => ({ id: i.id, kind: i.kind, visible: i.visible, params: i.params, style: i.style })),
+  );
+}
+
+function canUpdateLast(prev: PlotPoint[], next: PlotPoint[]): boolean {
+  if (!next.length) return false;
+  if (next.length === prev.length) {
+    if (!prev.length || prev[prev.length - 1]!.time !== next[next.length - 1]!.time) return false;
+    for (let i = 0; i < next.length - 1; i++) {
+      if (prev[i]?.time !== next[i]!.time) return false;
+    }
+    return true;
+  }
+  if (next.length === prev.length + 1) {
+    for (let i = 0; i < prev.length; i++) {
+      if (prev[i]!.time !== next[i]!.time) return false;
+    }
+    return true;
+  }
+  return false;
+}
+
 export class IndicatorHost {
   private series: (ISeriesApi<'Line'> | ISeriesApi<'Histogram'>)[] = [];
   private pivotLines: IPriceLine[] = [];
@@ -107,6 +134,12 @@ export class IndicatorHost {
   private paneObs: ResizeObserver | null = null;
   private profileRange: { from: number; to: number } | null = null;
   private resizeTimer = 0;
+  private bindings: { id: string; series: (ISeriesApi<'Line'> | ISeriesApi<'Histogram'>)[] }[] = [];
+  private currentBind: (ISeriesApi<'Line'> | ISeriesApi<'Histogram'>)[] | null = null;
+  private lastMap: PaneMap = {};
+  private lastPlots = new Map<string, PlotPoint[][]>();
+  private lastApply: ApplyTiming = { mode: 'full', ms: 0 };
+  private forceFullNext = false;
 
   constructor(
     private readonly chart: IChartApi,
@@ -130,12 +163,26 @@ export class IndicatorHost {
     return this.chart.panes().map((pane) => pane.getStretchFactor());
   }
 
+  lastApplyInfo(): ApplyTiming {
+    return { ...this.lastApply };
+  }
+
+  requestFullApply(): void {
+    this.forceFullNext = true;
+  }
+
   setVisibleTimeRange(from: number, to: number): void {
     this.profileRange = { from, to };
     this.paintProfiles();
   }
 
   apply(data: Candle[], items: IndicatorInstance[]): PaneMap {
+    const started = performance.now();
+    if (!this.forceFullNext && this.tryPatch(data, items)) {
+      this.lastApply = { mode: 'patch', ms: performance.now() - started };
+      return this.lastMap;
+    }
+    this.forceFullNext = false;
     this.clear();
     this.lastData = data;
     this.lastItems = items;
@@ -148,7 +195,11 @@ export class IndicatorHost {
       if (CATALOG_BY_KIND[item.kind].pane === 'osc') continue;
       const slot = kindCount[item.kind] ?? 0;
       kindCount[item.kind] = slot + 1;
+      this.currentBind = [];
       this.addOverlay(data, item, strokeColor(item, this.color(item.kind, slot)));
+      this.bindings.push({ id: item.id, series: this.currentBind });
+      this.lastPlots.set(item.id, indicatorPlots(item, data));
+      this.currentBind = null;
       map[item.id] = 0;
       if (item.kind === 'volume') hasVolume = true;
     }
@@ -163,7 +214,11 @@ export class IndicatorHost {
       const idx = this.chart.panes().length - 1;
       const slot = kindCount[item.kind] ?? 0;
       kindCount[item.kind] = slot + 1;
+      this.currentBind = [];
       this.addOscillator(data, item, idx, strokeColor(item, this.color(item.kind, slot)));
+      this.bindings.push({ id: item.id, series: this.currentBind });
+      this.lastPlots.set(item.id, indicatorPlots(item, data));
+      this.currentBind = null;
       map[item.id] = idx;
     }
 
@@ -177,7 +232,48 @@ export class IndicatorHost {
     }
     this.observePanes();
     this.paintProfiles();
+    this.lastMap = map;
+    this.lastApply = { mode: 'full', ms: performance.now() - started };
     return map;
+  }
+
+  private tryPatch(data: Candle[], items: IndicatorInstance[]): boolean {
+    if (!this.lastData.length || itemsSignature(this.lastItems) !== itemsSignature(items)) return false;
+    if (!canPatchCandles(this.lastData, data)) return false;
+    const visible = items.filter((i) => i.visible);
+    for (const item of visible) {
+      if (item.kind === 'vpvr' || item.kind === 'vpfr') continue;
+      if (item.kind === 'pivots') {
+        this.patchPivots(data, item);
+        continue;
+      }
+      const bind = this.bindings.find((b) => b.id === item.id);
+      const prev = this.lastPlots.get(item.id) ?? [];
+      const plots = plotsFromTail(item, data, this.lastData, prev);
+      if (!bind || bind.series.length !== plots.length) return false;
+      for (let i = 0; i < plots.length; i++) {
+        const pts = plots[i]!;
+        const series = bind.series[i]!;
+        const last = pts[pts.length - 1];
+        if (last && canUpdateLast(prev[i] ?? [], pts)) series.update(last);
+        else series.setData(pts);
+      }
+      this.lastPlots.set(item.id, plots);
+    }
+    this.lastData = data;
+    this.lastItems = items;
+    this.paintProfiles();
+    return true;
+  }
+
+  private patchPivots(data: Candle[], item: IndicatorInstance): void {
+    const lv = pivotPoints(data, item.params.mode === 'fib' ? 'fib' : 'standard');
+    if (!lv || this.pivotLines.length < 7) return;
+    const prices = [lv.p, lv.r1, lv.r2, lv.r3, lv.s1, lv.s2, lv.s3];
+    this.pivotLines.forEach((line, i) => {
+      const price = prices[i];
+      if (typeof price === 'number') line.applyOptions({ price });
+    });
   }
 
   paneOffset(index: number): number {
@@ -208,6 +304,7 @@ export class IndicatorHost {
 
   private keep(series: ISeriesApi<'Line'> | ISeriesApi<'Histogram'>): void {
     this.series.push(series);
+    this.currentBind?.push(series);
   }
 
   private clear(): void {
@@ -215,6 +312,8 @@ export class IndicatorHost {
     this.pivotLines = [];
     for (const s of this.series) this.chart.removeSeries(s);
     this.series = [];
+    this.bindings = [];
+    this.lastPlots.clear();
     const panes = this.chart.panes();
     for (let i = panes.length - 1; i >= 1; i--) this.chart.removePane(i);
   }

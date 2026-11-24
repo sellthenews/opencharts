@@ -109,6 +109,11 @@ export class IndicatorHud {
   ) {
     openBtn.addEventListener('click', () => openIndicatorModal((kind) => this.add(kind)));
     this.labelsRoot.addEventListener('click', (ev) => this.onLabelClick(ev));
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Escape' || !this.openSettingsId) return;
+      this.openSettingsId = null;
+      this.labelsRoot.querySelector('.ind-popover')?.remove();
+    });
     this.renderLabels();
   }
 
@@ -120,6 +125,7 @@ export class IndicatorHud {
 
   setItems(items: IndicatorInstance[]): void {
     this.items = items;
+    if (this.openSettingsId && !items.some((i) => i.id === this.openSettingsId)) this.openSettingsId = null;
     if (!this.openSettingsId) this.renderLabels();
   }
 

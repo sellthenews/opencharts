@@ -15,9 +15,9 @@ import { ohlcLegendHtml } from './ohlc-legend';
 import { DrawingLayer } from './drawings';
 import { IndicatorHost } from './indicators/host';
 import type { PaneMap } from './indicators/host';
-import { indicatorStorageKey, loadIndicatorSettings, saveIndicatorSettings } from './indicators/settings';
+import { createInstance, indicatorStorageKey, loadIndicatorSettings, saveIndicatorSettings } from './indicators/settings';
 import { IndicatorHud, initIndicatorModal } from './indicators/ui';
-import type { IndicatorInstance } from './indicators/types';
+import type { IndicatorInstance, IndicatorKind } from './indicators/types';
 import { describeLoadError } from './load-error';
 import { INTERVALS, formatPairLabel, getSource, sources } from './sources';
 import { lookupSymbol } from './sources/catalog';
@@ -27,6 +27,7 @@ import { initChartMenu } from './chart-menu';
 import { initFibDialog } from './fib-dialog';
 import { fibExtOptionsOf, fibOptionsOf } from './fib-settings';
 import { initBackupUi } from './backup';
+import { initTemplatesUi } from './templates';
 import { fibExtensionPrice, fibRetracementPrice } from './drawings-math';
 import { initToolRail } from './tool-rail';
 import { loadLayout, saveLayout } from './layout';
@@ -492,6 +493,7 @@ function syncIndicatorContext(): void {
   indicators.setPaneStretches(paneStretches);
   pendingAnchorId = null;
   pendingVpfr = null;
+  applyIndicators();
 }
 
 function onIndicatorAdded(item: IndicatorInstance): void {
@@ -910,6 +912,10 @@ declare global {
       getInterval: () => IntervalId;
       getTool: () => Tool;
       getAlerts: () => PriceAlert[];
+      lastApplyInfo: () => { mode: 'full' | 'patch'; ms: number };
+      requestFullApply: () => void;
+      tickLastCandle: () => void;
+      seedIndicators: (kinds: string[]) => void;
       parseInterval: (raw: string) => IntervalId | null;
       checkAlert: typeof checkAlert;
       trendPriceAt: typeof trendPriceAt;
@@ -950,6 +956,18 @@ window.__opencharts = {
   getInterval: () => intervalId,
   getTool: () => drawings.getTool(),
   getAlerts: () => alerts,
+  lastApplyInfo: () => indicators.lastApplyInfo(),
+  requestFullApply: () => indicators.requestFullApply(),
+  tickLastCandle: () => {
+    const last = lastCandles[lastCandles.length - 1];
+    if (!last) return;
+    const next = { ...last, close: last.close * 1.0001, high: Math.max(last.high, last.close * 1.0001) };
+    lastCandles = [...lastCandles.slice(0, -1), next];
+    applyIndicators();
+  },
+  seedIndicators: (kinds) => {
+    persistIndicators(kinds.map((k) => createInstance(k as IndicatorKind)));
+  },
   parseInterval: (raw) => parseIntervalInput(raw),
   checkAlert,
   trendPriceAt,
@@ -1315,6 +1333,19 @@ if (compareBtn && comparePop && compareSearch && compareResults && compareList &
     getCatalog: () => compareCatalog,
   });
 }
+
+
+initTemplatesUi({
+  getIndicators: () => indicatorItems,
+  getPanes: () => paneStretches,
+  applyIndicators: (items, panes) => {
+    if (panes) paneStretches = panes;
+    persistIndicators(items);
+  },
+  getLineStyle: () => drawings.getDefaultStyle(),
+  setLineStyle: (style) => drawings.setDefaultStyle(style),
+  setStatus,
+});
 
 void loadChart();
 

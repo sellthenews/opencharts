@@ -15,7 +15,8 @@ import { TOOLS_POINTS } from './drawings-types';
 import type { Drawing, Point, Tool } from './drawings-types';
 import { interactionOptions, isMagnetModifier } from './chart-options';
 import type { FibOptions } from './fib-settings';
-import { cloneFibOptions, fibExtOptionsOf, fibOptionsOf, isFibExtKeyLevel, isFibKeyLevel, loadFibDefaults, loadFibExtDefaults } from './fib-settings';
+import { cloneFibOptions, fibExtOptionsOf, fibOptionsOf, isFibKeyLevel, isFibExtKeyLevel, loadFibDefaults, loadFibExtDefaults } from './fib-settings';
+import { loadLineDefaults, saveLineDefaults, sanitizeLineStyle } from './templates';
 
 export type { Drawing, Point, Tool };
 
@@ -318,6 +319,7 @@ export class DrawingLayer {
   private onSelect: ((d: Drawing | null) => void) | null = null;
   private onPersist: (() => void) | null = null;
   private muteHistory = false;
+  private defaultStyle = loadLineDefaults();
   private onEdit: ((d: Drawing) => void) | null = null;
   private ro: ResizeObserver;
   private rafId = 0;
@@ -363,6 +365,24 @@ export class DrawingLayer {
   setOnPersist(cb: () => void): void {
     this.onPersist = cb;
   }
+
+
+  getDefaultStyle(): import('./drawings-types').DrawStyle {
+    return { ...this.defaultStyle };
+  }
+
+  setDefaultStyle(style: import('./drawings-types').DrawStyle, persist = true): void {
+    this.defaultStyle = sanitizeLineStyle(style);
+    if (persist) saveLineDefaults(this.defaultStyle);
+  }
+
+  private stampStyle<T extends Drawing>(drawing: T): T {
+    const base = this.defaultStyle;
+    if (!base || (!base.color && !base.width && !base.lineStyle)) return drawing;
+    drawing.style = { ...base, ...drawing.style };
+    return drawing;
+  }
+
 
   replaceDrawings(next: Drawing[]): void {
     this.drawings = structuredClone(next);
@@ -1209,7 +1229,7 @@ export class DrawingLayer {
     if (pts.length >= 2) {
       const created = this.commitPoints(draft.type, pts);
       if (created) {
-        this.drawings.push(created);
+        this.drawings.push(this.stampStyle(created));
         this.selectedId = created.id;
         this.persist();
       }
@@ -1229,7 +1249,7 @@ export class DrawingLayer {
     const needed = TOOLS_POINTS[this.tool];
     if (!Number.isFinite(needed) || needed <= 0) return;
     if (this.tool === 'hline') {
-      this.drawings.push({ id: newId(), type: 'hline', price: point.price });
+      this.drawings.push(this.stampStyle({ id: newId(), type: 'hline', price: point.price }));
       this.selectedId = this.drawings[this.drawings.length - 1]!.id;
       this.persist();
       this.redraw();
@@ -1240,7 +1260,7 @@ export class DrawingLayer {
     if (this.tool === 'text') {
       const text = window.prompt('Note text', 'Note');
       if (text && text.trim()) {
-        this.drawings.push({ id: newId(), type: 'text', p: point, text: text.trim() });
+        this.drawings.push(this.stampStyle({ id: newId(), type: 'text', p: point, text: text.trim() }));
         this.selectedId = this.drawings[this.drawings.length - 1]!.id;
         this.persist();
         this.emitSelect();
@@ -1259,7 +1279,7 @@ export class DrawingLayer {
             const drawing = this.commitPoints('note', [point]);
             if (drawing && drawing.type === 'note') {
               drawing.text = text.trim();
-              this.drawings.push(drawing);
+              this.drawings.push(this.stampStyle(drawing));
               this.selectedId = drawing.id;
               this.persist();
               this.emitSelect();
@@ -1273,7 +1293,7 @@ export class DrawingLayer {
         }
         const drawing = this.commitPoints(this.tool, [point]);
         if (drawing) {
-          this.drawings.push(drawing);
+          this.drawings.push(this.stampStyle(drawing));
           this.selectedId = drawing.id;
           this.persist();
           this.emitSelect();
@@ -1302,7 +1322,7 @@ export class DrawingLayer {
       const created = this.commitPoints('callout', points);
       if (created && created.type === 'callout') {
         created.text = text.trim();
-        this.drawings.push(created);
+        this.drawings.push(this.stampStyle(created));
         this.selectedId = created.id;
         this.persist();
         this.emitSelect();
@@ -1317,7 +1337,7 @@ export class DrawingLayer {
     }
     const created = this.commitPoints(this.tool, points);
     if (created) {
-      this.drawings.push(created);
+      this.drawings.push(this.stampStyle(created));
       this.selectedId = created.id;
       this.persist();
       this.emitSelect();
