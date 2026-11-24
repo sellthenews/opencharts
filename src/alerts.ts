@@ -12,7 +12,7 @@ export interface LineAnchor {
   price: number;
 }
 
-export type AlertKind = 'price' | 'hline' | 'trend';
+export type AlertKind = 'price' | 'hline' | 'trend' | 'indicator';
 
 export interface PriceAlert {
   id: string;
@@ -25,6 +25,7 @@ export interface PriceAlert {
   drawingId?: string;
   p1?: LineAnchor;
   p2?: LineAnchor;
+  indicatorKind?: string;
 }
 
 export interface AlertCheckContext {
@@ -32,6 +33,8 @@ export interface AlertCheckContext {
   prev?: number;
   prevTime?: number;
   lines?: { id: string; type: string; price?: number; p1?: LineAnchor; p2?: LineAnchor }[];
+  rsi?: { prev: number; last: number };
+  macd?: { prev: number; last: number; prevSignal: number; lastSignal: number };
 }
 
 function newId(): string {
@@ -40,7 +43,7 @@ function newId(): string {
 }
 
 function asKind(raw: unknown): AlertKind {
-  return raw === 'hline' || raw === 'trend' ? raw : 'price';
+  return raw === 'hline' || raw === 'trend' || raw === 'indicator' ? raw : 'price';
 }
 
 function asDirection(raw: unknown): PriceAlert['direction'] {
@@ -69,6 +72,7 @@ export function loadAlerts(): PriceAlert[] {
           drawingId: row.drawingId,
           p1: row.p1,
           p2: row.p2,
+          indicatorKind: typeof row.indicatorKind === 'string' ? row.indicatorKind : undefined,
         };
       });
   } catch {
@@ -85,7 +89,7 @@ export function createAlert(
   pairId: PairId,
   price: number,
   direction: 'above' | 'below' | 'cross',
-  extra?: Partial<Pick<PriceAlert, 'kind' | 'drawingId' | 'p1' | 'p2'>>,
+  extra?: Partial<Pick<PriceAlert, 'kind' | 'drawingId' | 'p1' | 'p2' | 'indicatorKind'>>,
 ): PriceAlert {
   return {
     id: newId(),
@@ -98,6 +102,7 @@ export function createAlert(
     drawingId: extra?.drawingId,
     p1: extra?.p1,
     p2: extra?.p2,
+    indicatorKind: extra?.indicatorKind,
   };
 }
 
@@ -129,7 +134,17 @@ function crossed(prevPrice: number, prevLine: number, lastPrice: number, lastLin
 }
 
 export function checkAlert(alert: PriceAlert, last: number, ctx?: AlertCheckContext): boolean {
-  if (!alert.enabled || !Number.isFinite(last)) return false;
+  if (!alert.enabled) return false;
+  if (alert.kind === 'indicator') {
+    if (alert.indicatorKind === 'macd' && ctx?.macd) {
+      return crossed(ctx.macd.prev, ctx.macd.prevSignal, ctx.macd.last, ctx.macd.lastSignal);
+    }
+    if (alert.indicatorKind === 'rsi' && ctx?.rsi) {
+      return crossed(ctx.rsi.prev, alert.price, ctx.rsi.last, alert.price);
+    }
+    return false;
+  }
+  if (!Number.isFinite(last)) return false;
   const line = resolveLine(alert, ctx);
   if (!line) {
     if (alert.direction === 'below') return last <= alert.price;
@@ -152,6 +167,8 @@ export function checkAlert(alert: PriceAlert, last: number, ctx?: AlertCheckCont
 
 export function alertLabel(alert: PriceAlert, sourceName: string): string {
   const pair = PAIR_LABELS[alert.pairId] ?? alert.pairId;
+  if (alert.kind === 'indicator' && alert.indicatorKind === 'macd') return `${pair} ${sourceName} · MACD crosses signal`;
+  if (alert.kind === 'indicator' && alert.indicatorKind === 'rsi') return `${pair} ${sourceName} · RSI crosses ${alert.price}`;
   if (alert.kind === 'trend') return `${pair} ${sourceName} · trend line cross`;
   if (alert.kind === 'hline') return `${pair} ${sourceName} · line ${alert.price}`;
   const dir = alert.direction === 'below' ? '≤' : '≥';

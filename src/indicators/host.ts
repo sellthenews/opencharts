@@ -13,29 +13,27 @@ import {
   cci,
   cmf,
   donchian,
-  ema,
   ichimoku,
   keltner,
-  macd,
   mfi,
   momentum,
   obv,
   parabolicSar,
   pivotPoints,
   roc,
-  rsi,
-  sessionVwap,
-  sma,
   smaVolume,
   stochRsi,
   stochastic,
   supertrend,
   volumeProfile,
   williamsR,
-  wma,
+  findDivergences,
+  lastSwings,
+  approximateFootprint,
 } from './math';
+import { fibRetracementPrice } from '../drawings-math';
 import { CATALOG_BY_KIND, type IndicatorInstance, type LinePoint } from './types';
-import { canPatchCandles, indicatorPlots, plotsFromTail, type PlotPoint } from './plot';
+import { canPatchCandles, indicatorPlots, plotsFromTail, type PlotContext, type PlotPoint } from './plot';
 
 function lineBase(color: string, width: 1 | 2 | 3 | 4 = 1) {
   return {
@@ -90,6 +88,11 @@ const KIND_COLOR: Record<string, string> = {
   vwapAnchor: '#ffab40',
   vpvr: '#5c6bc0',
   vpfr: '#7e57c2',
+  autoFib: '#26a69a',
+  autoTrend: '#42a5f5',
+  maOf: '#ab47bc',
+  cvd: '#ffa726',
+  footprint: '#8d6e63',
 };
 
 const PALETTE = ['#42a5f5', '#26a69a', '#ab47bc', '#ff9800', '#ef5350', '#f5d76e', '#66bb6a', '#ff7043', '#26c6da', '#9c27b0'];
@@ -140,6 +143,9 @@ export class IndicatorHost {
   private lastPlots = new Map<string, PlotPoint[][]>();
   private lastApply: ApplyTiming = { mode: 'full', ms: 0 };
   private forceFullNext = false;
+  private htf = new Map<string, Candle[]>();
+  private chartInterval = '1D';
+  private onNeedTf: ((tf: string) => void) | null = null;
 
   constructor(
     private readonly chart: IChartApi,
@@ -157,6 +163,45 @@ export class IndicatorHost {
 
   setOnPaneResize(cb: (stretches: number[]) => void): void {
     this.onPaneResize = cb;
+  }
+
+  setChartInterval(id: string): void {
+    this.chartInterval = id;
+  }
+
+  setOnNeedTimeframe(cb: (tf: string) => void): void {
+    this.onNeedTf = cb;
+  }
+
+  setHigherTf(interval: string, candles: Candle[]): void {
+    this.htf.set(interval, candles);
+    this.forceFullNext = true;
+  }
+
+  clearHigherTf(): void {
+    this.htf.clear();
+    this.forceFullNext = true;
+  }
+
+  private plotCtx(): PlotContext {
+    return { htf: this.htf, chartInterval: this.chartInterval };
+  }
+
+  private itemPane(item: IndicatorInstance): 'price' | 'osc' {
+    if (item.kind === 'maOf') {
+      const src = item.params.source ?? 'rsi';
+      return src === 'close' || src === 'vwap' || src === 'volume' ? 'price' : 'osc';
+    }
+    return CATALOG_BY_KIND[item.kind].pane;
+  }
+
+  private requestMissingTf(items: IndicatorInstance[]): void {
+    const needed = new Set<string>();
+    for (const item of items) {
+      const tf = item.params.tf;
+      if (tf && tf !== 'chart' && tf !== this.chartInterval && !this.htf.has(tf)) needed.add(tf);
+    }
+    for (const tf of needed) this.onNeedTf?.(tf);
   }
 
   getPaneStretches(): number[] {
@@ -191,14 +236,15 @@ export class IndicatorHost {
     const kindCount: Record<string, number> = {};
     let hasVolume = false;
 
+    this.requestMissingTf(visible);
     for (const item of visible) {
-      if (CATALOG_BY_KIND[item.kind].pane === 'osc') continue;
+      if (this.itemPane(item) === 'osc') continue;
       const slot = kindCount[item.kind] ?? 0;
       kindCount[item.kind] = slot + 1;
       this.currentBind = [];
       this.addOverlay(data, item, strokeColor(item, this.color(item.kind, slot)));
       this.bindings.push({ id: item.id, series: this.currentBind });
-      this.lastPlots.set(item.id, indicatorPlots(item, data));
+      this.lastPlots.set(item.id, indicatorPlots(item, data, this.plotCtx()));
       this.currentBind = null;
       map[item.id] = 0;
       if (item.kind === 'volume') hasVolume = true;
@@ -209,7 +255,7 @@ export class IndicatorHost {
     });
 
     for (const item of visible) {
-      if (CATALOG_BY_KIND[item.kind].pane !== 'osc') continue;
+      if (this.itemPane(item) !== 'osc') continue;
       this.chart.addPane();
       const idx = this.chart.panes().length - 1;
       const slot = kindCount[item.kind] ?? 0;
@@ -217,7 +263,7 @@ export class IndicatorHost {
       this.currentBind = [];
       this.addOscillator(data, item, idx, strokeColor(item, this.color(item.kind, slot)));
       this.bindings.push({ id: item.id, series: this.currentBind });
-      this.lastPlots.set(item.id, indicatorPlots(item, data));
+      this.lastPlots.set(item.id, indicatorPlots(item, data, this.plotCtx()));
       this.currentBind = null;
       map[item.id] = idx;
     }
@@ -242,14 +288,14 @@ export class IndicatorHost {
     if (!canPatchCandles(this.lastData, data)) return false;
     const visible = items.filter((i) => i.visible);
     for (const item of visible) {
-      if (item.kind === 'vpvr' || item.kind === 'vpfr') continue;
+      if (item.kind === 'vpvr' || item.kind === 'vpfr' || item.kind === 'autoFib' || item.kind === 'autoTrend' || item.kind === 'footprint') continue;
       if (item.kind === 'pivots') {
         this.patchPivots(data, item);
         continue;
       }
       const bind = this.bindings.find((b) => b.id === item.id);
       const prev = this.lastPlots.get(item.id) ?? [];
-      const plots = plotsFromTail(item, data, this.lastData, prev);
+      const plots = plotsFromTail(item, data, this.lastData, prev, this.plotCtx());
       if (!bind || bind.series.length !== plots.length) return false;
       for (let i = 0; i < plots.length; i++) {
         const pts = plots[i]!;
@@ -321,22 +367,14 @@ export class IndicatorHost {
   private addOverlay(data: Candle[], item: IndicatorInstance, color: string): void {
     const p = item.params;
     const width = strokeWidth(item);
-    if (item.kind === 'sma') {
-      const s = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
-      s.setData(asLine(sma(data, p.period ?? 20)));
-      this.keep(s);
-    } else if (item.kind === 'ema') {
-      const s = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
-      s.setData(asLine(ema(data, p.period ?? 20)));
-      this.keep(s);
-    } else if (item.kind === 'wma') {
-      const s = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
-      s.setData(asLine(wma(data, p.period ?? 20)));
-      this.keep(s);
+    if (item.kind === 'sma' || item.kind === 'ema' || item.kind === 'wma') {
+      this.addPlotLines(indicatorPlots(item, data, this.plotCtx()), color, width, 0);
     } else if (item.kind === 'vwap') {
-      const s = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
-      s.setData(asLine(sessionVwap(data)));
-      this.keep(s);
+      this.addPlotLines(indicatorPlots(item, data, this.plotCtx()), color, width, 0);
+    } else if (item.kind === 'maOf') {
+      this.addPlotLines(indicatorPlots(item, data, this.plotCtx()), color, width, 0);
+    } else if (item.kind === 'autoFib' || item.kind === 'autoTrend' || item.kind === 'footprint') {
+      /* painted on the overlay canvas */
     } else if (item.kind === 'vwapAnchor') {
       const s = this.chart.addSeries(LineSeries, lineBase(color, width), 0);
       s.setData(asLine(anchoredVwap(data, p.anchor ?? 0)));
@@ -475,8 +513,9 @@ export class IndicatorHost {
     const width = strokeWidth(item);
     const dotted = { lineWidth: 1 as const, lineStyle: LineStyle.Dotted, axisLabelVisible: false };
     if (item.kind === 'rsi') {
+      const plots = indicatorPlots(item, data, this.plotCtx());
       const s = this.chart.addSeries(LineSeries, { ...lineBase(color, width), lastValueVisible: true }, idx);
-      s.setData(asLine(rsi(data, p.period ?? 14)));
+      s.setData(plots[0] ?? []);
       s.createPriceLine({ price: 70, color: '#6d5a78', title: '', ...dotted });
       s.createPriceLine({ price: 30, color: '#6d5a78', title: '', ...dotted });
       this.keep(s);
@@ -561,23 +600,40 @@ export class IndicatorHost {
       this.keep(up);
       this.keep(down);
     } else if (item.kind === 'macd') {
-      const pts = macd(data, p.fast ?? 12, p.slow ?? 26, p.signal ?? 9);
+      const plots = indicatorPlots(item, data, this.plotCtx());
       const hist = this.chart.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: false }, idx);
-      hist.setData(
-        pts.map((x) => ({
-          time: x.time as UTCTimestamp,
-          value: x.histogram,
-          color: x.histogram >= 0 ? 'rgba(38, 166, 154, 0.6)' : 'rgba(239, 83, 80, 0.6)',
-        })),
-      );
+      hist.setData(plots[0] ?? []);
       const line = this.chart.addSeries(LineSeries, lineBase(color, width), idx);
       const signal = this.chart.addSeries(LineSeries, lineBase('#ff9800', width), idx);
-      line.setData(asLine(pts.map((x) => ({ time: x.time, value: x.macd }))));
-      signal.setData(asLine(pts.map((x) => ({ time: x.time, value: x.signal }))));
+      line.setData(plots[1] ?? []);
+      signal.setData(plots[2] ?? []);
       this.keep(hist);
       this.keep(line);
       this.keep(signal);
+    } else if (item.kind === 'cvd') {
+      this.addPlotLines(indicatorPlots(item, data, this.plotCtx()), color, width, idx, true);
+    } else if (item.kind === 'maOf') {
+      const plots = indicatorPlots(item, data, this.plotCtx());
+      const base = this.chart.addSeries(LineSeries, { ...lineBase('#787b86', 1), lastValueVisible: false }, idx);
+      const ma = this.chart.addSeries(LineSeries, { ...lineBase(color, width), lastValueVisible: true }, idx);
+      base.setData(plots[0] ?? []);
+      ma.setData(plots[1] ?? []);
+      this.keep(base);
+      this.keep(ma);
     }
+  }
+
+  private addPlotLines(plots: PlotPoint[][], color: string, width: 1 | 2 | 3 | 4, pane: number, lastValue = false): void {
+    const palette = [color, '#26a69a', '#ef5350', '#66bb6a', '#ec407a', '#42a5f5', '#ab47bc', '#ffca28', '#8d6e63'];
+    plots.forEach((pts, i) => {
+      const s = this.chart.addSeries(
+        LineSeries,
+        { ...lineBase(palette[i % palette.length]!, i === 0 ? width : 1), lastValueVisible: lastValue && i === 0 },
+        pane,
+      );
+      s.setData(pts);
+      this.keep(s);
+    });
   }
 
   private observePanes(): void {
@@ -611,8 +667,8 @@ export class IndicatorHost {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, rect.width, rect.height);
     const paneH = this.safePaneSize(0)?.height ?? rect.height;
+    if (!this.lastData.length) return;
     const visible = this.lastItems.filter((i) => i.visible && (i.kind === 'vpvr' || i.kind === 'vpfr'));
-    if (!visible.length || !this.lastData.length) return;
     for (const item of visible) {
       let from: number;
       let to: number;
@@ -661,5 +717,115 @@ export class IndicatorHost {
         ctx.globalAlpha = 1;
       }
     }
+    this.paintStageOverlays(ctx, rect.width, paneH);
+  }
+
+  private paintStageOverlays(ctx: CanvasRenderingContext2D, width: number, paneH: number): void {
+    const data = this.lastData;
+    const ts = this.chart.timeScale();
+    const xOf = (time: number): number | null => ts.timeToCoordinate(time as Time);
+    for (const item of this.lastItems) {
+      if (!item.visible) continue;
+      if (item.kind === 'autoFib' || item.kind === 'autoTrend') {
+        const swings = lastSwings(data, item.params.period ?? 5);
+        if (!swings) continue;
+        const a = { x: xOf(swings.first.time), y: this.candles.priceToCoordinate(swings.first.price) };
+        const b = { x: xOf(swings.second.time), y: this.candles.priceToCoordinate(swings.second.price) };
+        if (a.x === null || a.y === null || b.x === null || b.y === null) continue;
+        ctx.strokeStyle = strokeColor(item, this.color(item.kind, 0));
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash(item.kind === 'autoTrend' ? [] : [4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        if (item.kind === 'autoFib') {
+          const p1 = { time: swings.first.time, price: swings.first.price };
+          const p2 = { time: swings.second.time, price: swings.second.price };
+          const left = Math.min(a.x, b.x);
+          const right = width;
+          const levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.618];
+          for (const k of levels) {
+            const price = fibRetracementPrice(p1, p2, k);
+            const y = this.candles.priceToCoordinate(price);
+            if (y === null || y < 0 || y > paneH) continue;
+            ctx.strokeStyle = k === 0 || k === 1 || k === 0.618 || k === 1.618 ? 'rgba(38, 166, 154, 0.95)' : 'rgba(120, 123, 134, 0.7)';
+            ctx.lineWidth = k === 0 || k === 1 || k === 0.618 ? 1.4 : 1;
+            ctx.beginPath();
+            ctx.moveTo(left, y);
+            ctx.lineTo(right, y);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(224, 227, 234, 0.9)';
+            ctx.font = '10px system-ui, sans-serif';
+            ctx.fillText(`${k}`, left + 4, y - 2);
+          }
+        }
+      } else if (item.kind === 'footprint') {
+        const last = data[data.length - 1];
+        if (!last) continue;
+        const bins = approximateFootprint(last, item.params.rows ?? 8);
+        const x = xOf(last.time);
+        if (x === null) continue;
+        const maxSide = Math.max(...bins.map((b) => Math.max(b.buy, b.sell)), 1);
+        const colW = 28;
+        for (const bin of bins) {
+          const y1 = this.candles.priceToCoordinate(bin.high);
+          const y2 = this.candles.priceToCoordinate(bin.low);
+          if (y1 === null || y2 === null) continue;
+          const top = Math.min(y1, y2);
+          const h = Math.max(1, Math.abs(y2 - y1));
+          const buyW = (bin.buy / maxSide) * colW;
+          const sellW = (bin.sell / maxSide) * colW;
+          ctx.fillStyle = 'rgba(239, 83, 80, 0.55)';
+          ctx.fillRect(x - sellW, top, sellW, h);
+          ctx.fillStyle = 'rgba(38, 166, 154, 0.55)';
+          ctx.fillRect(x, top, buyW, h);
+        }
+        ctx.fillStyle = 'rgba(224, 227, 234, 0.85)';
+        ctx.font = '10px system-ui, sans-serif';
+        ctx.fillText('Approx. from OHLCV (no bid/ask)', Math.max(8, x - 80), 14);
+      } else if ((item.kind === 'rsi' || item.kind === 'macd') && (item.params.divergences ?? 'on') === 'on') {
+        const srcKind = item.kind;
+        const ctxData = this.plotCtx();
+        const plots = indicatorPlots(item, data, ctxData);
+        const osc = (srcKind === 'macd' ? plots[1] : plots[0]) ?? [];
+        const line = osc.map((pt) => ({ time: Number(pt.time), value: pt.value }));
+        const hits = findDivergences(data, line);
+        const bind = this.bindings.find((b) => b.id === item.id);
+        const oscSeries = bind?.series[srcKind === 'macd' ? 1 : 0];
+        const paneIdx = this.lastMap[item.id] ?? 1;
+        const yOff = this.paneOffset(paneIdx);
+        for (const hit of hits) {
+          const x = xOf(hit.time);
+          const yPrice = this.candles.priceToCoordinate(hit.price);
+          if (x === null) continue;
+          const bull = hit.kind.endsWith('bull');
+          ctx.fillStyle = bull ? '#26a69a' : '#ef5350';
+          if (yPrice !== null && yPrice >= 0 && yPrice <= paneH) {
+            this.paintMark(ctx, x, yPrice, bull);
+          }
+          if (oscSeries) {
+            const yOsc = oscSeries.priceToCoordinate(hit.indicator);
+            if (yOsc !== null) this.paintMark(ctx, x, yOsc + yOff, bull);
+          }
+        }
+      }
+    }
+  }
+
+  private paintMark(ctx: CanvasRenderingContext2D, x: number, y: number, up: boolean): void {
+    ctx.beginPath();
+    if (up) {
+      ctx.moveTo(x, y - 6);
+      ctx.lineTo(x + 5, y + 4);
+      ctx.lineTo(x - 5, y + 4);
+    } else {
+      ctx.moveTo(x, y + 6);
+      ctx.lineTo(x + 5, y - 4);
+      ctx.lineTo(x - 5, y - 4);
+    }
+    ctx.closePath();
+    ctx.fill();
   }
 }

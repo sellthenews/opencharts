@@ -31,6 +31,14 @@ import {
   vwap,
   williamsR,
   wma,
+  sessionVwapProfile,
+  smaLine,
+  mapToChartTimes,
+  isHigherTf,
+  findDivergences,
+  cvd,
+  approximateFootprint,
+  lastSwings,
 } from '../src/indicators/math.ts';
 import type { Candle } from '../src/sources/types.ts';
 
@@ -186,5 +194,61 @@ const ar = aroon(bars, 3);
 assert(ar.length > 0 && ar.every((p) => p.up >= 0 && p.up <= 100 && p.down >= 0 && p.down <= 100), 'aroon 0-100');
 const srsi = stochRsi(rising, 14, 14, 3, 3);
 assert(srsi.length > 0 && srsi.every((p) => Number.isFinite(p.k) && Number.isFinite(p.d)), 'stoch rsi finite');
+
+
+const day = 1_700_000_000;
+const vwapDay = [
+  ohlc(day, 10, 10, 10, 10, 1),
+  ohlc(day + 3600, 20, 20, 20, 20, 1),
+  ohlc(day + 86400, 30, 30, 30, 30, 2),
+];
+const prof = sessionVwapProfile(vwapDay);
+assert(prof.length === 3, 'vwap profile length');
+assert(almost(prof[1]!.vwap, 15) && almost(prof[1]!.sigma, 5), 'vwap mid and sigma');
+assert(almost(prof[1]!.high, 20) && almost(prof[1]!.low, 10), 'session high/low day 1');
+assert(almost(prof[2]!.vwap, 30) && almost(prof[2]!.high, 30) && almost(prof[2]!.low, 30), 'session reset next day');
+
+const ma = smaLine([{ time: 1, value: 1 }, { time: 2, value: 2 }, { time: 3, value: 3 }, { time: 4, value: 4 }], 2);
+assert(ma.length === 3 && almost(ma[0]!.value, 1.5) && almost(ma[2]!.value, 3.5), 'smaLine');
+
+const mapped = mapToChartTimes(
+  [{ time: 0, value: 1 }, { time: 4, value: 2 }],
+  [0, 1, 2, 3, 4, 5].map((t) => candle(t, 1)),
+);
+assert(mapped.map((p) => p.value).join(',') === '1,1,1,1,2,2', `mapToChartTimes ${mapped.map((p) => p.value)}`);
+assert(isHigherTf('1h', '1D') && !isHigherTf('1D', '1h') && !isHigherTf('1D', 'chart'), 'isHigherTf');
+
+const divBars: Candle[] = [];
+const divOsc: { time: number; value: number }[] = [];
+for (let i = 0; i < 21; i++) {
+  const low = i === 5 ? 10 : i === 15 ? 8 : 14;
+  const high = i === 8 ? 20 : i === 18 ? 22 : 16;
+  const osc = i === 5 ? 20 : i === 15 ? 28 : i === 8 ? 80 : i === 18 ? 70 : 50;
+  divBars.push(ohlc(i, 15, high, low, 15, 1));
+  divOsc.push({ time: i, value: osc });
+}
+const divs = findDivergences(divBars, divOsc, 1, 1);
+assert(divs.some((d) => d.kind === 'regular-bull'), `regular bull missing: ${divs.map((d) => d.kind).join(',')}`);
+assert(divs.some((d) => d.kind === 'regular-bear'), `regular bear missing: ${divs.map((d) => d.kind).join(',')}`);
+
+const delta = cvd([
+  ohlc(1, 1, 2, 1, 2, 3),
+  ohlc(2, 2, 2, 1, 1, 1),
+  ohlc(3, 1, 1, 1, 1, 9),
+]);
+assert(almost(delta[0]!.value, 3) && almost(delta[1]!.value, 2) && almost(delta[2]!.value, 2), 'cvd close==open is flat');
+
+const fp = approximateFootprint(ohlc(1, 10, 12, 8, 11, 100), 4);
+assert(fp.length === 4, 'footprint rows');
+const volSum = fp.reduce((s, b) => s + b.buy + b.sell, 0);
+assert(almost(volSum, 100, 1e-6), `footprint volume ${volSum}`);
+
+const swingBars = Array.from({ length: 30 }, (_, i) => {
+  const peak = i === 8 ? 30 : i === 20 ? 10 : 20;
+  return ohlc(i, 20, i === 8 ? 30 : 21, i === 20 ? 10 : 19, 20, 1);
+});
+const swings = lastSwings(swingBars, 3);
+assert(swings !== null && swings.first.kind === 'high' && swings.second.kind === 'low', 'lastSwings high then low');
+assert(swings !== null && almost(swings.first.price, 30) && almost(swings.second.price, 10), 'lastSwings prices');
 
 console.log('indicators ok');

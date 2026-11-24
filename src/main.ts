@@ -18,6 +18,7 @@ import type { PaneMap } from './indicators/host';
 import { createInstance, indicatorStorageKey, loadIndicatorSettings, saveIndicatorSettings } from './indicators/settings';
 import { IndicatorHud, initIndicatorModal } from './indicators/ui';
 import type { IndicatorInstance, IndicatorKind } from './indicators/types';
+import { macd, rsi } from './indicators/math';
 import { describeLoadError } from './load-error';
 import { INTERVALS, formatPairLabel, getSource, sources } from './sources';
 import { lookupSymbol } from './sources/catalog';
@@ -168,11 +169,23 @@ function lineAlertContext(): NonNullable<Parameters<typeof checkAlert>[2]> {
 function evaluateAlerts(source: string, pair: PairId, last: number): void {
   let changed = false;
   const prev = lastCandles.length >= 2 ? lastCandles[lastCandles.length - 2] : undefined;
+  const r = lastCandles.length ? rsi(lastCandles, 14) : [];
+  const m = lastCandles.length ? macd(lastCandles, 12, 26, 9) : [];
   const ctx = {
     ...lineAlertContext(),
     time: lastCandles[lastCandles.length - 1]?.time,
     prev: prev?.close,
     prevTime: prev?.time,
+    rsi: r.length >= 2 ? { prev: r[r.length - 2]!.value, last: r[r.length - 1]!.value } : undefined,
+    macd:
+      m.length >= 2
+        ? {
+            prev: m[m.length - 2]!.macd,
+            last: m[m.length - 1]!.macd,
+            prevSignal: m[m.length - 2]!.signal,
+            lastSignal: m[m.length - 1]!.signal,
+          }
+        : undefined,
   };
   for (const a of alerts) {
     if (a.sourceId !== source || a.pairId !== pair || !a.enabled) continue;
@@ -300,7 +313,37 @@ function setChartInterval(id: IntervalId): void {
 
 drawings.setOnPersist(() => recordHistory());
 const indicators = new IndicatorHost(chart, series);
+indicators.setChartInterval(intervalId);
 indicators.setPaneStretches(paneStretches);
+const pendingHtf = new Set<string>();
+indicators.setOnNeedTimeframe((tf) => {
+  void loadHigherTf(tf);
+});
+
+async function loadHigherTf(tf: string): Promise<void> {
+  if (!INTERVALS.some((row) => row.id === tf) || pendingHtf.has(`${sourceId}:${pairId}:${tf}`)) return;
+  const interval = tf as IntervalId;
+  const key = `${sourceId}:${pairId}:${interval}`;
+  pendingHtf.add(key);
+  try {
+    const src = currentSource();
+    const cached = getCachedCandles(sourceId, pairId, interval);
+    if (cached?.length) {
+      indicators.setHigherTf(interval, cached);
+      applyIndicators();
+    }
+    const candles = await src.fetchCandles(pairId, interval);
+    if (candles.length) {
+      setCachedCandles(sourceId, pairId, interval, candles);
+      indicators.setHigherTf(interval, candles);
+      applyIndicators();
+    }
+  } catch (err) {
+    console.error(err);
+  } finally {
+    pendingHtf.delete(key);
+  }
+}
 const vpOverlay = document.querySelector<HTMLCanvasElement>('#vp-overlay');
 if (vpOverlay) indicators.setOverlay(vpOverlay, wrapEl);
 indicators.setOnPaneResize((stretches) => {
@@ -395,19 +438,34 @@ document.querySelector<HTMLButtonElement>('#theme-btn')?.addEventListener('click
   miniCharts.forEach((m) => m?.setTheme(theme === 'light'));
 });
 
+function selectedAlertSpec(): { kind: PriceAlert['kind']; price: number; direction: PriceAlert['direction']; indicatorKind?: string } | null {
+  const type = document.querySelector<HTMLSelectElement>('#alert-kind')?.value ?? 'price';
+  if (type === 'rsi-70' || type === 'rsi-30') {
+    return { kind: 'indicator', price: type === 'rsi-70' ? 70 : 30, direction: 'cross', indicatorKind: 'rsi' };
+  }
+  if (type === 'macd-signal') {
+    return { kind: 'indicator', price: 0, direction: 'cross', indicatorKind: 'macd' };
+  }
+  const price = Number(document.querySelector<HTMLInputElement>('#alert-price')?.value);
+  const direction = document.querySelector<HTMLSelectElement>('#alert-dir')?.value === 'below' ? 'below' : 'above';
+  if (!Number.isFinite(price) || price <= 0) return null;
+  return { kind: 'price', price, direction };
+}
+
 alertForm?.addEventListener('submit', (ev) => {
   ev.preventDefault();
   requestAlertPermission();
-  const price = Number(document.querySelector<HTMLInputElement>('#alert-price')?.value);
-  const direction = document.querySelector<HTMLSelectElement>('#alert-dir')?.value === 'below' ? 'below' : 'above';
-  if (!Number.isFinite(price) || price <= 0) return;
+  const spec = selectedAlertSpec();
+  if (!spec) return;
   if (editingAlertId) {
     alerts = alerts.map((a) =>
-      a.id === editingAlertId ? { ...a, price, direction, kind: 'price', enabled: true, drawingId: undefined, p1: undefined, p2: undefined } : a,
+      a.id === editingAlertId
+        ? { ...a, price: spec.price, direction: spec.direction, kind: spec.kind, indicatorKind: spec.indicatorKind, enabled: true, drawingId: undefined, p1: undefined, p2: undefined }
+        : a,
     );
     editingAlertId = null;
   } else {
-    alerts.push(createAlert(sourceId, pairId, price, direction));
+    alerts.push(createAlert(sourceId, pairId, spec.price, spec.direction, { kind: spec.kind, indicatorKind: spec.indicatorKind }));
   }
   saveAlerts(alerts);
   renderAlerts();
@@ -426,8 +484,19 @@ alertListEl?.addEventListener('click', (ev) => {
     editingAlertId = item.id;
     const priceEl = document.querySelector<HTMLInputElement>('#alert-price');
     const dirEl = document.querySelector<HTMLSelectElement>('#alert-dir');
+    const kindEl = document.querySelector<HTMLSelectElement>('#alert-kind');
     if (priceEl) priceEl.value = String(item.price);
     if (dirEl) dirEl.value = item.direction === 'below' ? 'below' : 'above';
+    if (kindEl) {
+      kindEl.value =
+        item.kind === 'indicator' && item.indicatorKind === 'macd'
+          ? 'macd-signal'
+          : item.kind === 'indicator' && item.indicatorKind === 'rsi' && item.price === 30
+            ? 'rsi-30'
+            : item.kind === 'indicator' && item.indicatorKind === 'rsi'
+              ? 'rsi-70'
+              : 'price';
+    }
     const submit = alertForm?.querySelector('button[type="submit"]');
     if (submit) submit.textContent = 'Save';
     priceEl?.focus();
@@ -461,6 +530,7 @@ function visibleKinds(): Set<string> {
 
 function applyIndicators(): void {
   try {
+    indicators.setChartInterval(intervalId);
     indicators.setPaneStretches(paneStretches);
     paneMap = indicators.apply(lastCandles, indicatorItems);
   } catch (err) {
@@ -497,6 +567,8 @@ function syncIndicatorContext(): void {
   const loaded = loadIndicatorSettings(sourceId, pairId);
   indicatorItems = loaded.items;
   paneStretches = loaded.panes;
+  indicators.clearHigherTf();
+  indicators.setChartInterval(intervalId);
   indicators.setPaneStretches(paneStretches);
   pendingAnchorId = null;
   pendingVpfr = null;

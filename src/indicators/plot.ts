@@ -12,19 +12,24 @@ import {
   bollinger,
   cci,
   cmf,
+  cvd,
   donchian,
   ema,
+  emaLine,
   ichimoku,
+  isHigherTf,
   keltner,
   macd,
+  mapToChartTimes,
   mfi,
   momentum,
   obv,
   parabolicSar,
   roc,
   rsi,
-  sessionVwap,
+  sessionVwapProfile,
   sma,
+  smaLine,
   smaVolume,
   stochastic,
   stochRsi,
@@ -48,17 +53,47 @@ export function warmupFor(item: IndicatorInstance): number {
   return Math.max(80, period * 5 + extra + 10);
 }
 
-export function indicatorPlots(item: IndicatorInstance, data: Candle[]): PlotPoint[][] {
+export interface PlotContext {
+  htf?: Map<string, Candle[]>;
+  chartInterval?: string;
+}
+
+export function resolveTfCandles(item: IndicatorInstance, data: Candle[], ctx?: PlotContext): Candle[] {
+  const tf = item.params.tf;
+  if (!tf || tf === 'chart' || !ctx?.chartInterval || !isHigherTf(ctx.chartInterval, tf)) return data;
+  return ctx.htf?.get(tf) ?? [];
+}
+
+function projectLine(_item: IndicatorInstance, chart: Candle[], src: Candle[], _ctx: PlotContext | undefined, points: LinePoint[]): PlotPoint[] {
+  if (src === chart || !src.length) return asLine(points);
+  return asLine(mapToChartTimes(points, chart));
+}
+
+export function indicatorPlots(item: IndicatorInstance, data: Candle[], ctx?: PlotContext): PlotPoint[][] {
   const p = item.params;
+  const src = resolveTfCandles(item, data, ctx);
+  const line = (points: LinePoint[]) => projectLine(item, data, src, ctx, points);
   switch (item.kind) {
     case 'sma':
-      return [asLine(sma(data, p.period ?? 20))];
+      return [line(sma(src, p.period ?? 20))];
     case 'ema':
-      return [asLine(ema(data, p.period ?? 20))];
+      return [line(ema(src, p.period ?? 20))];
     case 'wma':
-      return [asLine(wma(data, p.period ?? 20))];
-    case 'vwap':
-      return [asLine(sessionVwap(data))];
+      return [line(wma(src, p.period ?? 20))];
+    case 'vwap': {
+      const prof = sessionVwapProfile(src);
+      const bands = Math.max(0, Math.min(3, Math.round(p.bands ?? 0)));
+      const plots: PlotPoint[][] = [line(prof.map((b) => ({ time: b.time, value: b.vwap })))];
+      for (let n = 1; n <= bands; n++) {
+        plots.push(line(prof.map((b) => ({ time: b.time, value: b.vwap + n * b.sigma }))));
+        plots.push(line(prof.map((b) => ({ time: b.time, value: b.vwap - n * b.sigma }))));
+      }
+      if ((p.highs ?? 'off') === 'on') {
+        plots.push(line(prof.map((b) => ({ time: b.time, value: b.high }))));
+        plots.push(line(prof.map((b) => ({ time: b.time, value: b.low }))));
+      }
+      return plots;
+    }
     case 'vwapAnchor':
       return [asLine(anchoredVwap(data, p.anchor ?? 0))];
     case 'vpvr':
@@ -117,7 +152,7 @@ export function indicatorPlots(item: IndicatorInstance, data: Candle[]): PlotPoi
       return period >= 1 ? [hist, asLine(smaVolume(data, period))] : [hist];
     }
     case 'rsi':
-      return [asLine(rsi(data, p.period ?? 14))];
+      return [line(rsi(src, p.period ?? 14))];
     case 'stoch': {
       const pts = stochastic(data, p.kPeriod ?? 14, p.dPeriod ?? 3);
       return [asLine(pts.map((x) => ({ time: x.time, value: x.k }))), asLine(pts.map((x) => ({ time: x.time, value: x.d })))];
@@ -155,17 +190,33 @@ export function indicatorPlots(item: IndicatorInstance, data: Candle[]): PlotPoi
       return [asLine(pts.map((x) => ({ time: x.time, value: x.up }))), asLine(pts.map((x) => ({ time: x.time, value: x.down })))];
     }
     case 'macd': {
-      const pts = macd(data, p.fast ?? 12, p.slow ?? 26, p.signal ?? 9);
-      return [
-        pts.map((x) => ({
-          time: x.time as UTCTimestamp,
-          value: x.histogram,
-          color: x.histogram >= 0 ? 'rgba(38, 166, 154, 0.6)' : 'rgba(239, 83, 80, 0.6)',
-        })),
-        asLine(pts.map((x) => ({ time: x.time, value: x.macd }))),
-        asLine(pts.map((x) => ({ time: x.time, value: x.signal }))),
-      ];
+      const pts = macd(src, p.fast ?? 12, p.slow ?? 26, p.signal ?? 9);
+      const hist = line(pts.map((x) => ({ time: x.time, value: x.histogram }))).map((pt) => ({
+        ...pt,
+        color: pt.value >= 0 ? 'rgba(38, 166, 154, 0.6)' : 'rgba(239, 83, 80, 0.6)',
+      }));
+      return [hist, line(pts.map((x) => ({ time: x.time, value: x.macd }))), line(pts.map((x) => ({ time: x.time, value: x.signal })))];
     }
+    case 'cvd':
+      return [line(cvd(src.length ? src : data))];
+    case 'maOf': {
+      const source = p.source ?? 'rsi';
+      const period = p.period ?? 14;
+      let base: LinePoint[] = [];
+      const series = src.length ? src : data;
+      if (source === 'rsi') base = rsi(series, period);
+      else if (source === 'macd') base = macd(series, 12, 26, 9).map((x) => ({ time: x.time, value: x.macd }));
+      else if (source === 'cvd') base = cvd(series);
+      else if (source === 'volume') base = series.map((c) => ({ time: c.time, value: c.volume }));
+      else if (source === 'vwap') base = sessionVwapProfile(series).map((b) => ({ time: b.time, value: b.vwap }));
+      else base = series.map((c) => ({ time: c.time, value: c.close }));
+      const ma = (p.mode ?? 'sma') === 'ema' ? emaLine(base, period) : smaLine(base, period);
+      return [line(base), line(ma)];
+    }
+    case 'autoFib':
+    case 'autoTrend':
+    case 'footprint':
+      return [];
     default:
       return [];
   }
@@ -192,12 +243,14 @@ export function plotsFromTail(
   data: Candle[],
   prevData: Candle[],
   prevPlots: PlotPoint[][],
+  ctx?: PlotContext,
 ): PlotPoint[][] {
-  if (!prevPlots.length || !canPatchCandles(prevData, data)) return indicatorPlots(item, data);
+  if (!prevPlots.length || !canPatchCandles(prevData, data)) return indicatorPlots(item, data, ctx);
+  if (item.params.tf && item.params.tf !== 'chart') return indicatorPlots(item, data, ctx);
   const warm = warmupFor(item);
   const from = Math.max(0, data.length - warm);
-  const tail = indicatorPlots(item, data.slice(from));
-  if (tail.length !== prevPlots.length) return indicatorPlots(item, data);
+  const tail = indicatorPlots(item, data.slice(from), ctx);
+  if (tail.length !== prevPlots.length) return indicatorPlots(item, data, ctx);
   return prevPlots.map((prev, i) => {
     const piece = tail[i] ?? [];
     const last = piece[piece.length - 1];

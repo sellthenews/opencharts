@@ -90,7 +90,12 @@ export type IndicatorKind =
   | 'roc'
   | 'momentum'
   | 'cmf'
-  | 'aroon';
+  | 'aroon'
+  | 'autoFib'
+  | 'autoTrend'
+  | 'maOf'
+  | 'cvd'
+  | 'footprint';
 
 export type IndicatorGroupId = 'trend' | 'momentum' | 'volatility' | 'volume';
 
@@ -113,6 +118,11 @@ export interface IndicatorParams {
   kijun?: number;
   senkou?: number;
   shift?: number;
+  bands?: number;
+  highs?: string;
+  divergences?: string;
+  tf?: string;
+  source?: string;
 }
 
 export interface IndicatorStyle {
@@ -162,9 +172,32 @@ function periodField(label = 'Period'): IndicatorField {
   return { key: 'period', label, min: 2, max: 400, step: 1 };
 }
 
+const TF_FIELD: IndicatorField = {
+  key: 'tf',
+  label: 'Timeframe',
+  type: 'select',
+  options: [
+    { value: 'chart', label: 'Chart' },
+    { value: '4h', label: '4h' },
+    { value: '1D', label: '1D' },
+    { value: '1W', label: '1W' },
+    { value: '1M', label: '1M' },
+  ],
+};
+
+const DIV_FIELD: IndicatorField = {
+  key: 'divergences',
+  label: 'Divergences',
+  type: 'select',
+  options: [
+    { value: 'on', label: 'Regular and hidden' },
+    { value: 'off', label: 'Off' },
+  ],
+};
+
 export const INDICATOR_CATALOG: IndicatorMeta[] = [
-  { kind: 'sma', name: 'Simple Moving Average', short: 'SMA', aliases: ['ma', 'sma'], group: 'trend', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
-  { kind: 'ema', name: 'Exponential Moving Average', short: 'EMA', aliases: ['ema'], group: 'trend', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
+  { kind: 'sma', name: 'Simple Moving Average', short: 'SMA', aliases: ['ma', 'sma'], group: 'trend', defaults: { period: 20, tf: 'chart' }, fields: [periodField(), TF_FIELD], pane: 'price' },
+  { kind: 'ema', name: 'Exponential Moving Average', short: 'EMA', aliases: ['ema'], group: 'trend', defaults: { period: 20, tf: 'chart' }, fields: [periodField(), TF_FIELD], pane: 'price' },
   { kind: 'wma', name: 'Weighted Moving Average', short: 'WMA', aliases: ['wma'], group: 'trend', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
   {
     kind: 'ichimoku',
@@ -206,18 +239,20 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
   },
   { kind: 'aroon', name: 'Aroon', short: 'Aroon', aliases: ['aroon'], group: 'trend', defaults: { period: 25 }, fields: [periodField()], pane: 'osc' },
   { kind: 'adx', name: 'ADX/DMI', short: 'ADX', aliases: ['dmi', 'adx'], group: 'trend', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
-  { kind: 'rsi', name: 'RSI', short: 'RSI', aliases: ['rsi'], group: 'momentum', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
+  { kind: 'rsi', name: 'RSI', short: 'RSI', aliases: ['rsi'], group: 'momentum', defaults: { period: 14, divergences: 'on', tf: 'chart' }, fields: [periodField(), DIV_FIELD, TF_FIELD], pane: 'osc' },
   {
     kind: 'macd',
     name: 'MACD',
     short: 'MACD',
     aliases: ['macd'],
     group: 'momentum',
-    defaults: { fast: 12, slow: 26, signal: 9 },
+    defaults: { fast: 12, slow: 26, signal: 9, divergences: 'on', tf: 'chart' },
     fields: [
       { key: 'fast', label: 'Fast', min: 2, max: 200, step: 1 },
       { key: 'slow', label: 'Slow', min: 3, max: 400, step: 1 },
       { key: 'signal', label: 'Signal', min: 2, max: 200, step: 1 },
+      DIV_FIELD,
+      TF_FIELD,
     ],
     pane: 'osc',
   },
@@ -296,7 +331,11 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
   { kind: 'cmf', name: 'Chaikin Money Flow', short: 'CMF', aliases: ['cmf', 'chaikin'], group: 'volume', defaults: { period: 20 }, fields: [periodField()], pane: 'osc' },
   { kind: 'mfi', name: 'Money Flow Index', short: 'MFI', aliases: ['mfi', 'money flow'], group: 'volume', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   { kind: 'obv', name: 'On-Balance Volume', short: 'OBV', aliases: ['obv', 'on balance'], group: 'volume', defaults: {}, fields: [], pane: 'osc' },
-  { kind: 'vwap', name: 'VWAP', short: 'VWAP', aliases: ['vwap', 'session vwap'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
+  { kind: 'vwap', name: 'VWAP', short: 'VWAP', aliases: ['vwap', 'session vwap', 'vwap bands'], group: 'volume', defaults: { bands: 3, highs: 'on', tf: 'chart' }, fields: [
+      { key: 'bands', label: 'Bands (±σ)', min: 0, max: 3, step: 1 },
+      { key: 'highs', label: 'Session high/low', type: 'select', options: [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }] },
+      TF_FIELD,
+    ], pane: 'price' },
   { kind: 'vwapAnchor', name: 'Anchored VWAP', short: 'Anchored VWAP', aliases: ['avwap', 'anchored vwap'], group: 'volume', defaults: {}, fields: [], pane: 'price' },
   {
     kind: 'vpvr',
@@ -318,6 +357,31 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     fields: [{ key: 'rows', label: 'Rows', min: 8, max: 100, step: 1 }],
     pane: 'price',
   },
+  { kind: 'autoFib', name: 'Auto Fib Retracement', short: 'Auto Fib', aliases: ['auto fib', 'autofib'], group: 'trend', defaults: { period: 5 }, fields: [periodField('Pivot length')], pane: 'price' },
+  { kind: 'autoTrend', name: 'Auto Trend', short: 'Auto Trend', aliases: ['auto trend', 'autotrend'], group: 'trend', defaults: { period: 5 }, fields: [periodField('Pivot length')], pane: 'price' },
+  {
+    kind: 'maOf',
+    name: 'Moving Average of Indicator',
+    short: 'MA of',
+    aliases: ['sma of rsi', 'indicator on indicator', 'ma of'],
+    group: 'momentum',
+    defaults: { period: 14, source: 'rsi', mode: 'sma' },
+    fields: [
+      { key: 'source', label: 'Source', type: 'select', options: [
+        { value: 'rsi', label: 'RSI' },
+        { value: 'macd', label: 'MACD' },
+        { value: 'close', label: 'Close' },
+        { value: 'cvd', label: 'CVD' },
+        { value: 'volume', label: 'Volume' },
+        { value: 'vwap', label: 'VWAP' },
+      ] },
+      { key: 'mode', label: 'Method', type: 'select', options: [{ value: 'sma', label: 'SMA' }, { value: 'ema', label: 'EMA' }] },
+      periodField(),
+    ],
+    pane: 'osc',
+  },
+  { kind: 'cvd', name: 'CVD (approx. from OHLCV)', short: 'CVD', aliases: ['cvd', 'cumulative volume delta', 'delta'], group: 'volume', defaults: {}, fields: [], pane: 'osc' },
+  { kind: 'footprint', name: 'Footprint (approx. from OHLCV)', short: 'Footprint', aliases: ['footprint', 'cluster'], group: 'volume', defaults: { rows: 8 }, fields: [{ key: 'rows', label: 'Rows', min: 4, max: 24, step: 1 }], pane: 'price' },
 ];
 
 export const CATALOG_BY_KIND: Record<IndicatorKind, IndicatorMeta> = Object.fromEntries(
@@ -332,6 +396,7 @@ function fmtNum(value: number | undefined, fallback: number): string {
 export function formatIndicatorLabel(item: IndicatorInstance): string {
   const meta = CATALOG_BY_KIND[item.kind];
   const p = { ...meta.defaults, ...item.params };
+  const tf = p.tf && p.tf !== 'chart' ? ` ${p.tf}` : '';
   switch (item.kind) {
     case 'sma':
     case 'ema':
@@ -339,13 +404,13 @@ export function formatIndicatorLabel(item: IndicatorInstance): string {
     case 'rsi':
     case 'atr':
     case 'adx':
-      return `${meta.short} ${fmtNum(p.period, 0)}`;
+      return `${meta.short} ${fmtNum(p.period, 0)}${tf}`;
     case 'bb':
       return `Bollinger ${fmtNum(p.period, 20)} ${fmtNum(p.std, 2)}`;
     case 'stoch':
       return `Stochastic ${fmtNum(p.kPeriod, 14)} ${fmtNum(p.dPeriod, 3)}`;
     case 'macd':
-      return `MACD ${fmtNum(p.fast, 12)} ${fmtNum(p.slow, 26)} ${fmtNum(p.signal, 9)}`;
+      return `MACD ${fmtNum(p.fast, 12)} ${fmtNum(p.slow, 26)} ${fmtNum(p.signal, 9)}${tf}`;
     case 'supertrend':
       return `Supertrend ${fmtNum(p.period, 10)} ${fmtNum(p.multiplier, 3)}`;
     case 'stochRsi':
@@ -384,6 +449,18 @@ export function formatIndicatorLabel(item: IndicatorInstance): string {
       return `CMF ${fmtNum(p.period, 20)}`;
     case 'aroon':
       return `Aroon ${fmtNum(p.period, 25)}`;
+    case 'vwap':
+      return ((p.bands ?? 0) > 0 ? `VWAP ±${fmtNum(p.bands, 3)}` : 'VWAP') + tf;
+    case 'autoFib':
+      return `Auto Fib ${fmtNum(p.period, 5)}`;
+    case 'autoTrend':
+      return `Auto Trend ${fmtNum(p.period, 5)}`;
+    case 'maOf':
+      return `MA of ${p.source ?? 'rsi'} ${fmtNum(p.period, 14)}`;
+    case 'cvd':
+      return 'CVD';
+    case 'footprint':
+      return `Footprint ${fmtNum(p.rows, 8)}`;
     default:
       return meta.short;
   }

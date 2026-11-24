@@ -116,11 +116,17 @@
           <h2>Price alerts</h2>
           <p class="alert-note">Alerts work while this tab is open</p>
           <form id="alert-form" class="alert-form">
+            <select id="alert-kind" aria-label="Alert type">
+              <option value="price">Price</option>
+              <option value="rsi-70">RSI crosses 70</option>
+              <option value="rsi-30">RSI crosses 30</option>
+              <option value="macd-signal">MACD crosses signal</option>
+            </select>
             <select id="alert-dir" aria-label="Direction">
               <option value="above">Price ≥</option>
               <option value="below">Price ≤</option>
             </select>
-            <input type="number" id="alert-price" step="any" min="0" required placeholder="Level" />
+            <input type="number" id="alert-price" step="any" min="0" placeholder="Level" />
             <button type="submit">Add</button>
           </form>
           <button type="button" id="alert-notify-btn" class="alert-notify-btn">Enable notifications</button>

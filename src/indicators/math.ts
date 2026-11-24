@@ -765,3 +765,240 @@ export function aroon(candles: Candle[], period = 25): { time: number; up: numbe
   return out;
 }
 
+
+export interface VwapBandPoint {
+  time: number;
+  vwap: number;
+  sigma: number;
+  high: number;
+  low: number;
+}
+
+/** Session VWAP plus volume-weighted sigma and running session high/low (UTC day). */
+export function sessionVwapProfile(candles: Candle[]): VwapBandPoint[] {
+  const out: VwapBandPoint[] = [];
+  let pv = 0;
+  let pv2 = 0;
+  let vol = 0;
+  let day = Number.NaN;
+  let hi = Number.NEGATIVE_INFINITY;
+  let lo = Number.POSITIVE_INFINITY;
+  for (const c of candles) {
+    const d = Math.floor(c.time / 86400);
+    if (d !== day) {
+      day = d;
+      pv = 0;
+      pv2 = 0;
+      vol = 0;
+      hi = Number.NEGATIVE_INFINITY;
+      lo = Number.POSITIVE_INFINITY;
+    }
+    const tp = typicalPrice(c);
+    pv += tp * c.volume;
+    pv2 += tp * tp * c.volume;
+    vol += c.volume;
+    if (c.high > hi) hi = c.high;
+    if (c.low < lo) lo = c.low;
+    if (vol > 0) {
+      const mid = pv / vol;
+      const variance = Math.max(0, pv2 / vol - mid * mid);
+      out.push({ time: c.time, vwap: mid, sigma: Math.sqrt(variance), high: hi, low: lo });
+    }
+  }
+  return out;
+}
+
+export function smaLine(points: LinePoint[], period: number): LinePoint[] {
+  if (period < 1 || points.length < period) return [];
+  const out: LinePoint[] = [];
+  let sum = 0;
+  for (let i = 0; i < points.length; i++) {
+    sum += points[i]!.value;
+    if (i >= period) sum -= points[i - period]!.value;
+    if (i >= period - 1) out.push({ time: points[i]!.time, value: sum / period });
+  }
+  return out;
+}
+
+export function emaLine(points: LinePoint[], period: number): LinePoint[] {
+  return emaValues(points, period);
+}
+
+/** Map a higher-timeframe series onto chart bars (step hold of the last completed higher bar). */
+export function mapToChartTimes(higher: LinePoint[], chart: Candle[]): LinePoint[] {
+  if (!higher.length || !chart.length) return [];
+  let j = 0;
+  const out: LinePoint[] = [];
+  for (const c of chart) {
+    while (j + 1 < higher.length && higher[j + 1]!.time <= c.time) j++;
+    const src = higher[j]!;
+    if (src.time <= c.time) out.push({ time: c.time, value: src.value });
+  }
+  return out;
+}
+
+export const INTERVAL_RANK: Record<string, number> = { '1h': 1, '4h': 2, '1D': 3, '1W': 4, '1M': 5 };
+
+export function isHigherTf(chart: string, tf: string): boolean {
+  return (INTERVAL_RANK[tf] ?? 0) > (INTERVAL_RANK[chart] ?? 0);
+}
+
+export type DivergenceKind = 'regular-bull' | 'regular-bear' | 'hidden-bull' | 'hidden-bear';
+
+export interface DivergenceHit {
+  kind: DivergenceKind;
+  time: number;
+  startTime: number;
+  price: number;
+  indicator: number;
+}
+
+interface Pivot {
+  index: number;
+  time: number;
+  value: number;
+}
+
+function seriesPivots(times: number[], values: number[], left: number, right: number, highs: boolean): Pivot[] {
+  const out: Pivot[] = [];
+  const n = values.length;
+  for (let i = left; i < n - right; i++) {
+    const v = values[i]!;
+    let ok = true;
+    for (let j = i - left; j <= i + right; j++) {
+      if (j === i) continue;
+      if (highs ? values[j]! >= v : values[j]! <= v) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) out.push({ index: i, time: times[i]!, value: v });
+  }
+  return out;
+}
+
+function nearestPivot(pivots: Pivot[], time: number, window: number): Pivot | null {
+  let best: Pivot | null = null;
+  let bestDt = Infinity;
+  for (const p of pivots) {
+    const dt = Math.abs(p.time - time);
+    if (dt <= window && dt < bestDt) {
+      best = p;
+      bestDt = dt;
+    }
+  }
+  return best;
+}
+
+/** Regular and hidden divergences between candle swings and an oscillator. */
+export function findDivergences(candles: Candle[], indicator: LinePoint[], left = 5, right = 5): DivergenceHit[] {
+  if (candles.length < left + right + 3 || indicator.length < left + right + 3) return [];
+  const times = candles.map((c) => c.time);
+  const highs = seriesPivots(times, candles.map((c) => c.high), left, right, true);
+  const lows = seriesPivots(times, candles.map((c) => c.low), left, right, false);
+  const indTimes = indicator.map((p) => p.time);
+  const indVals = indicator.map((p) => p.value);
+  const indHighs = seriesPivots(indTimes, indVals, left, right, true);
+  const indLows = seriesPivots(indTimes, indVals, left, right, false);
+  const step = candles.length >= 2 ? Math.abs(candles[1]!.time - candles[0]!.time) : 86400;
+  const window = Math.max(step * (left + right), step);
+  const out: DivergenceHit[] = [];
+
+  const pairLows = (a: Pivot, b: Pivot): void => {
+    const ia = nearestPivot(indLows, a.time, window);
+    const ib = nearestPivot(indLows, b.time, window);
+    if (!ia || !ib || ia.time === ib.time) return;
+    if (b.value < a.value && ib.value > ia.value) {
+      out.push({ kind: 'regular-bull', time: b.time, startTime: a.time, price: b.value, indicator: ib.value });
+    } else if (b.value > a.value && ib.value < ia.value) {
+      out.push({ kind: 'hidden-bull', time: b.time, startTime: a.time, price: b.value, indicator: ib.value });
+    }
+  };
+  const pairHighs = (a: Pivot, b: Pivot): void => {
+    const ia = nearestPivot(indHighs, a.time, window);
+    const ib = nearestPivot(indHighs, b.time, window);
+    if (!ia || !ib || ia.time === ib.time) return;
+    if (b.value > a.value && ib.value < ia.value) {
+      out.push({ kind: 'regular-bear', time: b.time, startTime: a.time, price: b.value, indicator: ib.value });
+    } else if (b.value < a.value && ib.value > ia.value) {
+      out.push({ kind: 'hidden-bear', time: b.time, startTime: a.time, price: b.value, indicator: ib.value });
+    }
+  };
+  for (let i = 1; i < lows.length; i++) pairLows(lows[i - 1]!, lows[i]!);
+  for (let i = 1; i < highs.length; i++) pairHighs(highs[i - 1]!, highs[i]!);
+  return out.slice(-12);
+}
+
+/** Cumulative volume delta approximated from OHLCV: +volume on up candles, −volume on down candles. */
+export function cvd(candles: Candle[]): LinePoint[] {
+  const out: LinePoint[] = [];
+  let sum = 0;
+  for (const c of candles) {
+    if (c.close > c.open) sum += c.volume;
+    else if (c.close < c.open) sum -= c.volume;
+    out.push({ time: c.time, value: sum });
+  }
+  return out;
+}
+
+export interface FootprintBin {
+  low: number;
+  high: number;
+  buy: number;
+  sell: number;
+}
+
+/** Approximate per-price volume split from a single OHLCV candle (no bid/ask). */
+export function approximateFootprint(c: Candle, rows: number): FootprintBin[] {
+  const n = Math.max(2, Math.min(48, Math.round(rows) || 8));
+  const span = c.high - c.low;
+  if (!(span > 0) || !(c.volume > 0)) {
+    return [{ low: c.low, high: c.high, buy: c.close >= c.open ? c.volume : 0, sell: c.close < c.open ? c.volume : 0 }];
+  }
+  const step = span / n;
+  const mid = (c.open + c.close) / 2;
+  const bins: FootprintBin[] = [];
+  let weight = 0;
+  const raw: { buy: number; sell: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const low = c.low + step * i;
+    const high = i === n - 1 ? c.high : c.low + step * (i + 1);
+    const center = (low + high) / 2;
+    const w = 1 / (1 + Math.abs(center - mid) / (span || 1));
+    const buyShare = c.close >= c.open ? 0.65 + 0.25 * ((center - c.low) / span) : 0.35 - 0.25 * ((center - c.low) / span);
+    raw.push({ buy: w * Math.max(0.05, Math.min(0.95, buyShare)), sell: w * Math.max(0.05, Math.min(0.95, 1 - buyShare)) });
+    weight += w;
+  }
+  const scale = c.volume / Math.max(weight, 1e-9);
+  for (let i = 0; i < n; i++) {
+    const low = c.low + step * i;
+    const high = i === n - 1 ? c.high : c.low + step * (i + 1);
+    bins.push({
+      low,
+      high,
+      buy: raw[i]!.buy * scale,
+      sell: raw[i]!.sell * scale,
+    });
+  }
+  return bins;
+}
+
+export interface SwingPoint {
+  time: number;
+  price: number;
+  kind: 'high' | 'low';
+}
+
+export function lastSwings(candles: Candle[], left = 5): { first: SwingPoint; second: SwingPoint } | null {
+  if (candles.length < left * 2 + 3) return null;
+  const times = candles.map((c) => c.time);
+  const highs = seriesPivots(times, candles.map((c) => c.high), left, left, true).map(
+    (p) => ({ time: p.time, price: p.value, kind: 'high' as const }),
+  );
+  const lows = seriesPivots(times, candles.map((c) => c.low), left, left, false).map(
+    (p) => ({ time: p.time, price: p.value, kind: 'low' as const }),
+  );
+  const all = [...highs, ...lows].sort((a, b) => a.time - b.time);
+  if (all.length < 2) return null;
+  return { first: all[all.length - 2]!, second: all[all.length - 1]! };
+}
