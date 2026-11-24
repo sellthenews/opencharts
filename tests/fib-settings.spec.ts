@@ -32,7 +32,10 @@ test('Fib retracement: 24 levels, settings dialog, persist and Save as default',
   expect(first?.type).toBe('fib');
   const levels = first && first.type === 'fib' ? first.fib?.levels ?? [] : [];
   expect(levels).toHaveLength(24);
-  expect(levels.every((l) => l.visible)).toBeTruthy();
+  const visible = levels.filter((l) => l.visible).map((l) => l.value);
+  expect(visible).toEqual([0, 0.236, 0.38, 0.5, 0.61, 0.786, 1]);
+  expect(first && first.type === 'fib' ? first.fib?.extendLines : undefined).toBe(false);
+  expect(first && first.type === 'fib' ? first.fib?.backgroundOpacity : undefined).toBeCloseTo(0.04);
   expect(levels.map((l) => l.value)).toEqual([
     0, 0.236, 0.278, 0.38, 0.44, 0.5, 0.577, 0.61, 0.667, 0.707, 0.77, 0.786, 0.8, 0.878, 0.941, 1, 1.13, 1.25, 1.414,
     1.618, 1.732, 2.058, 2.236, 2.618,

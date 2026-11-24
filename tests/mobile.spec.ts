@@ -130,10 +130,12 @@ async function runPhoneLayout(page: Page, shotName: string): Promise<void> {
 }
 
 test.describe('phone 390x844', () => {
-  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
 
   test('layout, no horizontal scroll, pan and pinch', async ({ page }) => {
     await runPhoneLayout(page, 'telefon-390.png');
+    const width = await page.evaluate(() => window.innerWidth);
+    expect(width).toBe(390);
     fs.mkdirSync(SHOT_DIR, { recursive: true });
     await page.screenshot({ path: path.join(SHOT_DIR, 'telefon-pasek.png'), fullPage: true });
   });

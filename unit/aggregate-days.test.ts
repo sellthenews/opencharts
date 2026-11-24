@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { aggregateCandles, bucketStart } from '../src/sources/aggregate';
+import { aggregateCandles, bucketStart, isValidCandle } from '../src/sources/aggregate';
 import { BUILTIN_INTERVALS, parseIntervalId, sourceIntervalFor } from '../src/sources/intervals';
 
 const DAY = 86_400;
@@ -55,4 +55,19 @@ test('3D aggregates daily candles on UTC windows', () => {
   assert.equal(out.length, 2);
   assert.deepEqual(out[0], { time: 0, open: 1, high: 4, low: 0.5, close: 2.5, volume: 60 });
   assert.deepEqual(out[1], { time: 3 * DAY, open: 2.5, high: 5, low: 2, close: 4, volume: 40 });
+});
+
+test('aggregation drops non-finite, zero, and negative bars', () => {
+  const candles = [
+    candle(0, 10, 12, 9, 11, 1),
+    { time: DAY, open: 0, high: 0, low: 0, close: 0, volume: 10 },
+    { time: 2 * DAY, open: NaN, high: 2, low: 1, close: 2, volume: 1 },
+    { time: 3 * DAY, open: -1, high: 1, low: -2, close: 0.5, volume: 1 },
+    candle(4, 9, 10, 8, 8.5, 2),
+  ];
+  const out = aggregateCandles(candles, '1D');
+  assert.equal(out.length, 2);
+  assert.equal(out[0]!.open, 10);
+  assert.equal(out[1]!.close, 8.5);
+  assert.equal(isValidCandle(candles[1]!), false);
 });

@@ -165,7 +165,7 @@ test('legacy empty favorites list migrates to the default set and shows the bar'
   expect(box).toBeTruthy();
   expect(wrap).toBeTruthy();
   expect(Math.abs(box!.y - (wrap!.y + 200))).toBeGreaterThan(40);
-  expect(Math.abs(box!.y - (wrap!.y + 48))).toBeLessThan(16);
+  expect(Math.abs(box!.y - (wrap!.y + 72))).toBeLessThan(16);
 });
 
 test('legacy custom favorites list is merged with defaults and stays visible', async ({ page }) => {

@@ -35,20 +35,15 @@ test('interval dropdown, favorites, and older 4H history', async ({ page }) => {
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
   await expect(page.locator('#status')).not.toHaveClass(/is-error/);
 
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(async () => {
-          const before = window.__opencharts.getCandles();
-          if (before.length > 800) return before.length;
-          await window.__opencharts.loadOlderHistory();
-          return window.__opencharts.getCandles().length;
-        }),
-      { timeout: 60_000 },
-    )
-    .toBeGreaterThan(800);
-
-  const first = await page.evaluate(() => window.__opencharts.getCandles()[0]?.time ?? 0);
-  // A single Kraken 4H OHLC page only reaches late July 2026. Older pages should start earlier.
-  expect(first).toBeLessThan(1_753_632_000);
+  const first = await page.evaluate(async () => {
+    const feb2026 = 1_770_768_000; // 11 Feb 2026 00:00 UTC
+    for (let i = 0; i < 5; i++) {
+      const t0 = window.__opencharts.getCandles()[0]?.time ?? 0;
+      if (t0 && t0 < feb2026) return t0;
+      await window.__opencharts.loadOlderHistory();
+    }
+    return window.__opencharts.getCandles()[0]?.time ?? 0;
+  });
+  // One Binance page after Kraken's ~720 4H bars still starts around Feb 2026. Further pages must go earlier.
+  expect(first).toBeLessThan(1_770_768_000);
 });

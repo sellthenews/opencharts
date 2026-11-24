@@ -35,6 +35,8 @@ test('indicators dialog: search RSI, add, change period, hide, remove', async ({
   expect(stored?.v).toBe(2);
   expect(stored?.items?.some((i: { kind: string; params?: { period?: number } }) => i.kind === 'rsi' && i.params?.period === 21)).toBeTruthy();
 
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.ind-popover')).toHaveCount(0);
   await rsi.locator('[data-ind-act="toggle"]').click();
   await expect(page.locator('.ind-label[data-kind="rsi"]')).toHaveAttribute('data-visible', 'off');
   await expect(page.locator('#app')).toHaveAttribute('data-rsi', 'off');
@@ -44,7 +46,7 @@ test('indicators dialog: search RSI, add, change period, hide, remove', async ({
 });
 
 test('indicator math matches reference fixtures', () => {
-  execFileSync('node', ['--experimental-strip-types', 'scripts/check-indicators.ts'], {
+  execFileSync('node', ['--experimental-strip-types', '--import', './unit/resolve-ts.mjs', 'scripts/check-indicators.ts'], {
     cwd: process.cwd(),
     stdio: 'inherit',
   });
