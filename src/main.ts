@@ -744,13 +744,45 @@ function resizeCharts(): void {
   });
 }
 
+const PHONE_MQ = window.matchMedia('(max-width: 900px), (max-height: 500px) and (orientation: landscape)');
+
+function isPhoneLayout(): boolean {
+  return PHONE_MQ.matches;
+}
+
 function sidebarIsOn(): boolean {
+  if (isPhoneLayout()) return appEl.classList.contains('phone-panel');
   return localStorage.getItem(SIDEBAR_KEY) !== 'off';
+}
+
+function syncPhoneLayout(): void {
+  document.documentElement.dataset.layout = isPhoneLayout() ? 'phone' : 'desktop';
+  if (!isPhoneLayout()) {
+    appEl.classList.remove('phone-panel');
+    appEl.dataset.sidebar = localStorage.getItem(SIDEBAR_KEY) !== 'off' ? 'on' : 'off';
+    const btn = document.querySelector<HTMLButtonElement>('#sidebar-btn');
+    if (btn) btn.setAttribute('aria-pressed', appEl.dataset.sidebar === 'on' ? 'true' : 'false');
+  } else {
+    const btn = document.querySelector<HTMLButtonElement>('#sidebar-btn');
+    if (btn) btn.setAttribute('aria-pressed', appEl.classList.contains('phone-panel') ? 'true' : 'false');
+  }
+  resizeCharts();
 }
 
 function setSidebar(on: boolean): void {
   const view = captureChartView();
   if (view.logical && view.barSpacing > 0) lastGoodView = view;
+  if (isPhoneLayout()) {
+    appEl.classList.toggle('phone-panel', on);
+    const btn = document.querySelector<HTMLButtonElement>('#sidebar-btn');
+    if (btn) {
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.title = on ? t('mobile.close') : t('toolbar.panelTitle');
+    }
+    resizeCharts();
+    return;
+  }
+  appEl.classList.remove('phone-panel');
   localStorage.setItem(SIDEBAR_KEY, on ? 'on' : 'off');
   appEl.dataset.sidebar = on ? 'on' : 'off';
   const btn = document.querySelector<HTMLButtonElement>('#sidebar-btn');
@@ -1196,8 +1228,11 @@ indicatorHud = new IndicatorHud(
   document.querySelector('#ind-btn')!,
 );
 
-setSidebar(sidebarIsOn());
+syncPhoneLayout();
+if (!isPhoneLayout()) setSidebar(sidebarIsOn());
 document.querySelector('#sidebar-btn')?.addEventListener('click', () => setSidebar(!sidebarIsOn()));
+document.querySelector('#sidebar-close')?.addEventListener('click', () => setSidebar(false));
+PHONE_MQ.addEventListener('change', () => syncPhoneLayout());
 window.addEventListener('resize', () => resizeCharts());
 
 chart.timeScale().subscribeVisibleLogicalRangeChange(() => {

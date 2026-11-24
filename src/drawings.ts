@@ -109,6 +109,9 @@ function formatSpan(sec: number): string {
 const SELECTED = '#ffcc66';
 const HANDLE = 5;
 const HIT_PX = 7;
+const TOUCH_HIT_PX = 22;
+const LONG_PRESS_MS = 450;
+const LONG_PRESS_MOVE_PX = 12;
 
 function fibEnds(d: Extract<Drawing, { type: 'fib' }>): { p1: Point; p2: Point } {
   return { p1: d.p1, p2: d.p2 };
@@ -340,6 +343,10 @@ export class DrawingLayer {
     orig: Drawing;
     priceOnly?: boolean;
   } | null = null;
+  private hitPx = HIT_PX;
+  private holdTimer: number | null = null;
+  private holdOrigin: { x: number; y: number; pointerId: number } | null = null;
+  private inspectPointer: number | null = null;
 
   constructor(
     private readonly chart: IChartApi,
@@ -354,8 +361,8 @@ export class DrawingLayer {
     this.chart.timeScale().subscribeVisibleTimeRangeChange(() => this.paintFrame());
     window.addEventListener('resize', this.onWinResize);
 
-    this.wrap.addEventListener('pointerdown', this.onWrapPointerDown, true);
-    window.addEventListener('pointermove', this.onWinPointerMove);
+    this.wrap.addEventListener('pointerdown', this.onWrapPointerDown, { capture: true, passive: false });
+    window.addEventListener('pointermove', this.onWinPointerMove, { passive: false });
     window.addEventListener('pointerup', this.onWinPointerUp);
     window.addEventListener('pointercancel', this.onWinPointerUp);
     this.wrap.addEventListener('contextmenu', this.onContextMenu, true);
@@ -941,6 +948,11 @@ export class DrawingLayer {
   }
 
   private onContextMenu = (ev: MouseEvent): void => {
+    if (this.inspectPointer !== null || this.holdTimer != null) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      return;
+    }
     if (this.layerHidden || this.isUiChrome(ev.target) || this.modalOpen()) return;
     if (this.tool !== 'cursor' || this.draft) {
       ev.preventDefault();
@@ -948,6 +960,31 @@ export class DrawingLayer {
       this.cancelInProgress(false);
     }
   };
+
+
+  private isTouchPointer(ev: PointerEvent): boolean {
+    return ev.pointerType === 'touch';
+  }
+
+  private setHitSlop(ev: PointerEvent): void {
+    this.hitPx = this.isTouchPointer(ev) ? TOUCH_HIT_PX : HIT_PX;
+  }
+
+  private clearHoldTimer(): void {
+    if (this.holdTimer != null) {
+      window.clearTimeout(this.holdTimer);
+      this.holdTimer = null;
+    }
+    this.holdOrigin = null;
+  }
+
+  private endInspect(): void {
+    this.clearHoldTimer();
+    if (this.inspectPointer === null) return;
+    this.inspectPointer = null;
+    this.clearDrivenCrosshair();
+    this.syncPointerEvents();
+  }
 
   private onWrapPointerDown = (ev: PointerEvent): void => {
     if (this.layerHidden || this.isUiChrome(ev.target) || this.modalOpen()) return;
@@ -970,6 +1007,7 @@ export class DrawingLayer {
       return;
     }
     if (ev.button !== 0) return;
+    this.setHitSlop(ev);
     const rect = this.canvas.getBoundingClientRect();
     const x = ev.clientX - rect.left;
     const y = ev.clientY - rect.top;
@@ -981,7 +1019,21 @@ export class DrawingLayer {
     const handle = this.hitHandle(x, y);
     const body = handle ? null : this.hitBody(x, y);
     if (this.tool === 'cursor') {
-      if (!handle && !body) return;
+      if (!handle && !body) {
+        if (this.isTouchPointer(ev) && ev.isPrimary) {
+          this.clearHoldTimer();
+          this.holdOrigin = { x: ev.clientX, y: ev.clientY, pointerId: ev.pointerId };
+          this.holdTimer = window.setTimeout(() => {
+            this.holdTimer = null;
+            if (!this.holdOrigin || this.holdOrigin.pointerId !== ev.pointerId) return;
+            this.inspectPointer = ev.pointerId;
+            this.chart.applyOptions({ handleScroll: false, handleScale: false });
+            const point = this.eventPoint(ev, true);
+            if (point) this.syncCrosshair(point.logical);
+          }, LONG_PRESS_MS);
+        }
+        return;
+      }
       ev.preventDefault();
       ev.stopPropagation();
       this.capturePointer(ev);
@@ -996,6 +1048,18 @@ export class DrawingLayer {
   };
 
   private onWinPointerMove = (ev: PointerEvent): void => {
+    if (this.holdOrigin && ev.pointerId === this.holdOrigin.pointerId) {
+      const dx = ev.clientX - this.holdOrigin.x;
+      const dy = ev.clientY - this.holdOrigin.y;
+      if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_PX) this.clearHoldTimer();
+    }
+    if (this.inspectPointer !== null && ev.pointerId === this.inspectPointer) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const point = this.eventPoint(ev, true);
+      if (point) this.syncCrosshair(point.logical);
+      return;
+    }
     if (this.drag || this.draft || (this.tool === 'brush' && ev.buttons !== 0)) {
       if (this.drag || this.draft) ev.preventDefault();
       this.onPointer(ev, 'move');
@@ -1011,6 +1075,10 @@ export class DrawingLayer {
   };
 
   private onWinPointerUp = (ev: PointerEvent): void => {
+    if (this.holdOrigin && ev.pointerId === this.holdOrigin.pointerId) this.clearHoldTimer();
+    if (this.inspectPointer !== null && ev.pointerId === this.inspectPointer) {
+      this.endInspect();
+    }
     this.releaseCapturedPointer();
     this.onPointer(ev, 'up');
   };
@@ -1954,7 +2022,7 @@ export class DrawingLayer {
           }
           continue;
         }
-        if (Math.hypot(x - h.x, y - h.y) <= HANDLE + 3) {
+        if (Math.hypot(x - h.x, y - h.y) <= Math.max(HANDLE + 3, this.hitPx)) {
           return { id: d.id, handle: h.handle, priceOnly: h.priceOnly };
         }
       }
@@ -1966,7 +2034,7 @@ export class DrawingLayer {
     let best: { id: string; dist: number } | null = null;
     for (const d of this.drawings) {
       const dist = this.hitDistance(d, x, y);
-      if (dist === null || dist > HIT_PX) continue;
+      if (dist === null || dist > this.hitPx) continue;
       if (!best || dist < best.dist) best = { id: d.id, dist };
     }
     return best?.id ?? null;

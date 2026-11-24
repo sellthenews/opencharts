@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <title>OpenCharts</title>
@@ -40,6 +40,10 @@
         <div class="compare-wrap">
           <button type="button" id="compare-btn" title="Compare symbols in percent" data-i18n="toolbar.compare" data-i18n-title="toolbar.compareTitle" aria-expanded="false" aria-controls="compare-pop">Compare</button>
           <div id="compare-pop" hidden>
+            <div class="sheet-head">
+              <h2 data-i18n="toolbar.compare">Compare</h2>
+              <button type="button" id="compare-close" class="sheet-close" aria-label="Close" data-i18n-aria="mobile.close">×</button>
+            </div>
             <input type="text" id="compare-search" placeholder="Add symbol" aria-label="Add symbol to compare" data-i18n-placeholder="toolbar.addSymbol" data-i18n-aria="toolbar.addSymbolCompare" autocomplete="off" />
             <div id="compare-results" class="compare-results"></div>
             <div id="compare-list" class="compare-list"></div>
@@ -53,6 +57,10 @@
             <span data-i18n="toolbar.settings">Settings</span>
           </button>
           <div id="settings-menu" hidden role="menu" aria-labelledby="settings-btn">
+            <div class="sheet-head">
+              <h2 data-i18n="toolbar.settings">Settings</h2>
+              <button type="button" id="settings-close" class="sheet-close" aria-label="Close" data-i18n-aria="mobile.close">×</button>
+            </div>
             <button type="button" role="menuitem" id="settings-export" data-i18n="toolbar.exportData">Export data</button>
             <button type="button" role="menuitem" id="settings-import" data-i18n="toolbar.importData">Import data</button>
             <button type="button" role="menuitem" id="settings-save-template" data-i18n="toolbar.saveTemplate">Save template…</button>
@@ -126,6 +134,10 @@
       </footer>
       </div>
       <div id="sidebar">
+        <div id="sidebar-head" class="sheet-head">
+          <h2 data-i18n="toolbar.panel">Panel</h2>
+          <button type="button" id="sidebar-close" class="sheet-close" aria-label="Close" data-i18n-aria="mobile.close">×</button>
+        </div>
         <aside id="watchlist" aria-label="Watchlists" data-i18n-aria="watch.lists"></aside>
         <aside id="alerts-panel" aria-label="Price alerts" data-i18n-aria="alerts.title">
           <h2 data-i18n="alerts.title">Price alerts</h2>

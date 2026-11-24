@@ -2231,3 +2231,331 @@ html[dir="rtl"] #cursor-dot {
   padding: 2px 6px;
   font-size: 11px;
 }
+
+
+/* Phone / narrow-screen layout (browser only; not a PWA). */
+#chart-wrap,
+#chart,
+#draw-overlay,
+#vp-overlay {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+button,
+a,
+input,
+select,
+textarea,
+label,
+.toolbar .interval,
+#tool-rail .rail-btn {
+  touch-action: manipulation;
+}
+
+.sheet-head {
+  display: none;
+}
+
+.sheet-close {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
+  html,
+  body,
+  #app {
+    height: 100%;
+    height: 100dvh;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  #app {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  #workspace {
+    min-height: 0;
+    height: 100%;
+    max-width: 100%;
+  }
+
+  .site-foot,
+  .brand,
+  .field span,
+  #layout-btns,
+  #live-status,
+  .toolbar .status,
+  .interval-favs {
+    display: none !important;
+  }
+
+  .toolbar {
+    gap: 6px;
+    padding: 6px 8px;
+    padding-left: max(8px, env(safe-area-inset-left));
+    padding-right: max(8px, env(safe-area-inset-right));
+    flex-wrap: wrap;
+  }
+
+  .toolbar button,
+  .toolbar select,
+  .toolbar .interval,
+  .toolbar .interval-menu-btn,
+  #pair-btn,
+  #source {
+    min-height: 40px;
+    min-width: 40px;
+    padding: 6px 10px;
+  }
+
+  #pair-btn {
+    min-width: 0;
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .field,
+  .field-pair,
+  .field-lang,
+  .compare-wrap,
+  .settings-wrap,
+  #intervals,
+  .interval-picker {
+    min-width: 0;
+  }
+
+  #intervals {
+    flex: 0 1 auto;
+  }
+
+  .workspace-body {
+    position: relative;
+    min-height: 0;
+    flex: 1;
+    padding-bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+  }
+
+  #charts {
+    min-height: 0;
+    min-width: 0;
+    width: 100%;
+  }
+
+  #tool-rail {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: auto;
+    height: calc(52px + env(safe-area-inset-bottom, 0px));
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-around;
+    gap: 2px;
+    padding: 4px 6px env(safe-area-inset-bottom, 0px);
+    border-right: 0;
+    border-top: 1px solid var(--border);
+    z-index: 25;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  #tool-rail .rail-top,
+  #tool-rail .rail-bottom {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 2px;
+    padding: 0;
+    margin: 0;
+    border: 0;
+  }
+
+  #tool-rail .rail-spacer {
+    display: none;
+  }
+
+  #tool-rail .rail-slot,
+  #tool-rail .rail-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  #tool-rail .rail-caret {
+    width: 16px;
+    height: 16px;
+    right: 0;
+    bottom: 0;
+  }
+
+  #rail-flyout {
+    left: 8px !important;
+    right: 8px;
+    top: auto !important;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    min-width: 0;
+    max-height: min(60vh, 480px);
+    width: auto;
+  }
+
+  #rail-flyout button,
+  .interval-menu button,
+  .interval-item,
+  .interval-star {
+    min-height: 40px;
+  }
+
+  #interval-menu {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    max-height: min(70vh, 520px);
+    width: auto;
+    z-index: 40;
+    overflow: auto;
+  }
+
+  /* Docked sidebar becomes a full-screen sheet, closed until .phone-panel. */
+  #sidebar {
+    display: none;
+    position: fixed;
+    inset: 0;
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
+    z-index: 50;
+    border-left: 0;
+    background: var(--bar);
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  #app.phone-panel #sidebar {
+    display: flex;
+  }
+
+  #sidebar-head,
+  #compare-pop .sheet-head,
+  #settings-menu .sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  #sidebar-head h2,
+  #compare-pop .sheet-head h2,
+  #settings-menu .sheet-head h2 {
+    margin: 0;
+    font-size: 16px;
+  }
+
+  #alerts-panel {
+    max-height: none;
+    flex: 1;
+  }
+
+  #ind-modal .ind-modal-box,
+  #sym-modal .sym-modal-box,
+  #fib-modal .fib-modal-box,
+  #backup-modal .fib-modal-box,
+  #confirm-modal .confirm-box {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    border-radius: 0;
+    border: 0;
+  }
+
+  #ind-modal .ind-modal-head button,
+  #sym-modal .ind-modal-head button,
+  #fib-modal .ind-modal-head button,
+  #backup-modal .ind-modal-head button,
+  .sheet-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  #compare-pop:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    width: auto;
+    margin: 0;
+    border-radius: 0;
+    z-index: 45;
+    display: flex;
+    flex-direction: column;
+    padding: env(safe-area-inset-top, 0px) 12px 12px;
+  }
+
+  #compare-pop .compare-results,
+  #compare-pop .compare-list {
+    max-height: none;
+    flex: 1;
+  }
+
+  .settings-wrap {
+    position: static;
+  }
+
+  #settings-menu:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    top: 0;
+    right: 0;
+    width: auto;
+    min-width: 0;
+    margin: 0;
+    border-radius: 0;
+    z-index: 45;
+    padding: env(safe-area-inset-top, 0px) 8px 12px;
+    overflow: auto;
+  }
+
+  #settings-menu button {
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+
+  #fav-bar {
+    display: none !important;
+  }
+
+  #draw-bar {
+    max-width: calc(100% - 16px);
+    flex-wrap: wrap;
+  }
+
+  #scale-btns {
+    right: 72px;
+    bottom: 8px;
+  }
+
+  #scale-btns button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+}

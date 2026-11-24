@@ -131,6 +131,10 @@ export function initBackupUi(opts: { setStatus: (text: string, error?: boolean) 
     ev.stopPropagation();
     setMenu(menu.hidden);
   });
+  document.querySelector('#settings-close')?.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    setMenu(false);
+  });
 
   exportBtn.addEventListener('click', () => {
     setMenu(false);

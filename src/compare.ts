@@ -301,15 +301,22 @@ export function initComparePanel(opts: {
     );
   }
 
-  opts.btn.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    const open = opts.pop.hidden;
+  function setCompareOpen(open: boolean): void {
     opts.pop.hidden = !open;
     opts.btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (open) {
       renderResults();
       opts.search.focus();
     }
+  }
+
+  opts.btn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    setCompareOpen(opts.pop.hidden);
+  });
+  document.querySelector('#compare-close')?.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    setCompareOpen(false);
   });
   opts.search.addEventListener('input', () => renderResults());
   opts.results.addEventListener('click', (ev) => {
