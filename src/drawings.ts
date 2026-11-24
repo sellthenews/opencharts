@@ -325,8 +325,16 @@ export class DrawingLayer {
   private rafId = 0;
   private needsPaint = false;
   private lastDpr = 0;
-  private drag: { mode: 'point' | 'move'; handle?: HandleName; startX: number; startY: number; orig: Drawing } | null =
-    null;
+  private lastHit: { x: number; y: number; logical: Point } | null = null;
+  private capturedPointer: number | null = null;
+  private drag: {
+    mode: 'point' | 'move';
+    handle?: HandleName;
+    startX: number;
+    startY: number;
+    orig: Drawing;
+    priceOnly?: boolean;
+  } | null = null;
 
   constructor(
     private readonly chart: IChartApi,
@@ -340,12 +348,12 @@ export class DrawingLayer {
     this.chart.timeScale().subscribeVisibleLogicalRangeChange(() => this.scheduleRedraw());
     window.addEventListener('resize', this.onWinResize);
 
-    this.canvas.addEventListener('mousedown', (ev) => this.onPointer(ev, 'down'));
-    this.canvas.addEventListener('mousemove', (ev) => this.onPointer(ev, 'move'));
+    this.wrap.addEventListener('pointerdown', this.onWrapPointerDown, true);
+    window.addEventListener('pointermove', this.onWinPointerMove);
+    window.addEventListener('pointerup', this.onWinPointerUp);
+    window.addEventListener('pointercancel', this.onWinPointerUp);
     this.wrap.addEventListener('dblclick', (ev) => this.onDblClick(ev));
     this.wrap.addEventListener('mousedown', (ev) => this.onEmptyClick(ev));
-    window.addEventListener('mouseup', (ev) => this.onPointer(ev, 'up'));
-    this.wrap.addEventListener('mousemove', (ev) => this.onHoverPassthrough(ev));
     window.addEventListener('keydown', this.onKey);
     this.syncPointerEvents();
   }
@@ -614,6 +622,11 @@ export class DrawingLayer {
 
   destroy(): void {
     this.ro.disconnect();
+    this.releaseCapturedPointer();
+    this.wrap.removeEventListener('pointerdown', this.onWrapPointerDown, true);
+    window.removeEventListener('pointermove', this.onWinPointerMove);
+    window.removeEventListener('pointerup', this.onWinPointerUp);
+    window.removeEventListener('pointercancel', this.onWinPointerUp);
     window.removeEventListener('keydown', this.onKey);
     window.removeEventListener('resize', this.onWinResize);
     if (this.rafId) cancelAnimationFrame(this.rafId);
@@ -735,11 +748,18 @@ export class DrawingLayer {
     return this.lastTime + (Number(logical) - Number(lastIndex)) * this.stepSec;
   }
 
-  private xyToLogical(x: number, y: number): Point | null {
+  private xyToLogical(x: number, y: number, loose = false): Point | null {
     const price = this.series.coordinateToPrice(y);
     const time = this.xToTime(x);
-    if (price === null || time === null) return null;
-    return { time, price };
+    if (price !== null && time !== null) return { time, price };
+    if (!loose) return null;
+    const rect = this.canvas.getBoundingClientRect();
+    const cx = Math.min(Math.max(x, 0.5), Math.max(0.5, rect.width - 0.5));
+    const cy = Math.min(Math.max(y, 0.5), Math.max(0.5, rect.height - 0.5));
+    const p2 = this.series.coordinateToPrice(cy);
+    const t2 = this.xToTime(cx);
+    if (p2 === null || t2 === null) return this.lastHit?.logical ?? null;
+    return { time: t2, price: p2 };
   }
 
   private pointToXy(p: Point): { x: number; y: number } | null {
@@ -749,23 +769,100 @@ export class DrawingLayer {
     return { x, y };
   }
 
-  private eventPoint(ev: MouseEvent): { x: number; y: number; logical: Point } | null {
+  private eventPoint(ev: MouseEvent, loose = false): { x: number; y: number; logical: Point } | null {
     const rect = this.canvas.getBoundingClientRect();
     const x = ev.clientX - rect.left;
     const y = ev.clientY - rect.top;
-    let logical = this.xyToLogical(x, y);
+    let logical = this.xyToLogical(x, y, loose);
     if (!logical) return null;
     if (this.shouldSnap(ev)) logical = this.snapLogical(logical);
-    return { x, y, logical };
+    const hit = { x, y, logical };
+    this.lastHit = hit;
+    return hit;
   }
 
-  private onHoverPassthrough(ev: MouseEvent): void {
-    if (this.layerHidden || this.tool !== 'cursor' || this.drag) return;
+  private isUiChrome(target: EventTarget | null): boolean {
+    const el = target as HTMLElement | null;
+    if (!el) return false;
+    return !!el.closest(
+      '#tool-rail, #fav-bar, #draw-bar, #chart-menu, #rail-flyout, .modal, [data-modal], #ind-hud, #ind-modal, #fib-modal, #sym-modal, #backup-modal, #sidebar, #watchlist, button, a, input, textarea, select, [role="dialog"]',
+    );
+  }
+
+  private releaseCapturedPointer(): void {
+    if (this.capturedPointer === null) return;
+    try {
+      if (this.wrap.hasPointerCapture(this.capturedPointer)) this.wrap.releasePointerCapture(this.capturedPointer);
+    } catch {
+      /* already released */
+    }
+    this.capturedPointer = null;
+  }
+
+  private capturePointer(ev: PointerEvent): void {
+    try {
+      this.wrap.setPointerCapture(ev.pointerId);
+      this.capturedPointer = ev.pointerId;
+    } catch {
+      this.capturedPointer = ev.pointerId;
+    }
+  }
+
+  private onWrapPointerDown = (ev: PointerEvent): void => {
+    if (this.layerHidden || this.isUiChrome(ev.target) || this.modalOpen()) return;
+    if (ev.button !== 0 && ev.button !== 2) return;
     const rect = this.canvas.getBoundingClientRect();
     const x = ev.clientX - rect.left;
     const y = ev.clientY - rect.top;
-    const hit = this.hitHandle(x, y) || this.hitBody(x, y);
-    this.canvas.classList.toggle('passthrough', !hit);
+    const overPlot =
+      ev.clientX >= rect.left - 8 &&
+      ev.clientX <= rect.right + 64 &&
+      ev.clientY >= rect.top - 8 &&
+      ev.clientY <= rect.bottom + 8;
+    const handle = this.hitHandle(x, y);
+    const body = handle ? null : this.hitBody(x, y);
+    if (this.tool === 'cursor') {
+      if (!handle && !body) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      this.capturePointer(ev);
+      this.onPointer(ev, 'down');
+      return;
+    }
+    if (!overPlot) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    this.capturePointer(ev);
+    this.onPointer(ev, 'down');
+  };
+
+  private onWinPointerMove = (ev: PointerEvent): void => {
+    if (this.drag || this.draft || (this.tool === 'brush' && ev.buttons !== 0)) {
+      if (this.drag || this.draft) ev.preventDefault();
+      this.onPointer(ev, 'move');
+      return;
+    }
+    this.onHoverPassthrough(ev);
+  };
+
+  private onWinPointerUp = (ev: PointerEvent): void => {
+    this.releaseCapturedPointer();
+    this.onPointer(ev, 'up');
+  };
+
+  private onHoverPassthrough(ev: MouseEvent): void {
+    if (this.layerHidden || this.tool !== 'cursor' || this.drag) {
+      this.canvas.classList.toggle('passthrough', this.tool === 'cursor' && !this.drag);
+      return;
+    }
+    const rect = this.canvas.getBoundingClientRect();
+    const x = ev.clientX - rect.left;
+    const y = ev.clientY - rect.top;
+    const handle = this.hitHandle(x, y);
+    const body = handle ? null : this.hitBody(x, y);
+    // Keep the overlay pass-through so wheel zoom, pan, and axis drags reach the chart.
+    this.canvas.classList.add('passthrough');
+    this.wrap.style.cursor = handle ? 'ns-resize' : body ? 'move' : '';
   }
 
   private onPointer(ev: MouseEvent, phase: 'down' | 'move' | 'up'): void {
@@ -778,7 +875,8 @@ export class DrawingLayer {
       }
       return;
     }
-    const hit = this.eventPoint(ev);
+    const loose = phase !== 'down' && !!(this.drag || this.draft || this.tool === 'brush');
+    const hit = this.eventPoint(ev, loose);
     if (phase === 'down' && ev.button !== 0) {
       if (this.tool === 'cursor' && hit) {
         const handle = this.hitHandle(hit.x, hit.y);
@@ -798,8 +896,13 @@ export class DrawingLayer {
         this.drag = null;
         this.persist();
         this.syncPointerEvents();
-        this.redraw();
+        this.paintFrame();
       }
+      this.wrap.style.cursor = '';
+      return;
+    }
+    if (phase === 'move' && this.drag) {
+      if (hit) this.applyDrag(hit);
       return;
     }
     if (!hit) return;
@@ -810,7 +913,7 @@ export class DrawingLayer {
     }
     if (phase === 'move' && this.draft) {
       this.draft.current = hit.logical;
-      this.redraw();
+      this.paintFrame();
       return;
     }
     if (phase === 'down') this.addDraftPoint(hit.logical);
@@ -831,12 +934,13 @@ export class DrawingLayer {
             startX: hit.x,
             startY: hit.y,
             orig: structuredClone(orig),
+            priceOnly: handle?.priceOnly,
           };
           this.canvas.classList.remove('passthrough');
           this.chart.applyOptions({ handleScroll: false, handleScale: false });
         }
       }
-      this.redraw();
+      this.paintFrame();
       this.emitSelect();
       return;
     }
@@ -849,15 +953,20 @@ export class DrawingLayer {
     const current = this.drawings.find((d) => d.id === drag.orig.id);
     if (!current) return;
     if (drag.mode === 'point' && drag.handle) {
-      this.moveHandle(current, drag.handle, hit.logical);
+      let next = hit.logical;
+      if (drag.priceOnly) {
+        const keep = this.handlePoint(drag.orig, drag.handle);
+        if (keep) next = { time: keep.time, price: hit.logical.price };
+      }
+      this.moveHandle(current, drag.handle, next);
     } else {
-      const start = this.xyToLogical(drag.startX, drag.startY);
+      const start = this.xyToLogical(drag.startX, drag.startY, true);
       if (!start) return;
       const dt = hit.logical.time - start.time;
       const dp = hit.logical.price - start.price;
       this.translateDrawing(current, drag.orig, dt, dp);
     }
-    this.redraw();
+    this.paintFrame();
   }
 
   private moveHandle(d: Drawing, handle: HandleName, p: Point): void {
@@ -1591,28 +1700,104 @@ export class DrawingLayer {
     }
   }
 
-  private hitHandle(x: number, y: number): { id: string; handle: HandleName } | null {
+  private handlePoint(d: Drawing, handle: HandleName): Point | null {
+    return this.handlesOf(d).find((h) => h.handle === handle)?.point ?? null;
+  }
+
+  handlePage(handle: HandleName, drawingId?: string | null): { x: number; y: number } | null {
+    const d =
+      (drawingId ? this.drawings.find((x) => x.id === drawingId) : null) ??
+      this.getSelected() ??
+      this.drawings[0] ??
+      null;
+    if (!d) return null;
+    const screens = this.handleScreens(d);
+    const hit = screens.find((s) => s.handle === handle) ?? screens[0];
+    if (!hit) return null;
+    const rect = this.canvas.getBoundingClientRect();
+    return { x: rect.left + hit.x, y: rect.top + hit.y };
+  }
+
+  private fibLabelScreens(d: Drawing): { handle: HandleName; x: number; y: number; priceOnly: boolean; box?: boolean }[] {
+    const width = this.canvas.getBoundingClientRect().width;
+    const out: { handle: HandleName; x: number; y: number; priceOnly: boolean; box?: boolean }[] = [];
+    if (d.type === 'fib') {
+      const opts = fibOptionsOf(d);
+      const ends = fibEnds(d);
+      const t1 = this.timeToX(ends.p1.time);
+      const t2 = this.timeToX(ends.p2.time);
+      if (t1 === null || t2 === null) return out;
+      const left = Math.min(t1, t2);
+      const right = opts.extendLines ? width : Math.max(t1, t2);
+      const atLeft = opts.labels === 'left';
+      const lx = atLeft ? left + 8 : right - 8;
+      const y0 = this.series.priceToCoordinate(fibRetracementPrice(ends.p1, ends.p2, 0, opts.reverse));
+      const y1 = this.series.priceToCoordinate(fibRetracementPrice(ends.p1, ends.p2, 1, opts.reverse));
+      const h0: HandleName = opts.reverse ? 'p1' : 'p2';
+      const h1: HandleName = opts.reverse ? 'p2' : 'p1';
+      if (y0 !== null) out.push({ handle: h0, x: lx, y: y0, priceOnly: true, box: true });
+      if (y1 !== null) out.push({ handle: h1, x: lx, y: y1, priceOnly: true, box: true });
+    } else if (d.type === 'fibext') {
+      const opts = fibExtOptionsOf(d);
+      const a = this.pointToXy(d.a);
+      const b = this.pointToXy(d.b);
+      const c = this.pointToXy(d.c);
+      if (!a || !b || !c) return out;
+      const startX = opts.extendLines ? Math.min(a.x, b.x, c.x) : c.x;
+      const endX = opts.extendLines ? width : Math.max(a.x, b.x, c.x) + 40;
+      const atLeft = opts.labels === 'left';
+      const lx = atLeft ? startX + 8 : endX - 8;
+      const y0 = this.series.priceToCoordinate(fibExtensionPrice(d.a, d.b, d.c, 0, opts.reverse));
+      const y1 = this.series.priceToCoordinate(fibExtensionPrice(d.a, d.b, d.c, 1, opts.reverse));
+      if (y0 !== null) out.push({ handle: 'c', x: lx, y: y0, priceOnly: true, box: true });
+      if (y1 !== null) out.push({ handle: 'b', x: lx, y: y1, priceOnly: true, box: true });
+    }
+    return out;
+  }
+
+  private handleScreens(
+    d: Drawing,
+  ): { handle: HandleName; x: number; y: number; priceOnly?: boolean; box?: boolean }[] {
+    const width = this.canvas.getBoundingClientRect().width;
+    const height = this.canvas.getBoundingClientRect().height;
+    const out: { handle: HandleName; x: number; y: number; priceOnly?: boolean; box?: boolean }[] = [];
+    for (const h of this.handlesOf(d)) {
+      let xy = this.pointToXy(h.point);
+      if (d.type === 'hline') {
+        const yy = this.series.priceToCoordinate(d.price);
+        if (yy === null) continue;
+        xy = { x: width / 2, y: yy };
+      }
+      if (d.type === 'vline') {
+        const xx = this.timeToX(d.time);
+        if (xx === null) continue;
+        xy = { x: xx, y: height / 2 };
+      }
+      if (d.type === 'hray' && h.handle === 'p2') {
+        const yy = this.series.priceToCoordinate(d.p1.price);
+        const xx = this.timeToX(d.p2.time);
+        if (yy === null || xx === null) continue;
+        xy = { x: xx, y: yy };
+      }
+      if (!xy) continue;
+      out.push({ handle: h.handle, x: xy.x, y: xy.y });
+    }
+    out.push(...this.fibLabelScreens(d));
+    return out;
+  }
+
+  private hitHandle(x: number, y: number): { id: string; handle: HandleName; priceOnly?: boolean } | null {
     for (const d of this.drawings) {
-      for (const h of this.handlesOf(d)) {
-        let xy = this.pointToXy(h.point);
-        if (d.type === 'hline') {
-          const yy = this.series.priceToCoordinate(d.price);
-          if (yy === null) continue;
-          xy = { x: this.canvas.getBoundingClientRect().width / 2, y: yy };
+      for (const h of this.handleScreens(d)) {
+        if (h.box) {
+          if (Math.abs(x - h.x) <= 56 && Math.abs(y - h.y) <= 10) {
+            return { id: d.id, handle: h.handle, priceOnly: h.priceOnly };
+          }
+          continue;
         }
-        if (d.type === 'vline') {
-          const xx = this.timeToX(d.time);
-          if (xx === null) continue;
-          xy = { x: xx, y: this.canvas.getBoundingClientRect().height / 2 };
+        if (Math.hypot(x - h.x, y - h.y) <= HANDLE + 3) {
+          return { id: d.id, handle: h.handle, priceOnly: h.priceOnly };
         }
-        if (d.type === 'hray' && h.handle === 'p2') {
-          const yy = this.series.priceToCoordinate(d.p1.price);
-          const xx = this.timeToX(d.p2.time);
-          if (yy === null || xx === null) continue;
-          xy = { x: xx, y: yy };
-        }
-        if (!xy) continue;
-        if (Math.hypot(x - xy.x, y - xy.y) <= HANDLE + 3) return { id: d.id, handle: h.handle };
       }
     }
     return null;
@@ -3013,8 +3198,8 @@ export class DrawingLayer {
       if (placed[i]!.y - placed[i - 1]!.y < gap) placed[i]!.y = placed[i - 1]!.y + gap;
     }
     const atLeft = opts.labels === 'left';
-    const lx = atLeft ? left - 5 : right + 5;
-    const align: CanvasTextAlign = atLeft ? 'right' : 'left';
+    const lx = atLeft ? left + 6 : Math.max(left + 6, right - 6);
+    const align: CanvasTextAlign = atLeft ? 'left' : 'right';
     const light = document.documentElement.getAttribute('data-theme') === 'light';
     for (const row of placed) {
       this.label(ctx, row.text, lx, row.y, light ? row.color : row.color, 10, align);

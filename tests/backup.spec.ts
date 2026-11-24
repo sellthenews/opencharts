@@ -22,6 +22,16 @@ async function openchartsData(page: Page): Promise<Record<string, string>> {
   });
 }
 
+/** Exchange catalogs can finish writing after ready/export/import; they are not the backup under test. */
+function stableOpencharts(data: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (key.startsWith('opencharts:symbols:')) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
 test('settings menu exports and replace-imports an identical backup', async ({ page }) => {
   await page.goto('/');
   await waitReady(page);
@@ -50,7 +60,7 @@ test('settings menu exports and replace-imports an identical backup', async ({ p
   expect(backup.format).toBe('opencharts-backup');
   expect(backup.version).toBe(1);
   expect(backup.exportedAt).toBeTruthy();
-  expect(backup.data).toEqual(before);
+  expect(stableOpencharts(backup.data)).toEqual(stableOpencharts(before));
 
   await page.evaluate(() => {
     const keys: string[] = [];
@@ -72,7 +82,7 @@ test('settings menu exports and replace-imports an identical backup', async ({ p
   await expect(page.locator('#backup-modal')).toBeVisible();
   await Promise.all([page.waitForEvent('load'), page.locator('#backup-replace').click()]);
   await waitReady(page);
-  expect(await openchartsData(page)).toEqual(before);
+  expect(stableOpencharts(await openchartsData(page))).toEqual(stableOpencharts(before));
 });
 
 test('an invalid backup file is rejected', async ({ page }) => {

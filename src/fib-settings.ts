@@ -132,7 +132,7 @@ export function builtInFibOptions(): FibOptions {
     })),
     background: true,
     backgroundOpacity: 0.08,
-    // false = TradingView order (level 1 at the first point, 0 at the second).
+    // false = default order (level 1 at the first point, 0 at the second).
     reverse: false,
     showPrices: true,
     showLevels: true,
@@ -223,7 +223,7 @@ export function fibOptionsOf(drawing: { fib?: unknown }): FibOptions {
   return builtInFibOptions();
 }
 
-/** Unique levels from the TV screenshot (duplicate 1.061 / 1.414 rows omitted). 2.618 and 4.236 were not on that list. */
+/** Unique levels from the agreed default list (duplicate 1.061 / 1.414 rows omitted). 2.618 and 4.236 were not on that list. */
 export const FIBEXT_DEFAULT_LEVELS: ReadonlyArray<{ value: number; visible: boolean }> = [
   { value: 0, visible: true },
   { value: 0.5, visible: false },
@@ -357,7 +357,7 @@ export function saveFibExtDefaults(opts: FibOptions): void {
   }
 }
 
-/** Legacy extensions without stored levels use the built-in TV-style set, not a later "Save as default". */
+/** Legacy extensions without stored levels use the built-in default set, not a later "Save as default". */
 export function fibExtOptionsOf(drawing: { fib?: unknown; extendRight?: boolean }): FibOptions {
   const fallback = builtInFibExtOptions();
   if (drawing.fib && typeof drawing.fib === 'object' && Array.isArray((drawing.fib as { levels?: unknown }).levels)) {

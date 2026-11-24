@@ -30,7 +30,7 @@ export function fibExtensionPrice(a: Point, b: Point, c: Point, k: number, rever
 }
 
 /**
- * Fib retracement price in TradingView order: level 1 is the first point,
+ * Fib retracement price: level 1 is the first point,
  * level 0 is the second. Levels k > 1 continue past the first point, away from 0.
  * Pass reverse=true to put 0 on the first point instead.
  */

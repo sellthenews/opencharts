@@ -99,7 +99,7 @@ export function isApplePlatform(): boolean {
   return /Mac|iPhone|iPad|iPod/.test(navigator.platform) || /Mac OS|iPhone|iPad/.test(navigator.userAgent);
 }
 
-/** Ctrl on Windows/Linux, Command on Apple — TradingView-style temporary magnet. */
+/** Ctrl on Windows/Linux, Command on Apple — temporary magnet override. */
 export function isMagnetModifier(ev: { ctrlKey: boolean; metaKey: boolean }): boolean {
   return isApplePlatform() ? ev.metaKey : ev.ctrlKey;
 }

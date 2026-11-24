@@ -304,7 +304,14 @@ indicators.setPaneStretches(paneStretches);
 const vpOverlay = document.querySelector<HTMLCanvasElement>('#vp-overlay');
 if (vpOverlay) indicators.setOverlay(vpOverlay, wrapEl);
 indicators.setOnPaneResize((stretches) => {
+  const view = captureChartView();
+  if (view.logical && view.barSpacing > 0) lastGoodView = view;
   paneStretches = stretches;
+  requestAnimationFrame(() => {
+    if (view.logical && view.barSpacing > 0) restoreChartView(view);
+    drawings.syncSize();
+    indicatorHud?.relayout();
+  });
   if (localStorage.getItem(indicatorStorageKey(sourceId, pairId)) == null) return;
   saveIndicatorSettings(indicatorItems, sourceId, pairId, paneStretches);
 });
@@ -506,18 +513,58 @@ function onIndicatorAdded(item: IndicatorInstance): void {
   }
 }
 
+type ChartViewSnapshot = {
+  logical: { from: number; to: number } | null;
+  barSpacing: number;
+  rightOffset: number;
+  autoScale: boolean;
+  price: { from: number; to: number } | null;
+};
+
+function captureChartView(): ChartViewSnapshot {
+  const logical = chart.timeScale().getVisibleLogicalRange();
+  const ts = chart.timeScale().options();
+  const scale = series.priceScale();
+  return {
+    logical: logical ? { from: Number(logical.from), to: Number(logical.to) } : null,
+    barSpacing: ts.barSpacing,
+    rightOffset: ts.rightOffset,
+    autoScale: scale.options().autoScale,
+    price: scale.getVisibleRange(),
+  };
+}
+
+let lastGoodView: ChartViewSnapshot | null = null;
+let restoringView = false;
+
+function rememberChartView(): void {
+  if (restoringView) return;
+  const view = captureChartView();
+  if (view.logical && view.barSpacing > 0) lastGoodView = view;
+}
+
+function restoreChartView(view: ChartViewSnapshot): void {
+  // Keep candle width and the right-edge offset. Restoring the
+  // logical range would change the zoom when the wrap width changes.
+  restoringView = true;
+  chart.timeScale().applyOptions({ barSpacing: view.barSpacing, rightOffset: view.rightOffset });
+  if (!view.autoScale && view.price) {
+    series.priceScale().setAutoScale(false);
+    series.priceScale().setVisibleRange(view.price);
+  }
+  restoringView = false;
+}
+
 function resizeCharts(): void {
-  const r = wrapEl.getBoundingClientRect();
-  if (r.width > 0 && r.height > 0) chart.resize(r.width, r.height);
+  const view = lastGoodView;
+  // autoSize already tracks #chart-wrap; a manual chart.resize() fights it and jumps the scale.
   for (const mini of miniCharts) mini?.resize();
   indicatorHud?.setPaneMap(paneMap);
   requestAnimationFrame(() => {
+    if (view?.logical && view.barSpacing > 0) restoreChartView(view);
     drawings.syncSize();
     indicatorHud?.relayout();
-    const again = wrapEl.getBoundingClientRect();
-    if (again.width > 0 && again.height > 0) chart.resize(again.width, again.height);
     for (const mini of miniCharts) mini?.resize();
-    requestAnimationFrame(() => indicatorHud?.relayout());
   });
 }
 
@@ -526,6 +573,8 @@ function sidebarIsOn(): boolean {
 }
 
 function setSidebar(on: boolean): void {
+  const view = captureChartView();
+  if (view.logical && view.barSpacing > 0) lastGoodView = view;
   localStorage.setItem(SIDEBAR_KEY, on ? 'on' : 'off');
   appEl.dataset.sidebar = on ? 'on' : 'off';
   const btn = document.querySelector<HTMLButtonElement>('#sidebar-btn');
@@ -851,6 +900,7 @@ setSidebar(sidebarIsOn());
 document.querySelector('#sidebar-btn')?.addEventListener('click', () => setSidebar(!sidebarIsOn()));
 window.addEventListener('resize', () => resizeCharts());
 
+chart.timeScale().subscribeVisibleLogicalRangeChange(() => rememberChartView());
 chart.timeScale().subscribeVisibleTimeRangeChange((range) => {
   if (!range) return;
   const from = typeof range.from === 'number' ? range.from : Number(range.from);
@@ -924,6 +974,9 @@ declare global {
       getVisibleLogicalRange: () => { from: number; to: number } | null;
       getCandles: () => { time: number; open: number; high: number; low: number; close: number }[];
       timePriceToPage: (time: number, price: number) => { x: number; y: number } | null;
+      handlePage: (handle: string, drawingId?: string | null) => { x: number; y: number } | null;
+      getPriceRange: () => { from: number; to: number } | null;
+      getBarSpacing: () => number;
     };
   }
 }
@@ -985,6 +1038,9 @@ window.__opencharts = {
     const rect = wrapEl.getBoundingClientRect();
     return { x: rect.left + x, y: rect.top + y };
   },
+  handlePage: (handle, drawingId) => drawings.handlePage(handle, drawingId),
+  getPriceRange: () => series.priceScale().getVisibleRange(),
+  getBarSpacing: () => chart.timeScale().options().barSpacing,
 };
 
 initChartMenu(

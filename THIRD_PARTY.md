@@ -4,7 +4,7 @@ OpenCharts itself is licensed under AGPL-3.0-or-later. Libraries vendored under 
 
 This project vendors every library used at runtime. Nothing is loaded from a CDN. Build-time tools (Vite, TypeScript, Playwright) stay in `devDependencies` and are not required to view a built copy of the site. New third-party runtime code should still be MIT or Apache 2.0 until a later project decision says otherwise; do not copy GPL-licensed projects into this tree for now.
 
-The drawing overlay in `src/drawings.ts` is original code written against the public Lightweight Charts API. It is **not** a copy of the closed-source TradingView terminal, and it does not vendor the official `plugin-examples` (trend-line, rectangle-drawing-tool, and similar) from the Lightweight Charts repository. Those Apache-2.0 examples were reviewed only as a possible alternative; the existing overlay was already in the tree, so it was kept to finish Stage 1 faster. KLineChart (Apache 2.0) was also considered and not adopted, for the same reason.
+The drawing overlay in `src/drawings.ts` is original code written against the public Lightweight Charts API. It does not vendor the official `plugin-examples` (trend-line, rectangle-drawing-tool, and similar) from the Lightweight Charts repository. Those Apache-2.0 examples were reviewed only as a possible alternative; the existing overlay was already in the tree, so it was kept to finish Stage 1 faster. KLineChart (Apache 2.0) was also considered and not adopted, for the same reason.
 
 No GPL-licensed projects (for example DegenView) were copied.
 

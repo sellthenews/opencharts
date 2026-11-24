@@ -4,14 +4,14 @@
 import type { Tool } from './drawings-types';
 
 export const TOOL_ICONS: Record<string, string> = {
-  "cursor": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M3.5 2.5 6 13l2-4.5 4.5-1.5z\"/></svg>",
-  "trend": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M2.5 12.5 13.5 3.5\"/><circle cx=\"2.5\" cy=\"12.5\" r=\"1\" fill=\"currentColor\"/><circle cx=\"13.5\" cy=\"3.5\" r=\"1\" fill=\"currentColor\"/></svg>",
-  "hline": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M1.5 8h13\"/></svg>",
+  "cursor": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M3.2 1.8 4.1 13.2l3.1-3.2 3.6 4.4 1.8-1.5-3.6-4.3 4.5-.4z\"/></svg>",
+  "trend": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M2 13 14 3\"/><circle cx=\"2\" cy=\"13\" r=\"1.15\" fill=\"currentColor\"/><circle cx=\"14\" cy=\"3\" r=\"1.15\" fill=\"currentColor\"/></svg>",
+  "hline": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M1 8h14\"/><circle cx=\"8\" cy=\"8\" r=\"1.15\" fill=\"currentColor\"/></svg>",
   "rect": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><rect fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" x=\"3\" y=\"4\" width=\"10\" height=\"8\"/></svg>",
-  "ray": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M2.5 12.5 9 6l5-3\"/><circle cx=\"2.5\" cy=\"12.5\" r=\"1\" fill=\"currentColor\"/></svg>",
-  "channel": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M2 11.5 14 6M2 14.5 14 9\"/></svg>",
-  "fib": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M2.5 13V3M2.5 13h11M2.5 10h9M2.5 7.5h7M2.5 5h5\"/></svg>",
-  "fibext": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M2 13h12M2 10h9M2 7h6M12 3v10\"/></svg>",
+  "ray": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M2.2 13 14 3.2\"/><circle cx=\"2.2\" cy=\"13\" r=\"1.15\" fill=\"currentColor\"/></svg>",
+  "channel": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M2 11.2 14 5.2M2 14.2 14 8.2\"/><circle cx=\"2\" cy=\"11.2\" r=\"1\" fill=\"currentColor\"/><circle cx=\"14\" cy=\"5.2\" r=\"1\" fill=\"currentColor\"/></svg>",
+  "fib": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\" d=\"M2 13.2h12M2 10.2h12M2 7.6h12M2 5.2h12M2 2.8h12\"/><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\" d=\"M3.2 13.2 12.8 2.8\"/><circle cx=\"3.2\" cy=\"13.2\" r=\".95\" fill=\"currentColor\"/><circle cx=\"12.8\" cy=\"2.8\" r=\".95\" fill=\"currentColor\"/></svg>",
+  "fibext": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\" d=\"M2 13.2h12M2 9.6h12M2 6.4h12M2 3.2h12\"/><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M3 12.2 6.2 5.2 8.6 9.4 13 3.6\"/><circle cx=\"3\" cy=\"12.2\" r=\".9\" fill=\"currentColor\"/><circle cx=\"6.2\" cy=\"5.2\" r=\".9\" fill=\"currentColor\"/><circle cx=\"8.6\" cy=\"9.4\" r=\".9\" fill=\"currentColor\"/></svg>",
   "abcd": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M3 12 6.5 4 10 12 13 5\"/></svg>",
   "text": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M3 4h10M8 4v9\"/></svg>",
   "longpos": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M4 13V8h4v5H4zm4-2v2h4v-2H8zM5 6.5 8 3l3 3.5\"/><path fill=\"currentColor\" opacity=\".3\" d=\"M4 8h4v5H4z\"/></svg>",
@@ -19,10 +19,10 @@ export const TOOL_ICONS: Record<string, string> = {
   "pricerange": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M2 5h12M2 11h12\"/><path fill=\"currentColor\" opacity=\".25\" d=\"M2 5h12v6H2z\"/></svg>",
   "daterange": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M5 2v12M11 2v12\"/><path fill=\"currentColor\" opacity=\".25\" d=\"M5 2h6v12H5z\"/></svg>",
   "datepricerange": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><rect fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" x=\"3\" y=\"4\" width=\"10\" height=\"8\"/><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" d=\"M3 8h10M8 4v8\"/></svg>",
-  "vline": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M8 1.5v13\"/></svg>",
-  "hray": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M3 8h11\"/><circle cx=\"3\" cy=\"8\" r=\"1.1\" fill=\"currentColor\"/></svg>",
-  "extline": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M1 12.5 15 3.5\"/></svg>",
-  "arrow": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M2.5 12.5 13 4\"/><path fill=\"currentColor\" d=\"m13 4-4 .3 2.2 2.2z\"/></svg>",
+  "vline": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M8 1v14\"/><circle cx=\"8\" cy=\"8\" r=\"1.15\" fill=\"currentColor\"/></svg>",
+  "hray": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M3 8h12\"/><circle cx=\"3\" cy=\"8\" r=\"1.2\" fill=\"currentColor\"/></svg>",
+  "extline": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M1 13 15 3\"/></svg>",
+  "arrow": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M2 13 11.2 4.6\"/><path fill=\"currentColor\" d=\"m13.4 2.6-5.1.6 2.6 2.6z\"/></svg>",
   "pricelabel": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><rect fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" x=\"3\" y=\"5\" width=\"10\" height=\"6\" rx=\"1\"/><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" d=\"M6 8h4\"/></svg>",
   "note": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linejoin=\"round\" d=\"M4 3.5h6.5L12.5 6v6.5H4z\"/><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" d=\"M10.5 3.5V6H13\"/></svg>",
   "callout": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><rect fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" x=\"5\" y=\"2.5\" width=\"9\" height=\"6\" rx=\"1\"/><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M7 8.5 4 13\"/></svg>",
@@ -31,8 +31,8 @@ export const TOOL_ICONS: Record<string, string> = {
   "regress": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" d=\"M2 12.5 14 5.5M2 14.5 14 7.5M2 10.5 14 3.5\"/></svg>",
   "xabcd": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linejoin=\"round\" d=\"M1.5 11 4.5 4 8 12 11.5 5 14.5 10\"/></svg>",
   "hs": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linejoin=\"round\" d=\"M1.5 10 4 6.5 6.5 10 8 3.5 9.5 10 12 6.5 14.5 10\"/><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-dasharray=\"2 1.5\" d=\"M1.5 10h13\"/></svg>",
-  "fibchan": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" d=\"M2 13 14 8M2 10.5 14 5.5M2 8 14 3\"/></svg>",
-  "fibfan": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" d=\"M2 13h12M2 13 14 9M2 13 10 3\"/></svg>",
+  "fibchan": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\" d=\"M2 13.2 14 7.2M2 10.2 14 4.2M2 7.2 14 1.2\"/><circle cx=\"2\" cy=\"13.2\" r=\".95\" fill=\"currentColor\"/><circle cx=\"14\" cy=\"7.2\" r=\".95\" fill=\"currentColor\"/></svg>",
+  "fibfan": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\" d=\"M2 13.5h12.5M2 13.5 14 10M2 13.5 12.5 5.5M2 13.5 9 2.5\"/><circle cx=\"2\" cy=\"13.5\" r=\"1\" fill=\"currentColor\"/></svg>",
   "arc": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" d=\"M2.5 11c1.5-6 9.5-6 11 0\"/></svg>",
   "tripattern": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" d=\"M1.5 13 13 3M1.5 4 13 12\"/></svg>",
   "elliottimp": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linejoin=\"round\" d=\"M1 12 3.5 8 5.5 10 8.5 3 11 7 15 4\"/></svg>",
@@ -48,9 +48,9 @@ export const TOOL_ICONS: Record<string, string> = {
   "gannfan": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" d=\"M2 14h12M2 14 14 10M2 14 10 2M2 14 14 2\"/></svg>",
   "gannsq": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><rect fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" x=\"3\" y=\"3\" width=\"10\" height=\"10\"/><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.1\" d=\"M3 3l10 10M13 3 3 13\"/></svg>",
   "pitchfork": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" d=\"M2 12 14 5M5 14 15 7M5 10 15 3\"/></svg>",
-  "measure": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M2.5 13.5 13.5 2.5M5 11l1-1M7 9l1-1M9 7l1-1M4 12l.8-.8\"/></svg>",
+  "measure": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M2.2 13.5 13.5 2.2\"/><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" d=\"M4.2 11.5 5.4 10.3M6.4 9.3 7.6 8.1M8.6 7.1 9.8 5.9\"/></svg>",
   "zoom": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><circle cx=\"7\" cy=\"7\" r=\"4.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\"/><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"m10.2 10.2 3.3 3.3M7 5v4M5 7h4\"/></svg>",
-  "magnet": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M4 3v5a4 4 0 0 0 8 0V3M4 3h2v5a2 2 0 0 0 4 0V3h2\"/></svg>",
+  "magnet": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M4.2 2.5v5.2a3.8 3.8 0 0 0 7.6 0V2.5\"/><path fill=\"currentColor\" d=\"M3.3 2.5h2.6v2.2H3.3zm6.8 0h2.6v2.2H10.1z\"/></svg>",
   "lock": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><rect x=\"3.5\" y=\"7.5\" width=\"9\" height=\"6.5\" rx=\"1.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\"/><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M5.5 7.5V5.2a2.5 2.5 0 0 1 5 0v2.3\"/></svg>",
   "hide": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M2 8s2.5-4.5 6-4.5S14 8 14 8s-2.5 4.5-6 4.5S2 8 2 8z\"/><circle cx=\"8\" cy=\"8\" r=\"1.8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\"/></svg>",
   "trash": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M3 5h10M5.5 5V3.5h5V5M6 7v5M8 7v5M10 7v5M4.5 5l.6 8h6l.6-8\"/></svg>",
@@ -60,7 +60,14 @@ export interface ToolDef {
   id: Tool;
   name: string;
   title: string;
+  shortcut?: string;
   section?: string;
+}
+
+export function toolTooltip(id: string): string {
+  const def = (TOOL_DEFS as Record<string, ToolDef | undefined>)[id];
+  if (!def) return '';
+  return def.shortcut ? `${def.name} (${def.shortcut})` : def.title;
 }
 
 export interface RailGroup {
@@ -104,16 +111,16 @@ export const DEFAULT_FAV_TOOLS: Tool[] = [
 
 export const TOOL_DEFS: Record<Tool, ToolDef> = {
   cursor: { id: 'cursor', name: 'Cursor', title: 'Cursor' },
-  trend: { id: 'trend', name: 'Trend Line', title: 'Trend Line — two clicks' },
-  hline: { id: 'hline', name: 'Horizontal Line', title: 'Horizontal Line — one click' },
+  trend: { id: 'trend', name: 'Trend Line', title: 'Trend Line (Alt+T)', shortcut: 'Alt+T' },
+  hline: { id: 'hline', name: 'Horizontal Line', title: 'Horizontal Line (Alt+H)', shortcut: 'Alt+H' },
   hray: { id: 'hray', name: 'Horizontal Ray', title: 'Horizontal Ray — two clicks' },
-  vline: { id: 'vline', name: 'Vertical Line', title: 'Vertical Line — one click' },
+  vline: { id: 'vline', name: 'Vertical Line', title: 'Vertical Line (Alt+V)', shortcut: 'Alt+V' },
   ray: { id: 'ray', name: 'Ray', title: 'Ray — two clicks, extends' },
   extline: { id: 'extline', name: 'Extended Line', title: 'Extended Line — two clicks' },
   arrow: { id: 'arrow', name: 'Arrow', title: 'Arrow — two clicks' },
   channel: { id: 'channel', name: 'Parallel Channel', title: 'Parallel Channel — three clicks' },
   regress: { id: 'regress', name: 'Regression Trend', title: 'Regression Trend — two clicks' },
-  fib: { id: 'fib', name: 'Fib Retracement', title: 'Fib Retracement — two clicks' },
+  fib: { id: 'fib', name: 'Fib Retracement', title: 'Fib Retracement (Alt+F)', shortcut: 'Alt+F' },
   fibext: { id: 'fibext', name: 'Trend-Based Fib Extension', title: 'Trend-Based Fib Extension — three points A, B, C' },
   fibchan: { id: 'fibchan', name: 'Fib Channel', title: 'Fib Channel — three clicks' },
   fibfan: { id: 'fibfan', name: 'Fib Fan', title: 'Fib Fan — two clicks' },
@@ -358,7 +365,7 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
       const idAttr = g.id === 'cursor' ? ' id="cursor-tool"' : '';
       const activeCls = active === tool || (g.id === 'cursor' && active === 'cursor') ? ' is-active' : '';
       return `<div class="rail-slot">
-        <button type="button" class="rail-btn${activeCls}" data-rail-group="${g.id}" data-tool="${tool}"${idAttr} title="${TOOL_DEFS[tool].title}" aria-label="${g.label}">
+        <button type="button" class="rail-btn${activeCls}" data-rail-group="${g.id}" data-tool="${tool}"${idAttr} title="${toolTooltip(tool)}" aria-label="${g.label}">
           <span class="rail-icon">${icon(tool)}</span>
         </button>
         <button type="button" class="rail-caret" data-rail-caret="${g.id}" title="${g.label} menu" aria-label="Open ${g.label} menu" aria-expanded="${openMenu === g.id ? 'true' : 'false'}"></button>
@@ -382,7 +389,7 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
           <button type="button" class="rail-caret" data-rail-caret="zoom" title="Zoom menu" aria-label="Open zoom menu"></button>
         </div>
         <div class="rail-slot">
-          <button type="button" class="rail-btn${magnetActive}" id="magnet-btn" data-rail-action="magnet" title="Magnet — snap to OHLC" aria-label="Magnet" aria-pressed="${opts.getMagnet() ? 'true' : 'false'}"><span class="rail-icon">${icon('magnet')}</span></button>
+          <button type="button" class="rail-btn${magnetActive}" id="magnet-btn" data-rail-action="magnet" title="Magnet — snap to OHLC (Ctrl)" aria-label="Magnet" aria-pressed="${opts.getMagnet() ? 'true' : 'false'}"><span class="rail-icon">${icon('magnet')}</span></button>
           <button type="button" class="rail-caret" data-rail-caret="magnet" title="Magnet modes" aria-label="Magnet modes"></button>
         </div>
         <button type="button" class="rail-btn${lockActive}" data-rail-action="lock" title="Lock all drawings" aria-label="Lock all drawings" aria-pressed="${opts.isLockedAll() ? 'true' : 'false'}"><span class="rail-icon">${icon('lock')}</span></button>
@@ -422,7 +429,7 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
       .map((id) => {
         const def = TOOL_DEFS[id];
         const cls = id === active ? ' is-active' : '';
-        return `<button type="button" class="fav-btn${cls}" data-tool="${id}" title="${def.title}" aria-label="${def.name}">${icon(id)}</button>`;
+        return `<button type="button" class="fav-btn${cls}" data-tool="${id}" title="${toolTooltip(id)}" aria-label="${def.name}">${icon(id)}</button>`;
       })
       .join('');
     opts.favBar.innerHTML = `<button type="button" class="fav-handle" id="fav-handle" title="Drag favorites bar" aria-label="Drag favorites bar">
@@ -475,7 +482,7 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
           const rows = sec.tools
             .map((id) => {
               const def = TOOL_DEFS[id];
-              return `<div class="fly-row${id === active ? ' is-active' : ''}" role="menuitem" data-tool="${id}" title="${def.title}">
+              return `<div class="fly-row${id === active ? ' is-active' : ''}" role="menuitem" data-tool="${id}" title="${toolTooltip(id)}">
                 <span class="fly-ico">${icon(id)}</span><span class="fly-name">${def.name}</span>${starBtn(id)}
               </div>`;
             })

@@ -1,6 +1,6 @@
 # OpenCharts
 
-Free, open-source candlestick charting app (TradingView-style). It is a static site: no backend, no API keys, no accounts. Stage 1 is ready to publish on GitHub Pages.
+OpenCharts – free charts for everyone. A free, open-source candlestick charting app. It is a static site: no backend, no API keys, no accounts. Stage 1 is ready to publish on GitHub Pages.
 
 ## Features
 
@@ -71,11 +71,11 @@ Each exchange is one module under `src/sources/` with a shared `DataSource` inte
 
 ## Roadmap
 
-Stage 2 is implemented (indicators, watchlists, richer drawings, Kraken live data, local Pages workflow). A detailed tool-by-tool checklist, grouped like the TradingView menu and tagged P1/P2/P3, is in [STAN.md](STAN.md#roadmapa-narzędzia-jak-w-tradingview).
+Stage 2 is implemented (indicators, watchlists, richer drawings, Kraken live data, local Pages workflow). A detailed tool-by-tool checklist, tagged P1/P2/P3, is in [STAN.md](STAN.md#roadmapa-narzędzia-rysowania).
 
 ## License
 
-This project is licensed under the [GNU Affero General Public License v3.0 or later](LICENSE) (AGPL-3.0-or-later).
+OpenCharts is free software licensed under the [GNU Affero General Public License v3.0 or later](LICENSE) (AGPL-3.0-or-later). The `LICENSE` file in the repository root is the official license text.
 
 If you run a modified version of this software and make it available over a network (for example a public website), you must also make the complete corresponding source code of that modified version available to its users under the same license.
 

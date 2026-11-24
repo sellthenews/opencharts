@@ -82,8 +82,9 @@ test('shortcuts: Alt tools, interval, undo/redo', async ({ page }) => {
   await page.locator('[data-ind-add="rsi"]').first().click();
   await page.keyboard.press('Escape');
   await expect(page.locator('.ind-label[data-kind="rsi"]')).toBeVisible();
+  await page.locator('#chart-wrap').click({ position: { x: 20, y: 20 } });
   await page.keyboard.press('Control+z');
-  await expect(page.locator('.ind-label[data-kind="rsi"]')).toHaveCount(0);
+  await expect.poll(async () => page.locator('.ind-label[data-kind="rsi"]').count()).toBe(0);
   await page.keyboard.press('Control+y');
   await expect(page.locator('.ind-label[data-kind="rsi"]')).toBeVisible();
 });

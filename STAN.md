@@ -42,7 +42,7 @@ npm run preview      # http://127.0.0.1:4173
 npm run test:e2e
 ```
 
-## Roadmapa: narzędzia jak w TradingView
+## Roadmapa: narzędzia rysowania
 
 Priorytety wg popularności: **P1** (najpierw), **P2**, **P3**. `[x]` jest w etapie 1–2, `[ ]` czeka na osobne zlecenie — **nie zaczynać w tym przebiegu**.
 
@@ -187,7 +187,7 @@ Pozostało: pozostałe wskaźniki z typowej listy ~100 (P3).
 - Kursor: krzyż z przerywanymi liniami i etykietami ceny/czasu na osiach (LWC CrosshairMode + LineStyle.Dashed). Pierwsza ikona lewego paska: krzyż / kropka / strzałka, zapis w `localStorage`. Przełącznik magnesu (przyciąganie do OHLC) na dole paska.
 - Po zaznaczeniu rysunku pływający pasek (kolor, grubość 1–4, styl linii, zablokuj, usuń). Ustawienia zapisywane z rysunkiem.
 
-Zrzuty (lokalne, w `.gitignore`): `screenshots-test/wyszukiwarka-par.png`, `screenshots-test/menu-kontekstowe.png`, `screenshots-test/rysowanie-tv.png`.
+Zrzuty (lokalne, w `.gitignore`): `screenshots-test/wyszukiwarka-par.png`, `screenshots-test/menu-kontekstowe.png`, `screenshots-test/rysowanie.png`.
 
 ## OpenCharts i język angielski (24 XI 2026)
 
@@ -238,11 +238,11 @@ Zrzuty (lokalne, w `.gitignore`): `screenshots-test/fib-wykres.png`, `screenshot
 
 Zrzuty (lokalne, w `.gitignore`): `screenshots-test/fib-zaznaczony.png`, `screenshots-test/ulubione-migracja.png`.
 
-- Kierunek zniesienia (24 XI 2026, poprawka): jak w TradingView — pierwszy punkt to poziom 1, drugi to poziom 0, poziomy >1 za pierwszym punktem. Reverse odwraca to (0 na pierwszym punkcie). Stare rysunki bez Reverse przechodzą na nowy kierunek. Extension: 0 na C, 1 = C+(B−A) — wzór już był poprawny.
+- Kierunek zniesienia (24 XI 2026, poprawka): pierwszy punkt to poziom 1, drugi to poziom 0, poziomy >1 za pierwszym punktem. Reverse odwraca to (0 na pierwszym punkcie). Stare rysunki bez Reverse przechodzą na nowy kierunek. Extension: 0 na C, 1 = C+(B−A) — wzór już był poprawny.
 
 Zrzut (lokalny, w `.gitignore`): `screenshots-test/fib-kierunek.png`.
 
-- Trend-based Fib Extension (24 XI 2026): osobny zestaw poziomów z zrzutu TV Mateusza (włączone: 0, 0.9, 1, 1.061, 1.155, 1.272, 1.414, 1.618; pozostałe na liście wyłączone). Domyślnie linia trendu kropkowana, Extend right, Background, Prices wyłączone, etykiety Values po lewej na środku. Paleta z tej samej rodziny co zniesienie, ale inna; 1 i 1.618 grubsze. Zapis `opencharts:fibext-defaults`. Na zrzucie TV nie było 2.618 ani 4.236 — nie dodałem ich. Duplikaty 1.061 i 1.414 z TV sprowadzone do jednego wpisu (włączonego).
+- Trend-based Fib Extension (24 XI 2026): osobny zestaw poziomów z uzgodnionej listy (włączone: 0, 0.9, 1, 1.061, 1.155, 1.272, 1.414, 1.618; pozostałe na liście wyłączone). Domyślnie linia trendu kropkowana, Extend right, Background, Prices wyłączone, etykiety Values po lewej na środku. Paleta z tej samej rodziny co zniesienie, ale inna; 1 i 1.618 grubsze. Zapis `opencharts:fibext-defaults`. Na liście nie było 2.618 ani 4.236 — nie dodałem ich. Duplikaty 1.061 i 1.414 sprowadzone do jednego wpisu (włączonego).
 
 Zrzuty (lokalne, w `.gitignore`): `screenshots-test/fib-extension-domyslne.png`, `screenshots-test/fib-extension.png` (z włączonymi cenami).
 
@@ -267,7 +267,7 @@ Zrzuty (lokalne, w `.gitignore`): `screenshots-test/wskazniki-okno.png`, `screen
 
 ## Skróty, alerty i Compare (24 XI 2026)
 
-- Skróty jak w TV: Alt+T/H/V/F (trend, pozioma, pionowa, Fib), Ctrl+Z / Ctrl+Y (także Cmd) cofa i przywraca rysunki oraz wskaźniki, Del usuwa zaznaczenie, Esc odznacza. Litera otwiera wyszukiwarkę symbolu; liczba+Enter zmienia interwał. Bez kolizji z polami tekstowymi.
+- Skróty: Alt+T/H/V/F (trend, pozioma, pionowa, Fib), Ctrl+Z / Ctrl+Y (także Cmd) cofa i przywraca rysunki oraz wskaźniki, Del usuwa zaznaczenie, Esc odznacza. Litera otwiera wyszukiwarkę symbolu; liczba+Enter zmienia interwał. Bez kolizji z polami tekstowymi.
 - Alerty: „Add alert” z menu prawego przycisku na wykresie albo na linii (poziom ceny albo przecięcie trendu/poziomej). Dźwięk i Notification API, zgoda dopiero po kliknięciu (Add albo „Enable notifications”). Lista z edycją i usuwaniem, zapis `opencharts:alerts`, notka „Alerts work while this tab is open”.
 - Compare: nakładka innych symboli w %, liczona od pierwszej widocznej świecy, kilka symboli, kolory i legenda. Klucz `opencharts:compare` (Export/Import).
 

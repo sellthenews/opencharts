@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "AGPL-3.0-or-later",
-  "description": "Free, open-source candlestick charting app (TradingView-style)",
+  "description": "OpenCharts – free charts for everyone",
   "type": "module",
   "scripts": {
     "dev": "vite",
