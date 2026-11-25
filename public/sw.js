@@ -6,8 +6,8 @@
 // by Vite, safe to keep). Cross-origin market-data requests are never
 // intercepted. Scope is "./" so this works under the /opencharts/ base path.
 
-const CACHE_ASSETS = 'opencharts-assets-v4';
-const CACHE_PAGES = 'opencharts-pages-v4';
+const CACHE_ASSETS = 'opencharts-assets-v5';
+const CACHE_PAGES = 'opencharts-pages-v5';
 
 self.addEventListener('install', () => {
   self.skipWaiting();

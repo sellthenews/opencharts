@@ -20,7 +20,7 @@ test('tool icons and tooltips include the tool name and shortcut', async ({ page
   await expect(trend).toHaveAttribute('title', 'Trend Line (Alt+T)');
   await expect(page.locator('#tool-rail [data-tool="fib"]')).toHaveAttribute('title', 'Fib Retracement (Alt+F)');
   await expect(page.locator('#magnet-btn')).toHaveAttribute('title', /Magnet.*Ctrl/);
-  const license = page.locator('.site-foot a');
+  const license = page.locator('.site-foot a[data-i18n="toolbar.openSource"]');
   await expect(license).toHaveText('Open source (AGPL-3.0)');
   await expect(license).toHaveAttribute('href', 'https://github.com/sellthenews/opencharts/blob/main/LICENSE');
   await expect(trend.locator('svg')).toBeVisible();

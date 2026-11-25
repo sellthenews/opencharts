@@ -18,7 +18,7 @@
     "path": "./android-release.keystore",
     "alias": "android"
   },
-  "appVersionCode": 2,
+  "appVersionCode": 3,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://sellthenews.github.io/opencharts/manifest.webmanifest",
@@ -31,6 +31,6 @@
   "isChromeOSOnly": false,
   "orientation": "default",
   "fullScopeUrl": "https://sellthenews.github.io/opencharts/",
-  "appVersion": "0.1.1",
+  "appVersion": "0.1.2",
   "minSdkVersion": 24
 }
