@@ -26,3 +26,4 @@ id = "7680999508ca4b5a860349f8c16588c8"
 [vars]
 APP_ORIGIN = "https://sellthenews.github.io/opencharts/"
 GITHUB_CLIENT_ID = "Ov23liQJbQqW5i26LKl4"
+GOOGLE_CLIENT_ID = "212004723127-30t9pnkpmu1kvm7ebnjr2ggfgfupepcg.apps.googleusercontent.com"
