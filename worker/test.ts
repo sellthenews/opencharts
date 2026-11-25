@@ -415,3 +415,34 @@ test('user B cannot read or overwrite user A drawings', async () => {
   const meBody = (await me.json()) as { user?: { email?: string } };
   assert.equal(meBody.user?.email, 'a@example.com');
 });
+
+
+test('XRPL GeckoTerminal pool addresses with dots are allowed and list responses are cached', async () => {
+  let hits = 0;
+  const store = new Map<string, Response>();
+  const runtime = {
+    cache: {
+      match: async (req: Request) => store.get(new URL(String(req.url)).toString()) ?? undefined,
+      put: async (req: Request, res: Response) => {
+        store.set(new URL(String(req.url)).toString(), res);
+      },
+    } as unknown as Cache,
+    fetch: async (input: RequestInfo | URL) => {
+      hits += 1;
+      return new Response(JSON.stringify({ data: { attributes: { name: 'RLUSD / XRP' } } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
+  };
+  const path = '/dex/gt/networks/xrpl/pools/524C555344000000000000000000000000000000.rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De_XRP/ohlcv/day?aggregate=1&limit=10&currency=token';
+  const first = await handleRequest(req(path), runtime);
+  assert.equal(first.status, 200);
+  const second = await handleRequest(req(path), runtime);
+  assert.equal(second.status, 200);
+  assert.equal(hits, 1);
+
+  const list = await handleRequest(req('/dex/gt/networks/xrpl/pools?page=1'), runtime);
+  assert.equal(list.status, 200);
+  assert.ok((list.headers.get('Cache-Control') ?? '').includes('max-age=300'));
+});

@@ -287,3 +287,91 @@ test('DEX candles stay available when a later account_tx page is rate limited', 
     setLedgerFetchForTests(null);
   }
 });
+
+import {
+  CURATED_XRPL_PAIRS,
+  curatedPairsFor,
+  encodeXrplCurrency,
+  geckoXrplPoolAddress,
+  invertCandles,
+  mergeDexPairs,
+  parseClassicAddress,
+  parseGeckoXrplAddress,
+  parseLedgerTokenInput,
+} from '../src/sources/ledger-tokens';
+import { defaultPairsForNetwork, searchDexSymbols } from '../src/sources/dex';
+
+test('XRPL currency encoding and GeckoTerminal pool addresses', () => {
+  assert.equal(encodeXrplCurrency('USD'), 'USD');
+  assert.equal(encodeXrplCurrency('PHNIX'), '50484E4958000000000000000000000000000000');
+  assert.equal(encodeXrplCurrency('524C555344000000000000000000000000000000'), '524C555344000000000000000000000000000000');
+  const addr = geckoXrplPoolAddress('PHNIX', 'rDFXbW2ZZCG5WgPtqwNiA2xZokLMm9ivmN');
+  assert.equal(addr, '50484E4958000000000000000000000000000000.rDFXbW2ZZCG5WgPtqwNiA2xZokLMm9ivmN_XRP');
+  const parsed = parseGeckoXrplAddress(addr);
+  assert.equal(parsed?.currency, 'PHNIX');
+  assert.equal(parsed?.issuer, 'rDFXbW2ZZCG5WgPtqwNiA2xZokLMm9ivmN');
+  assert.equal(parsed?.quote, 'XRP');
+});
+
+test('paste currency+issuer in several forms, and bare classic addresses', () => {
+  const dotted = parseLedgerTokenInput('SOLO.rsoLo2S1kiGeCcn6hCUXVrCpGMWLrRrLZz');
+  assert.equal(dotted?.currency, 'SOLO');
+  assert.equal(dotted?.issuer, 'rsoLo2S1kiGeCcn6hCUXVrCpGMWLrRrLZz');
+  const spaced = parseLedgerTokenInput('PHNIX rDFXbW2ZZCG5WgPtqwNiA2xZokLMm9ivmN');
+  assert.equal(spaced?.currency, 'PHNIX');
+  const plus = parseLedgerTokenInput('USD+rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B');
+  assert.equal(plus?.currency, 'USD');
+  assert.equal(parseClassicAddress('rhWTXC2m2gGGA9WozUaoMm6kLAVPb1tcS3'), 'rhWTXC2m2gGGA9WozUaoMm6kLAVPb1tcS3');
+  assert.equal(parseLedgerTokenInput('rhWTXC2m2gGGA9WozUaoMm6kLAVPb1tcS3'), null);
+});
+
+test('invertCandles flips an RLUSD/XRP candle to XRP/RLUSD', () => {
+  const [row] = invertCandles([{ time: 1, open: 2, high: 4, low: 1, close: 2, volume: 10 }]);
+  assert.equal(row!.open, 0.5);
+  assert.equal(row!.close, 0.5);
+  assert.equal(row!.high, 1);
+  assert.equal(row!.low, 0.25);
+  assert.equal(row!.volume, 20);
+});
+
+test('parseDexPairId understands dotted XRPL GeckoTerminal ids and invert', () => {
+  const addr = '524C555344000000000000000000000000000000.rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De_XRP';
+  const raw = parseDexPairId(`gt:xrpl:${addr}`);
+  assert.equal(raw?.kind, 'gt');
+  assert.equal(raw?.address, addr);
+  assert.equal(raw?.label, 'RLUSD/XRP');
+  assert.equal(raw?.invert, false);
+  const inv = parseDexPairId(`gt:xrpl:${addr}:inv`);
+  assert.equal(inv?.label, 'XRP/RLUSD');
+  assert.equal(inv?.base, 'XRP');
+  assert.equal(inv?.quote, 'RLUSD');
+  assert.equal(inv?.invert, true);
+});
+
+test('curated XRPL list includes the required tokens and Xahau has EVR plus CLV', () => {
+  const labels = CURATED_XRPL_PAIRS.map((p) => p.label).join(' | ');
+  for (const needle of ['XRP/RLUSD', 'XRP/USD (Bitstamp)', 'XRP/USD (GateHub)', 'SOLO/XRP', 'CORE/XRP', 'XPM/XRP', 'PHNIX/XRP', 'RNTB/XRP', 'ARMY/XRP', 'FUZZY/XRP', 'Opulence/XRP', 'XAH (IOU)/XRP', 'CSC/XRP']) {
+    assert.ok(labels.includes(needle), `missing ${needle} in ${labels}`);
+  }
+  const xrpl = defaultPairsForNetwork('xrpl');
+  assert.ok(xrpl.length >= 13);
+  assert.equal(xrpl[0]?.id, 'amm:xrpl:rhWTXC2m2gGGA9WozUaoMm6kLAVPb1tcS3');
+  const xahau = curatedPairsFor('xahau').map((p) => p.label);
+  assert.ok(xahau.some((l) => l.includes('EVR')));
+  assert.ok(xahau.some((l) => l.includes('CLV')));
+});
+
+test('Xahau search finds CLV and a pasted currency.issuer pair', async () => {
+  const hits = await searchDexSymbols('xahau', 'CLV');
+  assert.ok(hits.some((p) => p.quote === 'CLV' || p.label.includes('CLV')));
+  const pasted = await searchDexSymbols('xahau', 'CLV.rK8rYUs6gFH4QJ9JS814EF9112gKuYZZT');
+  assert.ok(pasted.some((p) => p.quoteIssuer === 'rK8rYUs6gFH4QJ9JS814EF9112gKuYZZT'));
+});
+
+test('mergeDexPairs dedupes the AMM XRP/RLUSD entry and the GeckoTerminal pool', () => {
+  const amm = CURATED_XRPL_PAIRS[0]!;
+  const gt = parseDexPairId('gt:xrpl:524C555344000000000000000000000000000000.rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De_XRP')!;
+  const merged = mergeDexPairs([amm], [gt]);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0]?.id, amm.id);
+});

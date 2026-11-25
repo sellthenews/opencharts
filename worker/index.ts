@@ -194,7 +194,7 @@ async function cachedUpstream(pathAndQuery: string, runtime: WorkerRuntime): Pro
 
 const GT_BASE = 'https://api.geckoterminal.com/api/v2';
 const GT_NET = /^[a-z0-9_]{1,32}$/;
-const GT_ADDR = /^[a-zA-Z0-9]{1,80}$/;
+const GT_ADDR = /^[a-zA-Z0-9._-]{1,200}$/;
 const GT_TF = /^(day|hour|minute)$/;
 const GT_PARAMS: Record<string, RegExp> = {
   page: /^\d{1,3}$/,
@@ -227,7 +227,7 @@ function parseGtPath(pathname: string): string | null {
   if (parts[2] === 'trending_pools' && parts.length === 3) return rest;
   if (parts[2] !== 'pools') return null;
   if (parts.length === 3) return rest;
-  if (!GT_ADDR.test(parts[3]!)) return null;
+  if (!GT_ADDR.test(parts[3]!) || parts[3] === '.' || parts[3] === '..' || parts[3]!.includes('..')) return null;
   if (parts.length === 4) return rest;
   if (parts[4] === 'ohlcv' && parts.length === 6 && GT_TF.test(parts[5]!)) return rest;
   return null;
@@ -239,7 +239,19 @@ function parseRpcNetwork(pathname: string): 'xrpl' | 'xahau' | null {
   return null;
 }
 
+const GT_LIST_TTL_S = 300;
+
+function geckoCacheTtl(pathAndQuery: string): number {
+  return /\/ohlcv\//.test(pathAndQuery) ? CACHE_TTL_S : GT_LIST_TTL_S;
+}
+
 async function proxyGecko(pathAndQuery: string, runtime: WorkerRuntime): Promise<Response> {
+  const ttl = geckoCacheTtl(pathAndQuery);
+  const cacheKeyUrl = `https://opencharts-proxy.cache/dex/gt${pathAndQuery}`;
+  if (runtime.cache) {
+    const hit = await runtime.cache.match(new Request(cacheKeyUrl, { method: 'GET' }));
+    if (hit) return hit;
+  }
   const doFetch = runtime.fetch ?? fetch;
   const upstream = `${GT_BASE}${pathAndQuery}`;
   const res = await doFetch(upstream, {
@@ -248,11 +260,17 @@ async function proxyGecko(pathAndQuery: string, runtime: WorkerRuntime): Promise
   });
   const contentType = res.headers.get('Content-Type') || 'application/json; charset=utf-8';
   const body = await res.arrayBuffer();
-  return new Response(body, {
+  const stored = new Response(body, {
     status: res.status,
     statusText: res.statusText,
-    headers: { 'Content-Type': contentType, 'Cache-Control': `public, max-age=${CACHE_TTL_S}` },
+    headers: { 'Content-Type': contentType, 'Cache-Control': `public, max-age=${ttl}` },
   });
+  if (runtime.cache && res.ok) {
+    const put = runtime.cache.put(new Request(cacheKeyUrl, { method: 'GET' }), stored.clone());
+    if (runtime.waitUntil) runtime.waitUntil(put);
+    else await put;
+  }
+  return stored;
 }
 
 async function proxyLedger(network: 'xrpl' | 'xahau', payload: unknown, runtime: WorkerRuntime): Promise<Response> {

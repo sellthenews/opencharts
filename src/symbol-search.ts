@@ -59,6 +59,12 @@ export function initSymbolSearch(opts: {
     current = { sourceId, pairId };
     opts.pairBtn.textContent = formatPairLabel(sourceId, pairId);
     opts.pairBtn.title = `${formatPairLabel(sourceId, pairId)} · ${SOURCE_NAME[sourceId] ?? sourceId}`;
+    syncPlaceholder();
+  }
+
+  function syncPlaceholder(): void {
+    const dex = current.sourceId === 'dex' || filter === 'dex';
+    opts.input.placeholder = t(dex ? 'sym.placeholderDex' : 'sym.placeholder');
   }
 
   const ready = loadAllSymbols().then((loaded) => {
@@ -185,7 +191,7 @@ export function initSymbolSearch(opts: {
     const q = opts.input.value.trim();
     dexTimer = setTimeout(() => {
       void runDexSearch(q);
-    }, 250);
+    }, 400);
   }
 
   async function runDexSearch(q: string): Promise<void> {
@@ -221,6 +227,7 @@ export function initSymbolSearch(opts: {
       yahooHits = [];
       yahooFor = '';
     }
+    syncPlaceholder();
     renderResults();
     scheduleYahooSearch();
     scheduleDexSearch();
@@ -264,6 +271,7 @@ export function initSymbolSearch(opts: {
     opts.modal.hidden = false;
     const title = opts.modal.querySelector('#sym-modal-title');
     if (title) title.textContent = nextMode === 'add' ? t('sym.addToWatch') : t('sym.title');
+    syncPlaceholder();
     if (query !== undefined) opts.input.value = query;
     active = 0;
     render();
@@ -355,6 +363,7 @@ export function initSymbolSearch(opts: {
     if (!open) return;
     const title = opts.modal.querySelector('#sym-modal-title');
     if (title) title.textContent = mode === 'add' ? t('sym.addToWatch') : t('sym.title');
+    syncPlaceholder();
   });
   return { open: show, close, setCurrent, ready };
 }

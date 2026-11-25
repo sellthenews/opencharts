@@ -78,12 +78,60 @@ export function poolFromGecko(row: { id?: string; attributes?: Record<string, un
   };
 }
 
-export async function searchGeckoPools(networkId: string, query: string): Promise<GeckoPool[]> {
-  const q = query.trim();
-  const path = q
-    ? `/search/pools?query=${encodeURIComponent(q)}&network=${encodeURIComponent(networkId)}&page=1`
-    : `/networks/${encodeURIComponent(networkId)}/trending_pools?page=1`;
-  const data = await getJson(path);
+const GT_CACHE_KEY = 'opencharts:gt-pools:v1';
+const GT_LIST_TTL_MS = 5 * 60 * 1000;
+const memCache = new Map<string, { exp: number; pools: GeckoPool[] }>();
+const inflight = new Map<string, Promise<GeckoPool[]>>();
+
+function readLocalCache(key: string): GeckoPool[] | null {
+  const mem = memCache.get(key);
+  if (mem && mem.exp > Date.now()) return mem.pools;
+  try {
+    const raw = localStorage.getItem(GT_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Record<string, { exp: number; pools: GeckoPool[] }>;
+    const row = parsed[key];
+    if (!row || row.exp <= Date.now() || !Array.isArray(row.pools)) return null;
+    memCache.set(key, row);
+    return row.pools;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalCache(key: string, pools: GeckoPool[]): void {
+  const row = { exp: Date.now() + GT_LIST_TTL_MS, pools };
+  memCache.set(key, row);
+  try {
+    const raw = localStorage.getItem(GT_CACHE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as Record<string, { exp: number; pools: GeckoPool[] }>) : {};
+    const now = Date.now();
+    for (const [k, v] of Object.entries(parsed)) {
+      if (!v || v.exp <= now) delete parsed[k];
+    }
+    parsed[key] = row;
+    const keys = Object.keys(parsed);
+    if (keys.length > 40) {
+      keys.sort((a, b) => (parsed[a]!.exp - parsed[b]!.exp));
+      for (const k of keys.slice(0, keys.length - 40)) delete parsed[k];
+    }
+    localStorage.setItem(GT_CACHE_KEY, JSON.stringify(parsed));
+  } catch {
+    /* private mode or quota */
+  }
+}
+
+export function clearGeckoPoolCacheForTests(): void {
+  memCache.clear();
+  inflight.clear();
+  try {
+    localStorage.removeItem(GT_CACHE_KEY);
+  } catch {
+    /* node tests */
+  }
+}
+
+function poolsFromJson(data: GeckoJson, networkId: string): GeckoPool[] {
   const rows = Array.isArray(data.data) ? data.data : [];
   const out: GeckoPool[] = [];
   for (const row of rows) {
@@ -91,6 +139,32 @@ export async function searchGeckoPools(networkId: string, query: string): Promis
     if (pool) out.push(pool);
   }
   return out;
+}
+
+async function loadGeckoPools(networkId: string, query: string): Promise<GeckoPool[]> {
+  const q = query.trim();
+  const path = q
+    ? `/search/pools?query=${encodeURIComponent(q)}&network=${encodeURIComponent(networkId)}&page=1`
+    : `/networks/${encodeURIComponent(networkId)}/pools?page=1`;
+  const data = await getJson(path);
+  return poolsFromJson(data, networkId);
+}
+
+export async function searchGeckoPools(networkId: string, query: string): Promise<GeckoPool[]> {
+  const q = query.trim();
+  const key = `${networkId}::${q.toLowerCase()}`;
+  const cached = readLocalCache(key);
+  if (cached) return cached;
+  const pending = inflight.get(key);
+  if (pending) return pending;
+  const task = loadGeckoPools(networkId, q)
+    .then((pools) => {
+      writeLocalCache(key, pools);
+      return pools;
+    })
+    .finally(() => inflight.delete(key));
+  inflight.set(key, task);
+  return task;
 }
 
 interface OhlcvMap {

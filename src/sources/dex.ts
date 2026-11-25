@@ -29,61 +29,23 @@ import { fetchGeckoOhlcv, fetchGeckoTicker, searchGeckoPools } from './geckoterm
 import { changePct } from './http';
 import { intervalSeconds, sourceIntervalFor } from './intervals';
 import type { Candle, CandleQuery, DataSource, IntervalId, PairDef, PairId, Ticker } from './types';
+import {
+  DEFAULT_PAIRS,
+  curatedPairsFor,
+  invertCandles,
+  labelFromGtAddress,
+  mergeDexPairs,
+  parseClassicAddress,
+  parseLedgerTokenInput,
+  pairFromPastedToken,
+  type DexPairRef,
+} from './ledger-tokens';
 
-export interface DexPairRef {
-  id: string;
-  networkId: string;
-  kind: 'amm' | 'book' | 'gt';
-  label: string;
-  base: string;
-  quote: string;
-  /** AMM account, pool address, or empty for a book pair identified by assets. */
-  native: string;
-  account?: string;
-  address?: string;
-  baseIssuer?: string;
-  quoteIssuer?: string;
-}
-
-const RLUSD = { currency: '524C555344000000000000000000000000000000', issuer: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De', ticker: 'RLUSD' };
-const EVR = { currency: 'EVR', issuer: 'rEvernodee8dJLaFsujS6q1EiXvZYmHXr8', ticker: 'EVR' };
-
-const DEFAULT_PAIRS: Record<string, DexPairRef> = {
-  xrpl: {
-    id: 'amm:xrpl:rhWTXC2m2gGGA9WozUaoMm6kLAVPb1tcS3',
-    networkId: 'xrpl',
-    kind: 'amm',
-    label: 'XRP/RLUSD',
-    base: 'XRP',
-    quote: 'RLUSD',
-    native: 'rhWTXC2m2gGGA9WozUaoMm6kLAVPb1tcS3',
-    account: 'rhWTXC2m2gGGA9WozUaoMm6kLAVPb1tcS3',
-    quoteIssuer: RLUSD.issuer,
-  },
-  xahau: {
-    id: `book:xahau:XAH:EVR.${EVR.issuer}`,
-    networkId: 'xahau',
-    kind: 'book',
-    label: 'XAH/EVR',
-    base: 'XAH',
-    quote: 'EVR',
-    native: `${EVR.currency}.${EVR.issuer}`,
-    quoteIssuer: EVR.issuer,
-  },
-  eth: {
-    id: 'gt:eth:0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640',
-    networkId: 'eth',
-    kind: 'gt',
-    label: 'WETH/USDC',
-    base: 'WETH',
-    quote: 'USDC',
-    native: '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640',
-    address: '0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640',
-  },
-};
+export type { DexPairRef } from './ledger-tokens';
 
 const known = new Map<string, DexPairRef>();
 for (const pair of Object.values(DEFAULT_PAIRS)) known.set(pair.id, pair);
+for (const pair of [...curatedPairsFor('xrpl'), ...curatedPairsFor('xahau')]) known.set(pair.id, pair);
 
 export function rememberDexPair(pair: DexPairRef): void {
   known.set(pair.id, pair);
@@ -124,17 +86,24 @@ export function parseDexPairId(id: string): DexPairRef | undefined {
       quoteIssuer,
     };
   }
-  const gt = /^gt:([a-z0-9_]+):([a-zA-Z0-9]+)$/.exec(id);
+  const gt = /^gt:([a-z0-9_]+):([a-zA-Z0-9._-]+)(?::(inv))?$/.exec(id);
   if (gt) {
+    const networkId = gt[1]!;
+    const address = gt[2]!;
+    const invert = gt[3] === 'inv';
+    const named = labelFromGtAddress(networkId, address, invert);
     return {
       id,
-      networkId: gt[1]!,
+      networkId,
       kind: 'gt',
-      label: gt[2]!.slice(0, 10) + '…',
-      base: 'BASE',
-      quote: 'QUOTE',
-      native: gt[2]!,
-      address: gt[2]!,
+      label: named.label === address.slice(0, 10) + '…' && !invert ? address.slice(0, 10) + '…' : named.label,
+      base: named.base,
+      quote: named.quote,
+      native: address,
+      address,
+      invert,
+      baseIssuer: invert ? undefined : named.issuer,
+      quoteIssuer: invert ? named.issuer : undefined,
     };
   }
   return undefined;
@@ -155,9 +124,12 @@ export function currentDexNetwork(): DexNetwork {
 
 export function defaultPairsForNetwork(networkId: string): PairDef[] {
   const def = defaultPairFor(networkId);
-  const extras = [...known.values()].filter((p) => p.networkId === networkId && p.id !== def?.id);
-  const list = def ? [def, ...extras] : extras;
-  return list.map((p) => ({ id: p.id, label: p.label, native: p.native }));
+  const extras = mergeDexPairs(
+    def ? [def] : [],
+    [...curatedPairsFor(networkId), ...known.values()].filter((p) => p.networkId === networkId),
+  );
+  for (const pair of extras) rememberDexPair(pair);
+  return extras.map((p) => ({ id: p.id, label: p.label, native: p.native }));
 }
 
 const NATIVE_IDS = ['1m', '5m', '15m', '30m', '1h', '4h', '1D', '1W', '1M'] as const;
@@ -379,10 +351,22 @@ async function fetchGtCandles(pair: DexPairRef, interval: IntervalId, opts?: Can
   if (!pair.address) throw new Error('Missing pool address');
   const srcId = sourceIntervalFor(NATIVE_IDS, interval) ?? interval;
   let candles = await fetchGeckoOhlcv(pair.networkId, pair.address, srcId, opts?.before);
+  if (pair.invert) candles = invertCandles(candles);
   if (srcId !== interval) candles = aggregateCandles(candles, interval);
   if (opts?.before !== undefined) candles = candles.filter((c) => c.time < opts.before!);
   if (opts?.limit && candles.length > opts.limit) candles = candles.slice(-opts.limit);
   return candles;
+}
+
+/** Prefer GeckoTerminal OHLCV when a pool address is known, to avoid hammering ledger nodes. */
+async function fetchCandlesPreferringGecko(pair: DexPairRef, interval: IntervalId, opts?: CandleQuery): Promise<Candle[] | null> {
+  if (!pair.address) return null;
+  try {
+    const candles = await fetchGtCandles(pair, interval, opts);
+    return candles.length ? candles : null;
+  } catch {
+    return null;
+  }
 }
 
 export const dex: DataSource = {
@@ -398,12 +382,23 @@ export const dex: DataSource = {
     rememberDexPair(pair);
     const network = getDexNetwork(pair.networkId) ?? currentDexNetwork();
     if (pair.kind === 'gt') return fetchGtCandles(pair, interval, opts);
+    const fromGecko = await fetchCandlesPreferringGecko(pair, interval, opts);
+    if (fromGecko) return fromGecko;
     return fetchLedgerCandles(network, pair, interval, opts);
   },
   async fetchTicker(pairId: PairId): Promise<Ticker> {
     const pair = lookupDexPair(pairId) ?? defaultPairFor(loadDexNetworkId());
     if (!pair) throw new Error('No DEX pair selected');
     const network = getDexNetwork(pair.networkId) ?? currentDexNetwork();
+    if (pair.address) {
+      try {
+        const ticker = await fetchGeckoTicker(pair.networkId, pair.address);
+        if (pair.invert && ticker.last) ticker.last = 1 / ticker.last;
+        return ticker;
+      } catch {
+        if (pair.kind === 'gt') throw new Error('GeckoTerminal: no last price');
+      }
+    }
     if (pair.kind === 'gt' && pair.address) {
       return fetchGeckoTicker(pair.networkId, pair.address);
     }
@@ -421,43 +416,72 @@ export const dex: DataSource = {
   },
 };
 
-export async function searchDexSymbols(networkId: string, query: string): Promise<DexPairRef[]> {
-  const network = getDexNetwork(networkId);
-  if (!network) return [];
-  if (network.kind === 'geckoterminal') {
-    const pools = await searchGeckoPools(networkId, query);
+function refsFromGeckoPools(networkId: string, query: string): Promise<DexPairRef[]> {
+  return searchGeckoPools(networkId, query).then((pools) => {
     const refs = pools.map((p) => {
+      const named = labelFromGtAddress(p.networkId || networkId, p.address);
       const ref: DexPairRef = {
         id: p.id,
-        networkId: p.networkId,
+        networkId: p.networkId || networkId,
         kind: 'gt',
-        label: `${p.base}/${p.quote}`,
-        base: p.base,
-        quote: p.quote,
+        label: p.base && p.quote ? `${p.base}/${p.quote}` : named.label,
+        base: p.base || named.base,
+        quote: p.quote || named.quote,
         native: p.address,
         address: p.address,
+        baseIssuer: named.issuer,
       };
       rememberDexPair(ref);
       return ref;
     });
     return refs;
+  });
+}
+
+function matchesQuery(pair: DexPairRef, q: string): boolean {
+  const hay = `${pair.label} ${pair.id} ${pair.native} ${pair.base} ${pair.quote} ${pair.address ?? ''} ${pair.account ?? ''} ${pair.baseIssuer ?? ''} ${pair.quoteIssuer ?? ''}`.toLowerCase();
+  return hay.includes(q);
+}
+
+export async function searchDexSymbols(networkId: string, query: string): Promise<DexPairRef[]> {
+  const network = getDexNetwork(networkId);
+  if (!network) return [];
+  const q = query.trim();
+  const curated = curatedPairsFor(networkId);
+  for (const pair of curated) rememberDexPair(pair);
+
+  if (network.kind === 'geckoterminal') {
+    const pools = await refsFromGeckoPools(networkId, q);
+    const local = q ? curated.filter((p) => p.networkId === networkId && matchesQuery(p, q.toLowerCase())) : curated.filter((p) => p.networkId === networkId);
+    return mergeDexPairs(local, pools);
   }
-  const q = query.trim().toLowerCase();
-  const curated = defaultPairsForNetwork(networkId)
-    .map((p) => lookupDexPair(p.id))
-    .filter((p): p is DexPairRef => Boolean(p));
-  if (!q) return curated;
-  const hits = curated.filter((p) => `${p.label} ${p.id} ${p.native} ${p.base} ${p.quote}`.toLowerCase().includes(q));
-  const amm = q.match(/^(r[a-zA-Z0-9]{20,})$/);
-  if (amm && network.kind === 'amm') {
-    const id = `amm:${networkId}:${amm[1]}`;
-    const ref = parseDexPairId(id);
+
+  const local = q ? curated.filter((p) => matchesQuery(p, q.toLowerCase())) : curated;
+  const pasted: DexPairRef[] = [];
+  const token = parseLedgerTokenInput(q);
+  if (token) {
+    const ref = pairFromPastedToken(networkId, network.native, token);
+    rememberDexPair(ref);
+    pasted.push(ref);
+  }
+  const account = parseClassicAddress(q);
+  if (account && network.kind === 'amm') {
+    const ref = parseDexPairId(`amm:${networkId}:${account}`);
     if (ref) {
       rememberDexPair(ref);
-      hits.unshift(ref);
+      pasted.push(ref);
     }
   }
-  return hits;
+
+  let remote: DexPairRef[] = [];
+  if (networkId === 'xrpl') {
+    try {
+      remote = await refsFromGeckoPools('xrpl', q);
+    } catch {
+      remote = [];
+    }
+  }
+  return mergeDexPairs(pasted, mergeDexPairs(local, remote));
 }
 
 export { changePct };
