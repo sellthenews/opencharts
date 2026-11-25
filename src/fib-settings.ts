@@ -62,6 +62,7 @@ export type FibLabelVAlign = 'top' | 'middle' | 'bottom';
 export type FibTrendStyle = 'solid' | 'dashed' | 'dotted';
 export type FibToolKind = 'fib' | 'fibext';
 export type FibPreset = 'ours' | 'classic';
+export type FibExtend = 'right' | 'left' | 'both' | 'none';
 
 export interface FibOptions {
   preset?: FibPreset;
@@ -73,6 +74,8 @@ export interface FibOptions {
   showLevels: boolean;
   labels: 'left' | 'right';
   labelVAlign: FibLabelVAlign;
+  extend: FibExtend;
+  /** @deprecated Derived from `extend`; kept so older drawings and defaults keep working. */
   extendLines: boolean;
   showTrend: boolean;
   trendStyle: FibTrendStyle;
@@ -81,6 +84,63 @@ export interface FibOptions {
 export function nearlyEqual(a: number, b: number, eps = 1e-4): boolean {
   return Math.abs(a - b) <= eps;
 }
+
+export function isFibExtend(value: unknown): value is FibExtend {
+  return value === 'right' || value === 'left' || value === 'both' || value === 'none';
+}
+
+export function fibExtendReachesRight(extend: FibExtend): boolean {
+  return extend === 'right' || extend === 'both';
+}
+
+export function fibExtendReachesLeft(extend: FibExtend): boolean {
+  return extend === 'left' || extend === 'both';
+}
+
+/** Map a stored options object to a line-extend mode without rewriting old data. */
+export function parseFibExtend(raw: unknown, fallback: FibExtend = 'none'): FibExtend {
+  if (!raw || typeof raw !== 'object') return fallback;
+  const o = raw as { extend?: unknown; extendLines?: unknown };
+  if (isFibExtend(o.extend)) return o.extend;
+  if (typeof o.extendLines === 'boolean') return o.extendLines ? 'right' : 'none';
+  return fallback;
+}
+
+export function withFibExtend(opts: FibOptions, extend: FibExtend): FibOptions {
+  return { ...opts, extend, extendLines: fibExtendReachesRight(extend) };
+}
+
+export function fibExtendOf(opts: FibOptions): FibExtend {
+  return isFibExtend(opts.extend) ? opts.extend : opts.extendLines ? 'right' : 'none';
+}
+
+/** Horizontal span of retracement level lines. */
+export function fibLevelXRange(from: number, to: number, width: number, extend: FibExtend): { start: number; end: number } {
+  const left = Math.min(from, to);
+  const right = Math.max(from, to);
+  return {
+    start: fibExtendReachesLeft(extend) ? 0 : left,
+    end: fibExtendReachesRight(extend) ? width : right,
+  };
+}
+
+/** Horizontal span of trend-based extension level lines. `none` keeps the previous short stub past point C. */
+export function fibExtLevelXRange(
+  ax: number,
+  bx: number,
+  cx: number,
+  width: number,
+  extend: FibExtend,
+): { start: number; end: number } {
+  const minX = Math.min(ax, bx, cx);
+  const maxX = Math.max(ax, bx, cx);
+  if (extend === 'none') return { start: cx, end: maxX + 40 };
+  return {
+    start: fibExtendReachesLeft(extend) ? 0 : minX,
+    end: fibExtendReachesRight(extend) ? width : maxX,
+  };
+}
+
 
 export function isFibKeyLevel(value: number): boolean {
   return FIB_KEY_LEVELS.some((k) => nearlyEqual(value, k));
@@ -143,7 +203,8 @@ export function builtInFibOptions(): FibOptions {
     showLevels: true,
     labels: 'right',
     labelVAlign: 'middle',
-    extendLines: false,
+    extend: 'right',
+    extendLines: true,
     showTrend: true,
     trendStyle: 'dashed',
   };
@@ -165,7 +226,8 @@ export function classicFibOptions(): FibOptions {
     showLevels: true,
     labels: 'right',
     labelVAlign: 'middle',
-    extendLines: false,
+    extend: 'right',
+    extendLines: true,
     showTrend: true,
     trendStyle: 'dashed',
   };
@@ -209,6 +271,7 @@ export function sanitizeFibOptions(raw: unknown, fallback: FibOptions = builtInF
       ? Math.min(0.4, Math.max(0.02, o.backgroundOpacity))
       : fallback.backgroundOpacity;
   const preset: FibPreset | undefined = o.preset === 'ours' || o.preset === 'classic' ? o.preset : undefined;
+  const extend = parseFibExtend(o, fallback.extend ?? (fallback.extendLines ? 'right' : 'none'));
   return {
     preset,
     levels: levels.length ? levels : cloneFibOptions(fallback).levels,
@@ -219,7 +282,8 @@ export function sanitizeFibOptions(raw: unknown, fallback: FibOptions = builtInF
     showLevels: asBoolean(o.showLevels, fallback.showLevels),
     labels: asLabelSide(o.labels, fallback.labels),
     labelVAlign: o.labelVAlign === 'top' || o.labelVAlign === 'bottom' || o.labelVAlign === 'middle' ? o.labelVAlign : fallback.labelVAlign,
-    extendLines: asBoolean(o.extendLines, fallback.extendLines),
+    extend,
+    extendLines: fibExtendReachesRight(extend),
     showTrend: asBoolean(o.showTrend, fallback.showTrend),
     trendStyle: o.trendStyle === 'solid' || o.trendStyle === 'dashed' || o.trendStyle === 'dotted' ? o.trendStyle : fallback.trendStyle,
   };
@@ -243,13 +307,17 @@ export function saveFibDefaults(opts: FibOptions): void {
   }
 }
 
-/** Legacy drawings without stored levels use the built-in 24-level set, not the user's later "Save as default". */
+/** Legacy drawings without stored levels use the built-in level set and the previous unextended span. */
 export function fibOptionsOf(drawing: { fib?: unknown }): FibOptions {
   if (drawing.fib && typeof drawing.fib === 'object' && Array.isArray((drawing.fib as { levels?: unknown }).levels)) {
     const levels = (drawing.fib as { levels: unknown[] }).levels;
-    if (levels.length) return sanitizeFibOptions(drawing.fib);
+    const raw = drawing.fib as { extend?: unknown; extendLines?: unknown };
+    const hasExtend = isFibExtend(raw.extend) || typeof raw.extendLines === 'boolean';
+    if (levels.length) {
+      return sanitizeFibOptions(drawing.fib, hasExtend ? builtInFibOptions() : withFibExtend(builtInFibOptions(), 'none'));
+    }
   }
-  return builtInFibOptions();
+  return withFibExtend(builtInFibOptions(), 'none');
 }
 
 /** Unique levels from the agreed default list (duplicate 1.061 / 1.414 rows omitted). 2.618 and 4.236 were not on that list. */
@@ -365,6 +433,7 @@ export function builtInFibExtOptions(): FibOptions {
     showLevels: true,
     labels: 'left',
     labelVAlign: 'middle',
+    extend: 'right',
     extendLines: true,
     showTrend: true,
     trendStyle: 'dotted',
@@ -387,6 +456,7 @@ export function classicFibExtOptions(): FibOptions {
     showLevels: true,
     labels: 'left',
     labelVAlign: 'middle',
+    extend: 'right',
     extendLines: true,
     showTrend: true,
     trendStyle: 'dotted',
@@ -423,6 +493,7 @@ export function applyFibPreset(current: FibOptions, kind: FibToolKind, preset: F
     levels: cloneFibOptions(base).levels,
     background: base.background,
     backgroundOpacity: base.backgroundOpacity,
+    extend: base.extend,
     extendLines: base.extendLines,
   };
 }
@@ -450,11 +521,15 @@ export function fibExtOptionsOf(drawing: { fib?: unknown; extendRight?: boolean 
   const fallback = builtInFibExtOptions();
   if (drawing.fib && typeof drawing.fib === 'object' && Array.isArray((drawing.fib as { levels?: unknown }).levels)) {
     const levels = (drawing.fib as { levels: unknown[] }).levels;
-    if (levels.length) return sanitizeFibOptions(drawing.fib, fallback);
+    const raw = drawing.fib as { extend?: unknown; extendLines?: unknown };
+    const hasExtend = isFibExtend(raw.extend) || typeof raw.extendLines === 'boolean';
+    if (levels.length) {
+      const implicit = drawing.extendRight === false ? 'none' : 'right';
+      return sanitizeFibOptions(drawing.fib, hasExtend ? fallback : withFibExtend(fallback, implicit));
+    }
   }
   const opts = cloneFibOptions(fallback);
-  if (drawing.extendRight === false) opts.extendLines = false;
-  return opts;
+  return drawing.extendRight === false ? withFibExtend(opts, 'none') : opts;
 }
 
 export function defaultsOf(kind: FibToolKind): FibOptions {

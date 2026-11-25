@@ -34,7 +34,8 @@ test('Fib retracement: 24 levels, settings dialog, persist and Save as default',
   expect(levels).toHaveLength(24);
   const visible = levels.filter((l) => l.visible).map((l) => l.value);
   expect(visible).toEqual([0, 0.236, 0.38, 0.5, 0.61, 0.786, 1]);
-  expect(first && first.type === 'fib' ? first.fib?.extendLines : undefined).toBe(false);
+  expect(first && first.type === 'fib' ? first.fib?.extend : undefined).toBe('right');
+  expect(first && first.type === 'fib' ? first.fib?.extendLines : undefined).toBe(true);
   expect(first && first.type === 'fib' ? first.fib?.backgroundOpacity : undefined).toBeCloseTo(0.04);
   expect(levels.map((l) => l.value)).toEqual([
     0, 0.236, 0.278, 0.38, 0.44, 0.5, 0.577, 0.61, 0.667, 0.707, 0.77, 0.786, 0.8, 0.878, 0.941, 1, 1.13, 1.25, 1.414,
@@ -201,4 +202,59 @@ test('saved custom Fib defaults are not overwritten by the built-in preset', asy
   expect(fib?.levels.find((l) => l.value === 0.5)?.color.toLowerCase()).toBe('#e91e63');
   expect(fib?.backgroundOpacity).toBeCloseTo(0.12);
   expect(fib?.extendLines).toBe(true);
+});
+
+test('Extend lines switch supports Right and Both and persists', async ({ page }) => {
+  await page.goto('/');
+  await waitReady(page);
+  await drawFib(page);
+  const first = await page.evaluate(() => {
+    const d = window.__opencharts.getDrawings().find((x) => x.type === 'fib');
+    return d && d.type === 'fib' ? d.fib : null;
+  });
+  expect(first?.extend).toBe('right');
+  expect(first?.extendLines).toBe(true);
+
+  const box = await page.locator('#chart-wrap').boundingBox();
+  const b = box!;
+  await page.mouse.dblclick(b.x + b.width * 0.4, b.y + b.height * 0.45);
+  await expect(page.locator('#fib-modal')).toBeVisible();
+  await expect(page.locator('#fib-extend')).toHaveValue('right');
+  await page.locator('#fib-extend').selectOption('both');
+  await expect(page.locator('#fib-extend')).toHaveValue('both');
+  await page.locator('#fib-ok').click();
+
+  const after = await page.evaluate(() => {
+    const d = window.__opencharts.getDrawings().find((x) => x.type === 'fib');
+    return d && d.type === 'fib' ? d.fib : null;
+  });
+  expect(after?.extend).toBe('both');
+  expect(after?.extendLines).toBe(true);
+
+  await page.reload();
+  await waitReady(page);
+  const afterReload = await page.evaluate(() => {
+    const d = window.__opencharts.getDrawings().find((x) => x.type === 'fib');
+    return d && d.type === 'fib' ? d.fib : null;
+  });
+  expect(afterReload?.extend).toBe('both');
+
+  const wrap = await page.locator('#chart-wrap').boundingBox();
+  const w = wrap!;
+  await page.locator('#cursor-tool').click();
+  await page.mouse.click(w.x + w.width * 0.4, w.y + w.height * 0.45);
+  await page.locator('#draw-settings').click();
+  await expect(page.locator('#fib-modal')).toBeVisible();
+  await expect(page.locator('#fib-extend')).toHaveValue('both');
+  await page.locator('#fib-save-default').click();
+  await expect(page.locator('#fib-saved-note')).toContainText('Saved as default');
+  await page.locator('#fib-ok').click();
+
+  await page.evaluate(() => window.__opencharts.importDrawings(JSON.stringify([])));
+  await drawFib(page);
+  const fresh = await page.evaluate(() => {
+    const d = window.__opencharts.getDrawings().find((x) => x.type === 'fib');
+    return d && d.type === 'fib' ? d.fib : null;
+  });
+  expect(fresh?.extend).toBe('both');
 });

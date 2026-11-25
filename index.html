@@ -274,7 +274,14 @@
               <option value="dotted" data-i18n="draw.dotted">Dotted</option>
             </select>
           </label>
-          <label class="fib-row"><input type="checkbox" id="fib-extend" /> <span data-i18n="fib.extend">Extend lines</span></label>
+          <label class="fib-row"><span data-i18n="fib.extend">Extend lines</span>
+            <select id="fib-extend" aria-label="Extend lines" data-i18n-aria="fib.extend">
+              <option value="right" data-i18n="fib.extendRight">Right</option>
+              <option value="left" data-i18n="fib.extendLeft">Left</option>
+              <option value="both" data-i18n="fib.extendBoth">Both</option>
+              <option value="none" data-i18n="fib.extendNone">None</option>
+            </select>
+          </label>
         </div>
         <div class="fib-modal-foot">
           <button type="button" id="fib-reset" data-i18n="fib.reset">Reset to defaults</button>

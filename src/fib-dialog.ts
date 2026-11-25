@@ -11,10 +11,13 @@ import {
   colorForFibExtValue,
   colorForFibValue,
   detectFibPreset,
+  fibExtendOf,
   formatFibLevel,
+  isFibExtend,
   saveFibDefaults,
   saveFibExtDefaults,
   sanitizeFibOptions,
+  withFibExtend,
 } from './fib-settings';
 
 export interface FibDialogHandlers {
@@ -38,7 +41,7 @@ export function initFibDialog(
   const labelVAlign = root.querySelector<HTMLSelectElement>('#fib-label-valign')!;
   const trend = root.querySelector<HTMLInputElement>('#fib-trend')!;
   const trendStyle = root.querySelector<HTMLSelectElement>('#fib-trend-style')!;
-  const extend = root.querySelector<HTMLInputElement>('#fib-extend')!;
+  const extend = root.querySelector<HTMLSelectElement>('#fib-extend')!;
   const savedNote = root.querySelector('#fib-saved-note')!;
   const presetGroup = root.querySelector('.fib-preset');
 
@@ -66,7 +69,7 @@ export function initFibDialog(
     current.labelVAlign = labelVAlign.value === 'top' || labelVAlign.value === 'bottom' ? labelVAlign.value : 'middle';
     current.showTrend = trend.checked;
     current.trendStyle = trendStyle.value === 'dashed' || trendStyle.value === 'dotted' ? trendStyle.value : 'solid';
-    current.extendLines = extend.checked;
+    current = withFibExtend(current, isFibExtend(extend.value) ? extend.value : 'right');
     current.levels = [...list.querySelectorAll<HTMLElement>('.fib-level-row')].flatMap((row) => {
       const value = Number(row.querySelector<HTMLInputElement>('.fib-level-value')?.value);
       if (!Number.isFinite(value)) return [];
@@ -105,7 +108,7 @@ export function initFibDialog(
     labelVAlign.value = current.labelVAlign;
     trend.checked = current.showTrend;
     trendStyle.value = current.trendStyle;
-    extend.checked = current.extendLines;
+    extend.value = fibExtendOf(current);
     renderLevels();
     syncPresetButtons();
     applying = false;

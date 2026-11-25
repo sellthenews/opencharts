@@ -113,8 +113,8 @@ test('Trend-based Fib extension: default levels, 0 = C, 1 = C+(B−A), 1.618 = C
   expect(ext!.extendRight).toBe(true);
   expect(ext!.labels).toBe('left');
   expect(ext!.trendStyle).toBe('dotted');
-  expect(ext!.visible).toEqual([0, 0.9, 1, 1.061, 1.155, 1.272, 1.414, 1.618]);
-  expect(ext!.hidden).toEqual(expect.arrayContaining([0.5, 0.618, 1.21, 2, 2.414, 3, 4.764]));
+  expect(ext!.visible).toEqual([0, 0.618, 1, 1.272, 1.618, 2, 3.618]);
+  expect(ext!.hidden).toEqual(expect.arrayContaining([0.5, 0.9, 1.061, 1.155, 1.21, 1.414, 2.414, 3, 4.764]));
   expect(ext!.level0).toBeCloseTo(ext!.c, 8);
   expect(ext!.level1).toBeCloseTo(ext!.c + (ext!.b - ext!.a), 8);
   expect(ext!.level1618).toBeCloseTo(ext!.c + 1.618 * (ext!.b - ext!.a), 8);

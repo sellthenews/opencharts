@@ -17,7 +17,7 @@ import { TOOLS_POINTS } from './drawings-types';
 import type { Drawing, Point, Tool } from './drawings-types';
 import { interactionOptions, isMagnetModifier } from './chart-options';
 import type { FibOptions } from './fib-settings';
-import { cloneFibOptions, fibExtOptionsOf, fibOptionsOf, isFibKeyLevel, isFibExtKeyLevel, loadFibDefaults, loadFibExtDefaults } from './fib-settings';
+import { cloneFibOptions, fibExtLevelXRange, fibExtOptionsOf, fibExtendOf, fibExtendReachesRight, fibLevelXRange, fibOptionsOf, isFibKeyLevel, isFibExtKeyLevel, loadFibDefaults, loadFibExtDefaults, withFibExtend } from './fib-settings';
 import { loadLineDefaults, saveLineDefaults, sanitizeLineStyle } from './templates';
 
 export type { Drawing, Point, Tool };
@@ -501,7 +501,7 @@ export class DrawingLayer {
     const d = this.getSelected();
     if (!d || (d.type !== 'fib' && d.type !== 'fibext')) return false;
     d.fib = cloneFibOptions(opts);
-    if (d.type === 'fibext') d.extendRight = opts.extendLines;
+    if (d.type === 'fibext') d.extendRight = fibExtendReachesRight(fibExtendOf(opts));
     if (persist) this.persist();
     this.redraw();
     return true;
@@ -641,17 +641,17 @@ export class DrawingLayer {
     if (!d) return false;
     if (d.type === 'fib') {
       const fib = fibOptionsOf(d);
-      fib.extendLines = !fib.extendLines;
-      d.fib = fib;
+      const next = fibExtendReachesRight(fibExtendOf(fib)) ? 'none' : 'right';
+      d.fib = withFibExtend(fib, next);
       this.persist();
       this.redraw();
-      return d.fib.extendLines;
+      return fibExtendReachesRight(fibExtendOf(d.fib));
     }
     if (d.type !== 'fibext') return false;
     const fib = fibExtOptionsOf(d);
-    fib.extendLines = !fib.extendLines;
-    d.fib = fib;
-    d.extendRight = fib.extendLines;
+    const next = fibExtendReachesRight(fibExtendOf(fib)) ? 'none' : 'right';
+    d.fib = withFibExtend(fib, next);
+    d.extendRight = fibExtendReachesRight(next);
     this.persist();
     this.redraw();
     return d.extendRight;
@@ -1701,7 +1701,7 @@ export class DrawingLayer {
       case 'fibext':
         {
         const fib = cloneFibOptions(loadFibExtDefaults());
-        return { id, type: 'fibext', a: points[0]!, b: points[1]!, c: points[2]!, extendRight: fib.extendLines, fib };
+        return { id, type: 'fibext', a: points[0]!, b: points[1]!, c: points[2]!, extendRight: fibExtendReachesRight(fibExtendOf(fib)), fib };
       }
       case 'longpos':
         return { id, type: 'longpos', entry: points[0]!, stop: points[1]!, target: points[2]! };
@@ -1954,8 +1954,7 @@ export class DrawingLayer {
       const t1 = this.timeToX(ends.p1.time);
       const t2 = this.timeToX(ends.p2.time);
       if (t1 === null || t2 === null) return out;
-      const left = Math.min(t1, t2);
-      const right = opts.extendLines ? width : Math.max(t1, t2);
+      const { start: left, end: right } = fibLevelXRange(t1, t2, width, fibExtendOf(opts));
       const atLeft = opts.labels === 'left';
       const lx = atLeft ? left + 8 : right - 8;
       const y0 = this.priceToY(fibRetracementPrice(ends.p1, ends.p2, 0, opts.reverse));
@@ -1970,8 +1969,7 @@ export class DrawingLayer {
       const b = this.pointToXy(d.b);
       const c = this.pointToXy(d.c);
       if (!a || !b || !c) return out;
-      const startX = opts.extendLines ? Math.min(a.x, b.x, c.x) : c.x;
-      const endX = opts.extendLines ? width : Math.max(a.x, b.x, c.x) + 40;
+      const { start: startX, end: endX } = fibExtLevelXRange(a.x, b.x, c.x, width, fibExtendOf(opts));
       const atLeft = opts.labels === 'left';
       const lx = atLeft ? startX + 8 : endX - 8;
       const y0 = this.priceToY(fibExtensionPrice(d.a, d.b, d.c, 0, opts.reverse));
@@ -2355,8 +2353,7 @@ export class DrawingLayer {
       let best = Infinity;
       if (a && b) best = Math.min(best, distPointToSegment(x, y, a.x, a.y, b.x, b.y));
       if (t1 !== null && t2 !== null) {
-        const left = Math.min(t1, t2);
-        const right = opts.extendLines ? width : Math.max(t1, t2);
+        const { start: left, end: right } = fibLevelXRange(t1, t2, width, fibExtendOf(opts));
         const ys: number[] = [];
         for (const level of visibleFibLevels(opts)) {
           const yy = this.priceToY(fibRetracementPrice(ends.p1, ends.p2, level.value, opts.reverse));
@@ -2380,8 +2377,9 @@ export class DrawingLayer {
       const c = this.pointToXy(d.c);
       if (a && b) best = Math.min(best, distPointToSegment(x, y, a.x, a.y, b.x, b.y));
       if (b && c) best = Math.min(best, distPointToSegment(x, y, b.x, b.y, c.x, c.y));
-      const startX = opts.extendLines && a && b && c ? Math.min(a.x, b.x, c.x) : c?.x ?? 0;
-      const endX = opts.extendLines ? width : Math.max(a?.x ?? 0, b?.x ?? 0, c?.x ?? 0) + 40;
+      const { start: startX, end: endX } = a && b && c
+        ? fibExtLevelXRange(a.x, b.x, c.x, width, fibExtendOf(opts))
+        : { start: c?.x ?? 0, end: width };
       const ys: number[] = [];
       for (const level of visibleFibLevels(opts)) {
         const yy = this.priceToY(fibExtensionPrice(d.a, d.b, d.c, level.value, opts.reverse));
@@ -3315,8 +3313,7 @@ export class DrawingLayer {
     this.label(ctx, 'A', a.x + 4, a.y - 8, selected ? SELECTED : '#e0e3ea', 11);
     this.label(ctx, 'B', b.x + 4, b.y - 8, selected ? SELECTED : '#e0e3ea', 11);
     this.label(ctx, 'C', c.x + 4, c.y - 8, selected ? SELECTED : '#e0e3ea', 11);
-    const startX = opts.extendLines ? Math.min(a.x, b.x, c.x) : c.x;
-    const endX = opts.extendLines ? width : Math.max(a.x, b.x, c.x) + 40;
+    const { start: startX, end: endX } = fibExtLevelXRange(a.x, b.x, c.x, width, fibExtendOf(opts));
     const levels = visibleFibLevels(opts);
     if (opts.background && levels.length >= 2) {
       for (let i = 0; i < levels.length - 1; i++) {
@@ -3373,8 +3370,7 @@ export class DrawingLayer {
     const t1 = this.timeToX(ends.p1.time);
     const t2 = this.timeToX(ends.p2.time);
     if (t1 === null || t2 === null) return;
-    const left = Math.min(t1, t2);
-    const right = opts.extendLines ? width : Math.max(t1, t2);
+    const { start: left, end: right } = fibLevelXRange(t1, t2, width, fibExtendOf(opts));
     const a = this.pointToXy(d.p1);
     const b = this.pointToXy(d.p2);
     const levels = visibleFibLevels(opts);
