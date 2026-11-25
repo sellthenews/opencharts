@@ -146,6 +146,11 @@ export function splitPairLabel(pairId: string): string {
 }
 
 export function formatPairLabel(sourceId: string, pairId: string): string {
+  if (sourceId === 'binance') {
+    const hit = lookupSymbol(sourceId, pairId);
+    if (hit) return hit.label;
+    return splitPairLabel(fallbackNative('binance', pairId));
+  }
   const known = PAIR_LABELS[pairId];
   if (known) return known;
   const hit = lookupSymbol(sourceId, pairId);
@@ -321,8 +326,29 @@ const BITSTAMP_PAIRS: [string, string, string, string][] = [
   ['XLMUSD', 'xlmusd', 'XLM', 'USD'],
 ];
 
-function fetchBitstamp(): Promise<SymbolInfo[]> {
-  return Promise.resolve(BITSTAMP_PAIRS.map(([id, native, base, quote]) => makeInfo('bitstamp', id, native, base, quote)));
+function bitstampFallback(): SymbolInfo[] {
+  return BITSTAMP_PAIRS.map(([id, native, base, quote]) => makeInfo('bitstamp', id, native, base, quote));
+}
+
+/** trading-pairs-info has no CORS header. Try it, and keep the static list when the browser blocks it. */
+async function fetchBitstamp(): Promise<SymbolInfo[]> {
+  try {
+    const rows = await fetchJson<Array<Record<string, unknown>>>('https://www.bitstamp.net/api/v2/trading-pairs-info/');
+    const items: SymbolInfo[] = [];
+    for (const row of rows) {
+      const trading = String(row.trading ?? 'Enabled');
+      if (trading && trading.toLowerCase() === 'disabled') continue;
+      const name = String(row.name ?? '');
+      const native = String(row.url_symbol ?? '');
+      const [base, quote] = name.split('/');
+      if (!base || !quote || !native) continue;
+      items.push(makeInfo('bitstamp', `${base}${quote}`.toUpperCase(), native.toLowerCase(), base.toUpperCase(), quote.toUpperCase()));
+    }
+    if (items.length) return items;
+  } catch {
+    /* CORS or network: the static list still lets search and charts work. */
+  }
+  return bitstampFallback();
 }
 
 function fetchYahoo(): Promise<SymbolInfo[]> {

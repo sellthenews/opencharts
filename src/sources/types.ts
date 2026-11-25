@@ -49,6 +49,8 @@ export interface CandleQuery {
   /** Return candles strictly older than this unix time (seconds). */
   before?: number;
   limit?: number;
+  /** Yahoo stocks: include pre-market and after-hours bars when the venue supports them. */
+  includePrePost?: boolean;
 }
 
 export const MAX_CANDLES = 2500;

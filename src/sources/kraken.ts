@@ -4,9 +4,7 @@
 import { aggregateCandles, sortDedup } from './aggregate';
 import { changePct, fetchJson } from './http';
 import type { Candle, CandleQuery, DataSource, IntervalId, PairId, Ticker } from './types';
-import { HISTORY_PAGE } from './types';
 import { sourceIntervalFor } from './intervals';
-import { binance } from './binance';
 import { pairsFromNative } from './types';
 import { isKrakenTokenized, nativeSymbol } from './catalog';
 
@@ -68,17 +66,13 @@ export const kraken: DataSource = {
   async fetchCandles(pairId: PairId, interval: IntervalId, opts?: CandleQuery): Promise<Candle[]> {
     const symbol = nativeSymbol(this, pairId);
     const srcId = sourceIntervalFor(NATIVE_IDS, interval) ?? '1h';
-    let candles: Candle[];
-    if (opts?.before !== undefined) {
-      // Kraken OHLC cannot page backwards (always the latest ~720 bars), so older history comes from Binance.
-      candles = await binance.fetchCandles(pairId, srcId, { before: opts.before, limit: opts.limit ?? HISTORY_PAGE });
-    } else {
-      candles = await fetchInterval(symbol, NATIVE_MINUTES[srcId] ?? 60);
-    }
+    // Kraken OHLC always returns the latest ~720 bars and cannot page backwards.
+    // Do not fill the gap from another venue: XRP/USD and XRP/USDT are different markets.
+    if (opts?.before !== undefined) return [];
+    let candles = await fetchInterval(symbol, NATIVE_MINUTES[srcId] ?? 60);
     if (srcId !== interval) {
       candles = aggregateCandles(candles, interval);
     }
-    if (opts?.before !== undefined) candles = candles.filter((c) => c.time < opts.before!);
     if (opts?.limit && candles.length > opts.limit) candles = candles.slice(-opts.limit);
     return candles;
   },
