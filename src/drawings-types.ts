@@ -7,6 +7,7 @@ export type Tool =
   | 'cursor'
   | 'trend'
   | 'hline'
+  | 'orderline'
   | 'rect'
   | 'ray'
   | 'channel'
@@ -66,6 +67,7 @@ export interface DrawStyle {
 type DrawingShape =
   | { id: string; type: 'trend'; p1: Point; p2: Point }
   | { id: string; type: 'hline'; price: number }
+  | { id: string; type: 'orderline'; price: number; text: string }
   | { id: string; type: 'rect'; p1: Point; p2: Point }
   | { id: string; type: 'ray'; p1: Point; p2: Point }
   | { id: string; type: 'channel'; p1: Point; p2: Point; p3: Point }
@@ -113,6 +115,7 @@ export type Drawing = DrawingShape & { style?: DrawStyle };
 export const TOOLS_POINTS: Record<Tool, number> = {
   cursor: 0,
   hline: 1,
+  orderline: 1,
   text: 1,
   trend: 2,
   rect: 2,
