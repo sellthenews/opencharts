@@ -6,3 +6,23 @@ main = "index.ts"
 compatibility_date = "2025-09-01"
 
 # account_id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # filled by wrangler on the operator's machine; do not commit
+
+# Accounts and drawing sync (see docs/ACCOUNTS-SETUP.md). Leave commented until
+# the operator creates the D1 database and KV namespace; paste the real IDs.
+# Never commit secrets. Put SESSION_SECRET, GITHUB_CLIENT_SECRET and
+# GOOGLE_CLIENT_SECRET with `wrangler secret put` after wrangler login.
+#
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "opencharts-accounts"
+# database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+# migrations_dir = "migrations"
+#
+# [[kv_namespaces]]
+# binding = "ACCOUNTS"
+# id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+#
+# [vars]
+# GITHUB_CLIENT_ID = ""
+# GOOGLE_CLIENT_ID = ""
+# APP_ORIGIN = "https://sellthenews.github.io/opencharts/"

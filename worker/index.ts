@@ -6,7 +6,11 @@
  * Yahoo: only GET/OPTIONS, only two Yahoo paths.
  * DEX: allow-listed GeckoTerminal GET paths and official XRPL / Xahau JSON-RPC
  * methods. Client cookies or headers are never forwarded upstream.
+ * Accounts: /auth/* and /sync, only when D1 and KV bindings are configured.
+ * Per-account data is private; cookies are HttpOnly and never forwarded.
  */
+
+import { tryHandleAccounts, type Env } from './accounts';
 
 const ALLOWED_ORIGINS = new Set([
   'https://sellthenews.github.io',
@@ -73,7 +77,8 @@ function corsHeaders(origin: string | null): Headers {
   const headers = new Headers();
   if (origin && ALLOWED_ORIGINS.has(origin)) {
     headers.set('Access-Control-Allow-Origin', origin);
-    headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+    headers.set('Access-Control-Allow-Credentials', 'true');
     headers.set('Access-Control-Allow-Headers', 'Content-Type');
     headers.set('Access-Control-Max-Age', '86400');
     headers.set('Vary', 'Origin');
@@ -278,7 +283,7 @@ async function proxyLedger(network: 'xrpl' | 'xahau', payload: unknown, runtime:
   throw lastError ?? new Error('Upstream unavailable');
 }
 
-export async function handleRequest(request: Request, runtime: WorkerRuntime = {}): Promise<Response> {
+export async function handleRequest(request: Request, runtime: WorkerRuntime = {}, env?: Env): Promise<Response> {
   const origin = request.headers.get('Origin');
 
   if (request.method === 'OPTIONS') {
@@ -292,6 +297,9 @@ export async function handleRequest(request: Request, runtime: WorkerRuntime = {
     applyCors(headers, origin);
     return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), { status: 429, headers });
   }
+
+  const accounts = await tryHandleAccounts(request, env, { origin, jsonError, applyCors });
+  if (accounts) return accounts;
 
   const url = new URL(request.url);
   const gtPath = parseGtPath(url.pathname);
@@ -374,8 +382,8 @@ export async function handleRequest(request: Request, runtime: WorkerRuntime = {
 }
 
 export default {
-  async fetch(request: Request, _env: unknown, ctx: { waitUntil: (p: Promise<unknown>) => void }): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: { waitUntil: (p: Promise<unknown>) => void }): Promise<Response> {
     const cache = typeof caches !== 'undefined' ? caches.default : undefined;
-    return handleRequest(request, { cache, waitUntil: ctx.waitUntil.bind(ctx) });
+    return handleRequest(request, { cache, waitUntil: ctx.waitUntil.bind(ctx) }, env);
   },
 };

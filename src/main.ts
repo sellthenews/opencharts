@@ -46,6 +46,7 @@ import { askConfirm } from './confirm-dialog';
 import { initFibDialog } from './fib-dialog';
 import { fibExtOptionsOf, fibOptionsOf } from './fib-settings';
 import { initBackupUi } from './backup';
+import { initAccounts } from './accounts';
 import { initTemplatesUi } from './templates';
 import { fibExtensionPrice, fibRetracementPrice } from './drawings-math';
 import { initToolRail } from './tool-rail';
@@ -497,6 +498,7 @@ function setStatus(text: string, error = false): void {
 }
 
 initBackupUi({ setStatus });
+initAccounts({ onStatus: (message, error) => setStatus(message, error) });
 
 function currentSource() {
   const src = getSource(sourceId) ?? sources[0];

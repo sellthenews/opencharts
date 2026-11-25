@@ -70,3 +70,15 @@ fills it on the logged-in machine.
 After deploy, a previously 404 `/dex/gt/…` or `/dex/rpc/…` path should return
 the upstream JSON (or a 403 for a disallowed method), and the DEX chart will
 use the proxy when a direct official request fails.
+
+## Accounts and drawing sync
+
+When D1 (`DB`) and KV (`ACCOUNTS`) bindings are configured, this same Worker
+also serves `POST /auth/register`, `POST /auth/login`, `POST /auth/logout`,
+`GET /auth/me`, GitHub/Google OAuth (`/auth/github`, `/auth/google` and their
+callbacks), `GET /sync` and `PUT /sync`. Without those bindings the routes
+return 503 and the site keeps using localStorage only.
+
+Do not put OAuth client secrets or `SESSION_SECRET` in this file or in
+`wrangler.toml`. The operator steps (OAuth app registration, D1, KV, secrets
+and deploy) are in `docs/ACCOUNTS-SETUP.md` (Polish).

@@ -114,6 +114,7 @@
               <h2 data-i18n="toolbar.settings">Settings</h2>
               <button type="button" id="settings-close" class="sheet-close" aria-label="Close" data-i18n-aria="mobile.close">×</button>
             </div>
+            <button type="button" role="menuitem" id="settings-account" data-i18n="toolbar.account">Account</button>
             <button type="button" role="menuitem" id="settings-export" data-i18n="toolbar.exportData">Export data</button>
             <button type="button" role="menuitem" id="settings-import" data-i18n="toolbar.importData">Import data</button>
             <button type="button" role="menuitem" id="settings-save-template" data-i18n="toolbar.saveTemplate">Save template…</button>
@@ -373,6 +374,50 @@
       </div>
     </div>
 
+
+      <div id="account-modal" hidden>
+      <div class="fib-modal-backdrop"></div>
+      <div class="fib-modal-box account-box" role="dialog" aria-modal="true" aria-labelledby="account-modal-title" tabindex="-1">
+        <div class="ind-modal-head">
+          <h2 id="account-modal-title" data-i18n="account.title">Account</h2>
+          <button type="button" id="account-close" aria-label="Close" data-i18n-aria="sym.close">×</button>
+        </div>
+        <p id="account-msg" hidden></p>
+        <div id="account-signed" hidden>
+          <p id="account-who"></p>
+          <div class="account-actions">
+            <button type="button" id="account-sync" data-i18n="account.syncNow">Sync now</button>
+            <button type="button" id="account-logout" data-i18n="account.signOut">Sign out</button>
+          </div>
+        </div>
+        <div id="account-guest">
+          <p data-i18n="account.localOnly">Without an account, drawings stay only in this browser.</p>
+          <div class="account-oauth">
+            <a id="account-github" class="account-oauth-btn" data-i18n="account.github">Continue with GitHub</a>
+            <a id="account-google" class="account-oauth-btn" data-i18n="account.google">Continue with Google</a>
+          </div>
+          <p class="account-or" data-i18n="account.orEmail">Or use email and password</p>
+          <form id="account-form" class="account-form">
+            <label>
+              <span data-i18n="account.email">Email</span>
+              <input id="account-email" type="email" autocomplete="username" required />
+            </label>
+            <label>
+              <span data-i18n="account.password">Password</span>
+              <input id="account-password" type="password" autocomplete="current-password" required minlength="8" />
+            </label>
+            <label>
+              <span data-i18n="account.confirm">Confirm password</span>
+              <input id="account-confirm" type="password" autocomplete="new-password" minlength="8" />
+            </label>
+            <div class="account-actions">
+              <button type="button" id="account-login" data-i18n="account.signIn">Sign in</button>
+              <button type="submit" id="account-register" data-i18n="account.register">Create account</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
       <div id="confirm-modal" hidden>
         <div class="confirm-backdrop"></div>
         <div class="confirm-box" role="dialog" aria-modal="true" aria-labelledby="confirm-title">

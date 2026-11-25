@@ -12,7 +12,7 @@
     "test:e2e": "playwright test",
     "test:unit": "node --experimental-strip-types --import ./unit/resolve-ts.mjs --test unit/*.test.ts",
     "worker:dev": "wrangler dev --local --config worker/wrangler.toml",
-    "worker:test": "node --experimental-strip-types --test worker/test.ts"
+    "worker:test": "node --experimental-strip-types --import ./unit/resolve-ts.mjs --test worker/test.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
