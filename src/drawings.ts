@@ -914,7 +914,8 @@ export class DrawingLayer {
     const y = ev.clientY - rect.top;
     let logical = this.xyToLogical(x, y, loose);
     if (!logical) return null;
-    if (this.shouldSnap(ev)) logical = this.snapLogical(logical, !this.drag);
+    // Magnet (or temporary Ctrl/Cmd invert) snaps to the nearest bar's OHLC, including when placing points.
+    if (this.shouldSnap(ev)) logical = this.snapLogical(logical, false);
     const hit = { x, y, logical };
     this.lastHit = hit;
     return hit;
