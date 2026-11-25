@@ -1,8 +1,8 @@
 {
   "packageId": "io.github.sellthenews.opencharts",
   "host": "sellthenews.github.io",
-  "name": "OpenCharts",
-  "launcherName": "OpenCharts",
+  "name": "Swapwick",
+  "launcherName": "Swapwick",
   "display": "standalone",
   "themeColor": "#0E1116",
   "themeColorDark": "#0E1116",
@@ -18,7 +18,7 @@
     "path": "./android-release.keystore",
     "alias": "android"
   },
-  "appVersionCode": 3,
+  "appVersionCode": 4,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://sellthenews.github.io/opencharts/manifest.webmanifest",
@@ -31,6 +31,6 @@
   "isChromeOSOnly": false,
   "orientation": "default",
   "fullScopeUrl": "https://sellthenews.github.io/opencharts/",
-  "appVersion": "0.1.2",
+  "appVersion": "0.2.0",
   "minSdkVersion": 24
 }

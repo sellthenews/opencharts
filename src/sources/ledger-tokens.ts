@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 OpenCharts contributors
+// Copyright (C) 2026 Swapwick contributors
 
 /** Classic XRP Ledger / Xahau address. */
 export const CLASSIC_ADDRESS_RE = /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/;

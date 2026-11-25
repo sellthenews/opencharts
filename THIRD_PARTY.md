@@ -1,6 +1,6 @@
 # Third-party notices
 
-OpenCharts itself is licensed under AGPL-3.0-or-later. Libraries vendored under `vendor/<name>@<version>/` keep their **own** licenses. The Apache-2.0 code in `vendor/` is not relicensed: Apache-2.0 is compatible with GPLv3/AGPLv3, and each vendor folder still includes the upstream `LICENSE` (and `NOTICE` when the upstream project ships one).
+Swapwick itself is licensed under AGPL-3.0-or-later. Libraries vendored under `vendor/<name>@<version>/` keep their **own** licenses. The Apache-2.0 code in `vendor/` is not relicensed: Apache-2.0 is compatible with GPLv3/AGPLv3, and each vendor folder still includes the upstream `LICENSE` (and `NOTICE` when the upstream project ships one).
 
 This project vendors every library used at runtime. Nothing is loaded from a CDN. Build-time tools (Vite, TypeScript, Playwright) stay in `devDependencies` and are not required to view a built copy of the site. New third-party runtime code should still be MIT or Apache 2.0 until a later project decision says otherwise; do not copy GPL-licensed projects into this tree for now.
 

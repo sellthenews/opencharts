@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 OpenCharts contributors
+// Copyright (C) 2026 Swapwick contributors
 //
 // Network-first for HTML and version.json so a new GitHub Pages deploy
 // reaches users. Cache-first only for hashed /assets/ files (content-hashed
 // by Vite, safe to keep). Cross-origin market-data requests are never
 // intercepted. Scope is "./" so this works under the /opencharts/ base path.
 
-const CACHE_ASSETS = 'opencharts-assets-v5';
-const CACHE_PAGES = 'opencharts-pages-v5';
+const CACHE_ASSETS = 'opencharts-assets-v6';
+const CACHE_PAGES = 'opencharts-pages-v6';
 
 self.addEventListener('install', () => {
   self.skipWaiting();

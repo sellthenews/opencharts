@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "OpenCharts",
-  "short_name": "OpenCharts",
-  "description": "OpenCharts – free charts for everyone.",
+  "name": "Swapwick",
+  "short_name": "Swapwick",
+  "description": "Swapwick – free charts for everyone.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

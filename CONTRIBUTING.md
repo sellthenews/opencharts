@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping with OpenCharts. This is a static charting app licensed under **AGPL-3.0-or-later**.
+Thanks for helping with Swapwick. This is a static charting app licensed under **AGPL-3.0-or-later**.
 
 ## License of contributions
 
@@ -8,7 +8,7 @@ Contributions are accepted under the same license: **inbound = outbound**. By op
 
 ```
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 OpenCharts contributors
+// Copyright (C) 2026 Swapwick contributors
 ```
 
 Do not add GPL-licensed third-party code unless a later project decision says otherwise. Vendored runtime libraries must stay MIT or Apache 2.0, with their `LICENSE` (and `NOTICE`, if any) in `vendor/`.

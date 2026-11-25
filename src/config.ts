@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 OpenCharts contributors
+// Copyright (C) 2026 Swapwick contributors
 
 /** Shown in the Stocks search and on the chart when the Worker URL is empty. */
 export const STOCKS_PROXY_UNCONFIGURED = 'Stock data proxy not configured yet';
 
 /**
- * Origin of the OpenCharts Yahoo proxy Worker, without a trailing slash.
+ * Origin of the Swapwick Yahoo proxy Worker, without a trailing slash.
  * Override at build time with `VITE_STOCKS_PROXY`. Tests may set
  * `opencharts:stocks-proxy` in localStorage (`off` clears it for the unconfigured-message test).
  */

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 OpenCharts contributors
+// Copyright (C) 2026 Swapwick contributors
 
 /** Per-account auth and private drawing sync. No secrets are hard-coded. */
 
@@ -454,13 +454,13 @@ async function fetchOAuthProfile(request: Request, env: Env, provider: 'github' 
     const tokenJson = (await tokenRes.json()) as { access_token?: string };
     if (!tokenJson.access_token) throw new Error('No GitHub token');
     const userRes = await fetch('https://api.github.com/user', {
-      headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${tokenJson.access_token}`, 'User-Agent': 'OpenCharts' },
+      headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${tokenJson.access_token}`, 'User-Agent': 'Swapwick' },
     });
     const user = (await userRes.json()) as { id?: number; login?: string; name?: string; email?: string };
     let email = user.email ?? null;
     if (!email) {
       const emailsRes = await fetch('https://api.github.com/user/emails', {
-        headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${tokenJson.access_token}`, 'User-Agent': 'OpenCharts' },
+        headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${tokenJson.access_token}`, 'User-Agent': 'Swapwick' },
       });
       const emails = (await emailsRes.json()) as { email?: string; primary?: boolean; verified?: boolean }[];
       email = emails.find((e) => e.primary && e.verified)?.email ?? emails.find((e) => e.verified)?.email ?? null;

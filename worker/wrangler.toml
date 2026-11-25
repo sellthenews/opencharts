@@ -1,4 +1,4 @@
-# OpenCharts Yahoo Finance proxy. No secrets and no account_id in the repo.
+# Swapwick Yahoo Finance proxy. No secrets and no account_id in the repo.
 # After `npx wrangler login`, deploy from this directory with `npx wrangler deploy`.
 
 name = "opencharts-proxy"

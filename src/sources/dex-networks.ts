@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 OpenCharts contributors
+// Copyright (C) 2026 Swapwick contributors
 
 /** Official public JSON-RPC, listed at https://xrpl.org/docs/tutorials/public-servers */
 export const XRPL_RPC = 'https://xrplcluster.com/';

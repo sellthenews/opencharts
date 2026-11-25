@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 OpenCharts contributors
+// Copyright (C) 2026 Swapwick contributors
 
 import { t } from './i18n';
 
@@ -9,7 +9,7 @@ export const BACKUP_FORMAT = 'opencharts-backup';
 export const BACKUP_VERSION = 1;
 const MAX_BYTES = 2_000_000;
 
-export interface OpenChartsBackup {
+export interface SwapwickBackup {
   format: typeof BACKUP_FORMAT;
   version: typeof BACKUP_VERSION;
   exportedAt: string;
@@ -34,7 +34,7 @@ export function backupFilename(at = new Date()): string {
   return `opencharts-backup-${y}-${m}-${d}.json`;
 }
 
-export function buildBackup(store: Storage = localStorage, at = new Date()): OpenChartsBackup {
+export function buildBackup(store: Storage = localStorage, at = new Date()): SwapwickBackup {
   return {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
@@ -43,7 +43,7 @@ export function buildBackup(store: Storage = localStorage, at = new Date()): Ope
   };
 }
 
-export function parseBackup(raw: string): { ok: true; backup: OpenChartsBackup } | { ok: false; error: string } {
+export function parseBackup(raw: string): { ok: true; backup: SwapwickBackup } | { ok: false; error: string } {
   if (raw.length > MAX_BYTES) return { ok: false, error: t('status.backupTooLarge') };
   let parsed: unknown;
   try {
@@ -102,7 +102,7 @@ export function initBackupUi(opts: { setStatus: (text: string, error?: boolean) 
   const cancelBtn = document.querySelector<HTMLButtonElement>('#backup-cancel');
   if (!btn || !menu || !exportBtn || !importBtn || !fileInput || !modal || !replaceBtn || !mergeBtn || !cancelBtn) return;
 
-  let pending: OpenChartsBackup | null = null;
+  let pending: SwapwickBackup | null = null;
 
   function setMenu(open: boolean): void {
     menu!.hidden = !open;

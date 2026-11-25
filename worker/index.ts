@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 OpenCharts contributors
+// Copyright (C) 2026 Swapwick contributors
 
 /**
- * OpenCharts proxy Worker: Yahoo Finance plus optional DEX fallbacks.
+ * Swapwick proxy Worker: Yahoo Finance plus optional DEX fallbacks.
  * Yahoo: only GET/OPTIONS, only two Yahoo paths.
  * DEX: allow-listed GeckoTerminal GET paths and official XRPL / Xahau JSON-RPC
  * methods. Client cookies or headers are never forwarded upstream.
@@ -41,7 +41,7 @@ const SEARCH_PARAMS: Record<string, RegExp> = {
 };
 
 const CACHE_TTL_S = 60;
-const UA = 'OpenCharts/0.1 (https://sellthenews.github.io/opencharts/)';
+const UA = 'Swapwick/0.2 (https://sellthenews.github.io/opencharts/)';
 const RATE_LIMIT = 60;
 const RATE_WINDOW_MS = 60_000;
 

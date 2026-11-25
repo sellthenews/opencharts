@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 OpenCharts contributors
+// Copyright (C) 2026 Swapwick contributors
 
 import { expect, test, type Page } from '@playwright/test';
 import fs from 'node:fs';
@@ -99,7 +99,7 @@ test('an invalid backup file is rejected', async ({ page }) => {
   });
   await expect(page.locator('#backup-modal')).toBeHidden();
   await expect(page.locator('#status')).toHaveClass(/is-error/);
-  await expect(page.locator('#status')).toContainText('not an OpenCharts backup');
+  await expect(page.locator('#status')).toContainText('not a Swapwick backup');
   const data = await openchartsData(page);
   expect(data['opencharts:test-flag']).toBe('keep-me');
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true');

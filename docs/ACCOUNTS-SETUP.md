@@ -57,7 +57,7 @@ Migracja jest w `worker/migrations/0001_users.sql`.
 ## 3. Zarejestruj aplikację OAuth GitHub
 
 1. GitHub → Settings → Developer settings → OAuth Apps → New OAuth App.
-2. Application name: `OpenCharts`.
+2. Application name: `Swapwick`.
 3. Homepage URL: `https://sellthenews.github.io/opencharts/`
 4. Authorization callback URL:
    `https://opencharts-proxy.opencharts.workers.dev/auth/github/callback`

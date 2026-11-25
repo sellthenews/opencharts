@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 OpenCharts contributors
+// Copyright (C) 2026 Swapwick contributors
 
 import { STOCKS_PROXY_UNCONFIGURED, getStocksProxyUrl } from '../config';
 import { aggregateCandles, sortDedup } from './aggregate';
@@ -149,7 +149,7 @@ async function fetchChart(symbol: string, interval: string, range: string, opts?
 
 export const yahoo: DataSource = {
   id: 'yahoo',
-  name: 'Yahoo (via OpenCharts proxy)',
+  name: 'Yahoo (via Swapwick proxy)',
   pairs: YAHOO_STOCKS.map((s) => ({ id: s.id, label: s.id, native: s.id })),
   nativeIntervals: NATIVE_IDS,
   async fetchCandles(pairId: PairId, interval: IntervalId, opts?: CandleQuery): Promise<Candle[]> {

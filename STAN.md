@@ -2,7 +2,7 @@
 
 Aktualizacja: 24 listopada 2026, ok. 16:50 (Europe/Warsaw).
 
-Projekt nazywa się **OpenCharts**. Etap 1 i etap 2 są ukończone. Repozytorium publiczne: [sellthenews/opencharts](https://github.com/sellthenews/opencharts). GitHub Pages: [https://sellthenews.github.io/opencharts/](https://sellthenews.github.io/opencharts/). Licencja projektu: **AGPL-3.0-or-later**. Interfejs jest po angielsku.
+Projekt nazywa się **Swapwick** (dawniej OpenCharts). Etap 1 i etap 2 są ukończone. Repozytorium publiczne: [sellthenews/opencharts](https://github.com/sellthenews/opencharts). GitHub Pages: [https://sellthenews.github.io/opencharts/](https://sellthenews.github.io/opencharts/). Licencja projektu: **AGPL-3.0-or-later**. Interfejs jest po angielsku.
 
 ## Commity
 
@@ -189,9 +189,9 @@ Pozostało: pozostałe wskaźniki z typowej listy ~100 (P3).
 
 Zrzuty (lokalne, w `.gitignore`): `screenshots-test/wyszukiwarka-par.png`, `screenshots-test/menu-kontekstowe.png`, `screenshots-test/rysowanie.png`.
 
-## OpenCharts i język angielski (24 XI 2026)
+## Swapwick i język angielski (24 XI 2026)
 
-Aplikacja nosi nazwę **OpenCharts** (tytuł, logo, meta, `package.json`, README, CONTRIBUTING, THIRD_PARTY, nagłówki copyright „OpenCharts contributors”). UI, komunikaty, etykiety, aria-label, nazwy narzędzi i miesięcy oraz locale LWC/`Intl` są po angielsku (`en-US`), `html lang="en"`.
+Aplikacja nosi nazwę **Swapwick** (tytuł, logo, meta, `package.json`, README, CONTRIBUTING, THIRD_PARTY, nagłówki copyright „Swapwick contributors”). Do 25 XI 2026 projekt nazywał się OpenCharts. UI, komunikaty, etykiety, aria-label, nazwy narzędzi i miesięcy oraz locale LWC/`Intl` są po angielsku (`en-US`), `html lang="en"`.
 
 Klucze `localStorage` / `sessionStorage` mają prefiks `opencharts:`. Przy starcie jednorazowo kopiowane są stare klucze `wykresy:` oraz ewentualne `opencandle:`, o ile nowy klucz jeszcze nie istnieje (rysunki, wskaźniki, layout, sidebar, listy, alerty, kursor, magnes, motyw, cache par i świec). Dane użytkownika nie są nadpisywane ani usuwane.
 

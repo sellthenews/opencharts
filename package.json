@@ -1,9 +1,9 @@
 {
   "name": "opencharts",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "license": "AGPL-3.0-or-later",
-  "description": "OpenCharts – free charts for everyone",
+  "description": "Swapwick – free charts for everyone",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -1,4 +1,4 @@
-# OpenCharts data proxy (Cloudflare Worker)
+# Swapwick data proxy (Cloudflare Worker)
 
 A narrow proxy in front of Yahoo Finance and optional DEX fallbacks. It is not
 an open proxy:
@@ -52,7 +52,7 @@ npm run worker:dev
 
 ## Deploy (needs the operator's Cloudflare login)
 
-This cannot be done from a machine that is not logged in to the OpenCharts
+This cannot be done from a machine that is not logged in to the Swapwick
 Cloudflare account. After `wrangler login` on the operator's machine:
 
 ```bash

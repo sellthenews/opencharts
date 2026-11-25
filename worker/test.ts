@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 OpenCharts contributors
+// Copyright (C) 2026 Swapwick contributors
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -67,7 +67,7 @@ test('client cookies and headers are not forwarded upstream', async () => {
   assert.equal(forwarded.get('Cookie'), null);
   assert.equal(forwarded.get('Authorization'), null);
   assert.equal(forwarded.get('X-Forwarded-For'), null);
-  assert.ok(forwarded.get('User-Agent')?.startsWith('OpenCharts/'));
+  assert.ok(forwarded.get('User-Agent')?.startsWith('Swapwick/'));
 });
 
 test('GET chart/XRPN returns Yahoo data and Pages CORS', async () => {

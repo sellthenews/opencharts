@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 OpenCharts contributors
+// Copyright (C) 2026 Swapwick contributors
 
 import './storage';
 import { registerPwa } from './pwa';
@@ -257,7 +257,7 @@ function evaluateAlerts(source: string, pair: PairId, last: number): void {
     const label = t('alerts.toast', { label: alertLabel(a, src?.name ?? a.sourceId) });
     showAlertToast(label);
     setStatus(label);
-    notifyAlert('OpenCharts alert', label);
+    notifyAlert('Swapwick alert', label);
   }
   if (changed) {
     saveAlerts(alerts);

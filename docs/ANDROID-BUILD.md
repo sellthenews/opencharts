@@ -1,4 +1,4 @@
-# Budowa APK OpenCharts (Trusted Web Activity)
+# Budowa APK Swapwick (Trusted Web Activity)
 
 Ten przewodnik jest dla Mateusza. Na środowisku, w którym przygotowano te pliki, nie było oficjalnego JDK ani Android SDK, więc APK nie został tu zbudowany. Konfiguracja jest gotowa w `twa/twa-manifest.json`. Nie trzeba zakładać żadnego konta (ani Google Play, ani innego), żeby powstał podpisany APK do instalacji ręcznej (sideload).
 
@@ -89,7 +89,7 @@ keytool -list -v -keystore twa/android-release.keystore -alias android
 
 Wpisz wartość `SHA256` w miejsce `REPLACE_WITH_KEYSTORE_SHA256` (wielkie litery, dwukropki jak w `keytool`, albo bez dwukropków — obie formy są przyjmowane, byle 32 bajty). `package_name` zostaw `io.github.sellthenews.opencharts`.
 
-Bez tego pliku APK i tak się zainstaluje i otworzy OpenCharts, ale Chrome może pokazać pasek adresu (tryb Custom Tabs z `fallbackType`).
+Bez tego pliku APK i tak się zainstaluje i otworzy Swapwick, ale Chrome może pokazać pasek adresu (tryb Custom Tabs z `fallbackType`).
 
 Sprawdzenie po publikacji:
 

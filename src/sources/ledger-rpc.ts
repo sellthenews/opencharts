@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 OpenCharts contributors
+// Copyright (C) 2026 Swapwick contributors
 
 import { getStocksProxyUrl } from '../config';
 import type { Candle } from './types';
@@ -167,7 +167,7 @@ async function callWorkerRpc(proxy: string, payload: unknown): Promise<Record<st
 }
 
 /**
- * Call an official ledger JSON-RPC endpoint, falling back to the OpenCharts
+ * Call an official ledger JSON-RPC endpoint, falling back to the Swapwick
  * Worker if the browser is blocked. Retry tooBusy / rate limits on the official
  * node that answered. Do not replace a retryable official error with a Worker
  * 418 (usage exceeded). If the Worker has not been updated yet (404), the

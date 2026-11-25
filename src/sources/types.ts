@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 OpenCharts contributors
+// Copyright (C) 2026 Swapwick contributors
 
 /** Builtin or custom interval id, e.g. `15m`, `1h`, `4h`, `1D`, or `6h`. */
 export type IntervalId = string;

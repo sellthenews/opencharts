@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 OpenCharts contributors
+// Copyright (C) 2026 Swapwick contributors
 
 import { expect, test } from '@playwright/test';
 import fs from 'node:fs';
@@ -22,8 +22,8 @@ test('PWA manifest is linked, installable, and the service worker registers', as
     display: string;
     icons: { src: string; sizes: string; purpose?: string }[];
   };
-  expect(manifest.name).toBe('OpenCharts');
-  expect(manifest.short_name).toBe('OpenCharts');
+  expect(manifest.name).toBe('Swapwick');
+  expect(manifest.short_name).toBe('Swapwick');
   expect(manifest.display).toBe('standalone');
   expect(manifest.start_url).toBe('./');
   expect(manifest.scope).toBe('./');
@@ -55,7 +55,7 @@ test('PWA manifest is linked, installable, and the service worker registers', as
   expect(swRes.ok()).toBeTruthy();
   const body = await swRes.text();
   expect(body).toContain('version.json');
-  expect(body).toContain('opencharts-assets-v5');
+  expect(body).toContain('opencharts-assets-v6');
   expect(body).not.toMatch(/https?:\/\/cdn\./i);
 
   fs.mkdirSync(path.resolve('screenshots-test'), { recursive: true });

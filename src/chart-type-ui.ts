@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Copyright (C) 2026 OpenCharts contributors
+// Copyright (C) 2026 Swapwick contributors
 
 import { applyStaticDom, onLangChange, t } from './i18n';
 import { CHART_TYPE_GROUPS, CHART_TYPE_LABEL, type ChartTypeId } from './chart-types';
