@@ -89,7 +89,7 @@ export function initFibDialog(
           <input type="checkbox" class="fib-level-on" ${level.visible ? 'checked' : ''} aria-label="${t('fib.showLevel', { n: val })}" />
           <input type="number" class="fib-level-value" step="any" value="${val}" aria-label="${t('fib.levelValue')}" />
           <input type="color" class="fib-level-color" value="${level.color}" aria-label="${t('fib.levelColor')}" />
-          <button type="button" class="fib-level-remove" data-remove="${i}" title="${t('fib.removeLevel')}" aria-label="${t('fib.removeLevel')}">×</button>
+          <button type="button" class="fib-level-remove btn-danger" data-remove="${i}" title="${t('fib.removeLevel')}" aria-label="${t('fib.removeLevel')}">×</button>
         </div>`;
       })
       .join('');

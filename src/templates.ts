@@ -150,7 +150,7 @@ export function initTemplatesUi(opts: {
       .map(
         (tpl) => `<div class="settings-template-row">
           <button type="button" role="menuitem" data-template-load="${tpl.id}">${escapeHtml(tpl.name)}</button>
-          <button type="button" data-template-del="${tpl.id}" title="${t('tpl.delete')}" aria-label="${t('tpl.delete')} ${escapeHtml(tpl.name)}">×</button>
+          <button type="button" class="btn-danger" data-template-del="${tpl.id}" title="${t('tpl.delete')}" aria-label="${t('tpl.delete')} ${escapeHtml(tpl.name)}">×</button>
         </div>`,
       )
       .join('');

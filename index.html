@@ -132,7 +132,7 @@
               <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M6.5 1.2h3l.35 1.7c.42.16.81.39 1.16.67l1.65-.7 1.5 2.6-1.35 1.15c.08.4.12.8.12 1.22s-.04.82-.12 1.22l1.35 1.15-1.5 2.6-1.65-.7a5.3 5.3 0 0 1-1.16.67L9.5 14.8h-3l-.35-1.7a5.3 5.3 0 0 1-1.16-.67l-1.65.7-1.5-2.6 1.35-1.15A5.4 5.4 0 0 1 3 8.94c0-.42.04-.82.12-1.22L1.77 6.57l1.5-2.6 1.65.7c.35-.28.74-.51 1.16-.67L6.5 1.2ZM8 6.4A1.6 1.6 0 1 0 8 9.6 1.6 1.6 0 0 0 8 6.4Z"/></svg>
             </button>
             <button type="button" id="draw-lock" title="Lock" data-i18n="draw.lock" data-i18n-title="draw.lock">Lock</button>
-            <button type="button" id="draw-delete" title="Delete" data-i18n="draw.delete" data-i18n-title="draw.delete">Delete</button>
+            <button type="button" id="draw-delete" class="btn-danger" title="Delete" data-i18n="draw.delete" data-i18n-title="draw.delete">Delete</button>
             <button type="button" id="draw-collapse" title="Collapse style bar" data-i18n-title="draw.collapseBar" aria-label="Collapse style bar" data-i18n-aria="draw.collapseBar">▾</button>
           </div>
             <div id="fav-bar" hidden></div>
@@ -220,8 +220,8 @@
       <button type="button" role="menuitem" data-chart-menu="copy-price" data-i18n="menu.copyPrice">Copy price</button>
       <button type="button" role="menuitem" data-chart-menu="add-alert" data-i18n="menu.addAlert">Add alert</button>
       <button type="button" role="menuitem" data-chart-menu="watchlist" data-i18n="menu.addWatchGeneric">Add symbol to watchlist</button>
-      <button type="button" role="menuitem" data-chart-menu="remove" hidden data-i18n="menu.remove">Remove</button>
-      <button type="button" role="menuitem" data-chart-menu="clear-drawings" data-i18n="menu.removeAll">Remove all drawings</button>
+      <button type="button" role="menuitem" class="btn-danger" data-chart-menu="remove" hidden data-i18n="menu.remove">Remove</button>
+      <button type="button" role="menuitem" class="btn-danger" data-chart-menu="clear-drawings" data-i18n="menu.removeAll">Remove all drawings</button>
       <button type="button" role="menuitem" data-chart-menu="export" data-i18n="menu.export">Export drawings</button>
       <button type="button" role="menuitem" data-chart-menu="import" data-i18n="menu.import">Import drawings</button>
       <button type="button" role="menuitem" data-chart-menu="settings" hidden data-i18n="menu.settings">Settings…</button>
@@ -315,7 +315,7 @@
           <p id="confirm-title"></p>
           <div class="confirm-actions">
             <button type="button" id="confirm-cancel">Cancel</button>
-            <button type="button" id="confirm-ok" class="danger">Remove</button>
+            <button type="button" id="confirm-ok" class="btn-danger">Remove</button>
           </div>
         </div>
       </div>

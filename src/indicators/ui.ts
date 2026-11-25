@@ -271,7 +271,7 @@ export class IndicatorHud {
             `<span class="ind-label-text">${label}</span><span class="ind-value"></span>` +
             gear +
             `<button type="button" class="ind-ico" data-ind-act="toggle" data-ind-id="${item.id}" title="${eyeTitle}" aria-label="${eyeTitle}">${item.visible ? '◉' : '○'}</button>` +
-            `<button type="button" class="ind-ico" data-ind-act="remove" data-ind-id="${item.id}" title="${t('ind.remove')}" aria-label="${t('ind.remove')}">×</button>` +
+            `<button type="button" class="ind-ico btn-danger" data-ind-act="remove" data-ind-id="${item.id}" title="${t('ind.remove')}" aria-label="${t('ind.remove')}">×</button>` +
             `</div>`,
         );
       }
