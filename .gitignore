@@ -26,3 +26,10 @@ twa/build.gradle
 twa/settings.gradle
 twa/AndroidManifest.xml
 twa/store_icon.png
+twa/.gradle/
+twa/build/
+twa/*.apk
+twa/*.apk.idsig
+twa/*.aab
+twa/gradle.properties
+twa/manifest-checksum.txt

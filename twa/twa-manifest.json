@@ -31,5 +31,6 @@
   "isChromeOSOnly": false,
   "orientation": "default",
   "fullScopeUrl": "https://sellthenews.github.io/opencharts/",
-  "appVersion": "0.1.0"
+  "appVersion": "0.1.0",
+  "minSdkVersion": 24
 }
