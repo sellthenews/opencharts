@@ -17,10 +17,12 @@ import {
   currencySpec,
   estimateLedgerIndex,
   fetchValidatedLedger,
+  initialSampleCount,
   ledgerRpc,
   mergeSamples,
   midFromBooks,
   parseAmmInfo,
+  shouldStopAccountTxPaging,
   tradesFromAccountTx,
 } from './ledger-rpc';
 import { fetchGeckoOhlcv, fetchGeckoTicker, searchGeckoPools } from './geckoterminal';
@@ -165,7 +167,7 @@ function bucketSeconds(interval: string): number {
   return intervalSeconds(interval) ?? 86400;
 }
 
-async function fetchAmmAccountTx(network: DexNetwork, account: string, pages = 6): Promise<unknown[]> {
+async function fetchAmmAccountTx(network: DexNetwork, account: string, pages = 3): Promise<unknown[]> {
   const all: unknown[] = [];
   let marker: unknown;
   for (let i = 0; i < pages; i++) {
@@ -173,16 +175,21 @@ async function fetchAmmAccountTx(network: DexNetwork, account: string, pages = 6
       account,
       ledger_index_min: -1,
       ledger_index_max: -1,
-      limit: 200,
+      limit: 100,
       forward: false,
       binary: false,
     };
     if (marker) params.marker = marker;
-    const result = await ledgerRpc<{ transactions?: unknown[]; marker?: unknown }>(network, 'account_tx', params);
-    const txs = result.transactions ?? [];
-    all.push(...txs);
-    if (!result.marker || txs.length === 0) break;
-    marker = result.marker;
+    try {
+      const result = await ledgerRpc<{ transactions?: unknown[]; marker?: unknown }>(network, 'account_tx', params);
+      const txs = result.transactions ?? [];
+      all.push(...txs);
+      if (!result.marker || txs.length === 0) break;
+      marker = result.marker;
+    } catch (err) {
+      if (shouldStopAccountTxPaging(all.length, err)) break;
+      throw err;
+    }
   }
   return all;
 }
@@ -195,7 +202,8 @@ async function sampleAmmPrices(
   if (!times.length) return [];
   const current = await fetchValidatedLedger(network);
   const out: { time: number; price: number }[] = [];
-  const concurrency = 4;
+  const concurrency = 2;
+  let failedChunks = 0;
   for (let i = 0; i < times.length; i += concurrency) {
     const chunk = times.slice(i, i + concurrency);
     const rows = await Promise.all(
@@ -217,7 +225,10 @@ async function sampleAmmPrices(
         }
       }),
     );
-    for (const row of rows) if (row) out.push(row);
+    let hit = 0;
+    for (const row of rows) if (row) { out.push(row); hit += 1; }
+    failedChunks = hit ? 0 : failedChunks + 1;
+    if (failedChunks >= 2) break;
   }
   return out;
 }
@@ -230,7 +241,8 @@ async function sampleBookPrices(
   if (!times.length) return [];
   const current = await fetchValidatedLedger(network);
   const out: { time: number; price: number }[] = [];
-  const concurrency = 4;
+  const concurrency = 2;
+  let failedChunks = 0;
   for (let i = 0; i < times.length; i += concurrency) {
     const chunk = times.slice(i, i + concurrency);
     const rows = await Promise.all(chunk.map(async (time) => {
@@ -242,7 +254,10 @@ async function sampleBookPrices(
         return null;
       }
     }));
-    for (const row of rows) if (row) out.push(row);
+    let hit = 0;
+    for (const row of rows) if (row) { out.push(row); hit += 1; }
+    failedChunks = hit ? 0 : failedChunks + 1;
+    if (failedChunks >= 2) break;
   }
   return out;
 }
@@ -281,9 +296,30 @@ function sampleTimes(interval: string, last: number, count: number): number[] {
   return times;
 }
 
+function appendLastPrice(candles: Candle[], time: number, price: number): Candle[] {
+  const last = candles[candles.length - 1];
+  if (!last || last.time < time) {
+    candles.push({
+      time,
+      open: last?.close ?? price,
+      high: Math.max(last?.close ?? price, price),
+      low: Math.min(last?.close ?? price, price),
+      close: price,
+      volume: 0,
+    });
+  } else {
+    last.close = price;
+    last.high = Math.max(last.high, price);
+    last.low = Math.min(last.low, price);
+  }
+  return candles;
+}
+
 async function fetchLedgerCandles(network: DexNetwork, pair: DexPairRef, interval: IntervalId, opts?: CandleQuery): Promise<Candle[]> {
   const step = bucketSeconds(interval);
   const now = Math.floor(Date.now() / 1000);
+  const lastTime = opts?.before != null ? Math.floor((opts.before - 1) / step) * step : Math.floor(now / step) * step;
+  const sampleCount = initialSampleCount(interval, opts?.before != null);
   let candles: Candle[] = [];
   if (pair.kind === 'amm' && pair.account) {
     const info = await ledgerRpc<Record<string, unknown>>(network, 'amm_info', { amm_account: pair.account, ledger_index: 'validated' });
@@ -295,51 +331,41 @@ async function fetchLedgerCandles(network: DexNetwork, pair: DexPairRef, interva
       pair.label = `${pair.base}/${pair.quote}`;
       rememberDexPair(pair);
     }
-    const txs = await fetchAmmAccountTx(network, pair.account);
-    const trades = tradesFromAccountTx(txs, pair.account, network.native);
-    candles = aggregateTrades(trades, step);
-    if (snap && Number.isFinite(snap.price)) {
-      const lastTime = Math.floor(now / step) * step;
-      const last = candles[candles.length - 1];
-      if (!last || last.time < lastTime) {
-        candles.push({
-          time: lastTime,
-          open: last?.close ?? snap.price,
-          high: Math.max(last?.close ?? snap.price, snap.price),
-          low: Math.min(last?.close ?? snap.price, snap.price),
-          close: snap.price,
-          volume: 0,
-        });
-      } else {
-        last.close = snap.price;
-        last.high = Math.max(last.high, snap.price);
-        last.low = Math.min(last.low, snap.price);
-      }
+    try {
+      const txs = await fetchAmmAccountTx(network, pair.account);
+      const trades = tradesFromAccountTx(txs, pair.account, network.native);
+      candles = aggregateTrades(trades, step);
+    } catch (err) {
+      if (!snap || !Number.isFinite(snap.price)) throw err;
     }
-    const oldestTrade = trades[0]?.time;
-    const need = sampleTimes(interval, now, interval === '1m' || interval === '5m' ? 24 : interval === '1D' || interval === '1W' || interval === '1M' ? 120 : 72);
+    if (snap && Number.isFinite(snap.price) && opts?.before === undefined) {
+      appendLastPrice(candles, lastTime, snap.price);
+    }
+    const oldestTrade = candles[0]?.time;
+    const need = sampleTimes(interval, lastTime, sampleCount);
     const missing = need.filter((t) => !oldestTrade || t < oldestTrade - step);
     if (missing.length) {
-      const samples = await sampleAmmPrices(network, pair, missing);
-      candles = mergeSamples(candles, samples);
+      try {
+        const samples = await sampleAmmPrices(network, pair, missing);
+        candles = mergeSamples(candles, samples);
+      } catch {
+        /* keep trades / current price already collected */
+      }
     }
   } else if (pair.kind === 'book') {
     const quote = await fetchBookMid(network, pair, 'validated');
     const mid = quote.mid;
-    const times = sampleTimes(interval, now, interval === '1D' || interval === '1W' || interval === '1M' ? 120 : 72);
-    const samples = await sampleBookPrices(network, pair, times);
-    candles = mergeSamples([], samples);
-    if (mid != null) {
-      const lastTime = Math.floor(now / step) * step;
-      const last = candles[candles.length - 1];
-      if (!last || last.time < lastTime) {
-        candles.push({ time: lastTime, open: mid, high: mid, low: mid, close: mid, volume: 0 });
-      } else {
-        last.close = mid;
-        last.high = Math.max(last.high, mid);
-        last.low = Math.min(last.low, mid);
-      }
+    const times = sampleTimes(interval, lastTime, sampleCount);
+    try {
+      const samples = await sampleBookPrices(network, pair, times);
+      candles = mergeSamples([], samples);
+    } catch {
+      candles = [];
     }
+    if (mid != null && opts?.before === undefined) {
+      appendLastPrice(candles, lastTime, mid);
+    }
+    if (!candles.length && mid == null) throw new Error('Order book: no quotes');
   } else {
     throw new Error('Unexpected ledger pair kind');
   }

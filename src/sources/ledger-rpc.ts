@@ -42,12 +42,74 @@ interface RpcEnvelope {
   error?: string;
 }
 
-async function postJson(url: string, body: unknown): Promise<Response> {
-  return fetch(url, {
-    method: 'POST',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+const RPC_TIMEOUT_MS = 8_000;
+const RPC_ATTEMPTS = 3;
+
+/** Injectable so unit tests can simulate official-node rate limits and a 418 Worker. */
+export let ledgerFetch: typeof fetch = (input, init) => fetch(input, init);
+
+export function setLedgerFetchForTests(fn: typeof fetch | null): void {
+  ledgerFetch = fn ?? ((input, init) => fetch(input, init));
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function postJson(url: string, body: unknown, timeoutMs = RPC_TIMEOUT_MS): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await ledgerFetch(url, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export function ledgerErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err ?? '');
+}
+
+/** Official nodes return tooBusy in the JSON body; the Worker may return 418 usage exceeded. */
+export function isRetryableLedgerError(message: string): boolean {
+  return /tooBusy|slowDown|rate limit|units quota|usage exceeded|HTTP 429|HTTP 503|HTTP 502|HTTP 418|abort|aborted|timeout|Failed to fetch|NetworkError|Load failed|ERR_CONNECTION|ERR_FAILED/i.test(
+    message,
+  );
+}
+
+export function isWorkerOverQuota(message: string): boolean {
+  return /HTTP 418|usage exceeded/i.test(message);
+}
+
+/** Prefer retrying a reachable official node over a broken fallback or an over-quota Worker. */
+export function shouldTryWorkerFallback(officialError: string): boolean {
+  if (isWorkerOverQuota(officialError)) return false;
+  if (/tooBusy|slowDown|units quota/i.test(officialError)) return false;
+  return /Failed to fetch|NetworkError|Load failed|abort|aborted|ERR_CONNECTION|ERR_FAILED|HTTP 403|HTTP 502|HTTP 503/i.test(
+    officialError,
+  );
+}
+
+export function retryDelayMs(message: string, attempt: number): number {
+  const hinted = /retry in ~(\d+)\s*ms/i.exec(message);
+  if (hinted) return Math.min(Math.max(Number(hinted[1]), 200), 12_000);
+  return Math.min(300 * 2 ** attempt, 4_000);
+}
+
+export function shouldStopAccountTxPaging(haveTxs: number, err: unknown): boolean {
+  return haveTxs > 0 && isRetryableLedgerError(ledgerErrorMessage(err));
+}
+
+export function initialSampleCount(interval: string, paging: boolean): number {
+  if (paging) return interval === '1D' || interval === '1W' || interval === '1M' ? 32 : 24;
+  if (interval === '1m' || interval === '5m') return 16;
+  return 16;
 }
 
 function workerRpcUrl(networkId: string): string | null {
@@ -57,10 +119,59 @@ function workerRpcUrl(networkId: string): string | null {
   return `${base}/dex/rpc/${path}`;
 }
 
+function parseRpcResult(data: RpcEnvelope): { ok: true; result: Record<string, unknown> } | { ok: false; error: string } {
+  const result = data.result;
+  if (!result || result.status === 'error' || result.error) {
+    return { ok: false, error: String(result?.error_message || result?.error || data.error || 'RPC error') };
+  }
+  return { ok: true, result };
+}
+
+async function callOfficialRpc(url: string, payload: unknown): Promise<{ ok: true; result: Record<string, unknown> } | { ok: false; error: string; retryable: boolean; reachable: boolean }> {
+  try {
+    const res = await postJson(url, payload);
+    if (!res.ok) {
+      const error = `HTTP ${res.status} for ${url}`;
+      const retryable = res.status >= 500 || res.status === 429 || res.status === 418;
+      // A 4xx body can still be a JSON-RPC wrapper (e.g. tooBusy served as 200 usually).
+      if (!retryable) {
+        try {
+          const data = (await res.json()) as RpcEnvelope;
+          const parsed = parseRpcResult(data);
+          if (parsed.ok) return parsed;
+          return { ok: false, error: parsed.error, retryable: isRetryableLedgerError(parsed.error), reachable: true };
+        } catch {
+          return { ok: false, error, retryable: false, reachable: true };
+        }
+      }
+      return { ok: false, error, retryable: true, reachable: true };
+    }
+    const data = (await res.json()) as RpcEnvelope;
+    const parsed = parseRpcResult(data);
+    if (parsed.ok) return parsed;
+    return { ok: false, error: parsed.error, retryable: isRetryableLedgerError(parsed.error), reachable: true };
+  } catch (err) {
+    const error = ledgerErrorMessage(err);
+    return { ok: false, error, retryable: isRetryableLedgerError(error) || true, reachable: false };
+  }
+}
+
+async function callWorkerRpc(proxy: string, payload: unknown): Promise<Record<string, unknown>> {
+  const res = await postJson(proxy, payload);
+  if (res.status === 404) throw new Error(DEX_PROXY_MISSING);
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${proxy}`);
+  const data = (await res.json()) as RpcEnvelope;
+  const parsed = parseRpcResult(data);
+  if (!parsed.ok) throw new Error(parsed.error);
+  return parsed.result;
+}
+
 /**
  * Call an official ledger JSON-RPC endpoint, falling back to the OpenCharts
- * Worker if the browser is blocked. If the Worker has not been updated yet
- * (404), the original error is rethrown or DEX_PROXY_MISSING is raised.
+ * Worker if the browser is blocked. Retry tooBusy / rate limits on the official
+ * node that answered. Do not replace a retryable official error with a Worker
+ * 418 (usage exceeded). If the Worker has not been updated yet (404), the
+ * original error is rethrown or DEX_PROXY_MISSING is raised.
  */
 export async function ledgerRpc<T = Record<string, unknown>>(
   network: DexNetwork,
@@ -71,41 +182,40 @@ export async function ledgerRpc<T = Record<string, unknown>>(
   const payload = { method, params: [params] };
   const urls = [network.rpc, network.rpcFallback].filter((u): u is string => Boolean(u));
   let lastErr: Error | null = null;
-  for (const url of urls) {
-    try {
-      const res = await postJson(url, payload);
-      if (!res.ok) {
-        lastErr = new Error(`HTTP ${res.status} for ${url}`);
-        if (res.status >= 500 || res.status === 429) continue;
-        // 4xx from the official node may still be a valid RPC wrapper; try parse below after throw if body empty
-      }
-      const data = (await res.json()) as RpcEnvelope;
-      const result = data.result;
-      if (!result || result.status === 'error' || result.error) {
-        lastErr = new Error(String(result?.error_message || result?.error || data.error || 'RPC error'));
+  for (let attempt = 0; attempt < RPC_ATTEMPTS; attempt++) {
+    let retryable = false;
+    let reachableBusy: string | null = null;
+    for (const url of urls) {
+      // After a reachable tooBusy, keep retrying that node instead of a dead fallback.
+      if (reachableBusy && url !== reachableBusy && /tooBusy|units quota|slowDown/i.test(lastErr?.message ?? '')) {
         continue;
       }
-      return result as T;
-    } catch (err) {
-      lastErr = err instanceof Error ? err : new Error(String(err));
+      const outcome = await callOfficialRpc(url, payload);
+      if (outcome.ok) return outcome.result as T;
+      lastErr = new Error(outcome.error);
+      if (outcome.retryable) retryable = true;
+      if (outcome.reachable && isRetryableLedgerError(outcome.error)) reachableBusy = url;
+      // Network failure: try the next official URL on this attempt.
+      if (!outcome.reachable) continue;
+      if (outcome.retryable) break;
     }
-  }
-  const proxy = workerRpcUrl(network.id);
-  if (proxy) {
-    try {
-      const res = await postJson(proxy, payload);
-      if (res.status === 404) throw new Error(DEX_PROXY_MISSING);
-      if (!res.ok) throw new Error(`HTTP ${res.status} for ${proxy}`);
-      const data = (await res.json()) as RpcEnvelope;
-      const result = data.result;
-      if (!result || result.status === 'error' || result.error) {
-        throw new Error(String(result?.error_message || result?.error || data.error || 'RPC error'));
+    const proxy = workerRpcUrl(network.id);
+    if (proxy && shouldTryWorkerFallback(lastErr?.message ?? '')) {
+      try {
+        return (await callWorkerRpc(proxy, payload)) as T;
+      } catch (err) {
+        if (err instanceof Error && err.message === DEX_PROXY_MISSING) throw err;
+        const message = ledgerErrorMessage(err);
+        if (isWorkerOverQuota(message)) {
+          retryable = true;
+        } else {
+          lastErr = err instanceof Error ? err : new Error(message);
+          if (isRetryableLedgerError(message)) retryable = true;
+        }
       }
-      return result as T;
-    } catch (err) {
-      if (err instanceof Error && err.message === DEX_PROXY_MISSING) throw err;
-      lastErr = err instanceof Error ? err : new Error(String(err));
     }
+    if (!retryable || attempt === RPC_ATTEMPTS - 1) break;
+    await sleep(retryDelayMs(lastErr?.message ?? '', attempt));
   }
   throw lastErr ?? new Error(`${network.name} RPC unavailable`);
 }
