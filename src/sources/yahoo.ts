@@ -27,6 +27,27 @@ const QUERY: Record<string, { interval: string; range: string }> = {
 };
 const NATIVE_IDS = Object.keys(QUERY);
 
+/** How far before `period2` to ask Yahoo for one older page. */
+function historyWindowSec(interval: string): number {
+  switch (interval) {
+    case '1m':
+      return 7 * 86400;
+    case '2m':
+    case '5m':
+    case '15m':
+    case '30m':
+    case '90m':
+      return 55 * 86400;
+    case '60m':
+    case '1h':
+      return 120 * 86400;
+    case '1d':
+      return 5 * 365 * 86400;
+    default:
+      return 20 * 365 * 86400;
+  }
+}
+
 export const YAHOO_STOCKS: { id: string; name: string }[] = [
   { id: 'XRPN', name: 'Evernorth Holdings' },
   { id: 'AAPL', name: 'Apple' },
@@ -109,9 +130,20 @@ function candlesFromChart(data: YahooChart): Candle[] {
   return sortDedup(candles);
 }
 
-async function fetchChart(symbol: string, interval: string, range: string): Promise<YahooChart> {
+async function fetchChart(symbol: string, interval: string, range: string, opts?: { before?: number; includePrePost?: boolean }): Promise<YahooChart> {
   const base = proxyUrl();
-  const url = `${base}/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${encodeURIComponent(interval)}&range=${encodeURIComponent(range)}&includePrePost=false`;
+  const params = new URLSearchParams();
+  params.set('interval', interval);
+  params.set('includePrePost', opts?.includePrePost ? 'true' : 'false');
+  if (opts?.before !== undefined) {
+    const period2 = Math.max(0, Math.floor(opts.before));
+    const period1 = Math.max(0, period2 - historyWindowSec(interval));
+    params.set('period1', String(period1));
+    params.set('period2', String(period2));
+  } else {
+    params.set('range', range);
+  }
+  const url = `${base}/v8/finance/chart/${encodeURIComponent(symbol)}?${params.toString()}`;
   return fetchJson<YahooChart>(url);
 }
 
@@ -126,7 +158,9 @@ export const yahoo: DataSource = {
     if (!srcId) throw new Error(`Yahoo: unsupported interval ${interval}`);
     const q = QUERY[srcId];
     if (!q) throw new Error(`Yahoo: unsupported interval ${interval}`);
-    let candles = candlesFromChart(await fetchChart(symbol, q.interval, q.range));
+    let candles = candlesFromChart(
+      await fetchChart(symbol, q.interval, q.range, { before: opts?.before, includePrePost: opts?.includePrePost }),
+    );
     if (srcId !== interval) candles = aggregateCandles(candles, interval);
     if (opts?.before !== undefined) candles = candles.filter((c) => c.time < opts.before!);
     if (opts?.limit && candles.length > opts.limit) candles = candles.slice(-opts.limit);
@@ -134,7 +168,7 @@ export const yahoo: DataSource = {
   },
   async fetchTicker(pairId: PairId): Promise<Ticker> {
     const symbol = this.pairs.find((p) => p.id === pairId)?.native ?? pairId;
-    const data = await fetchChart(symbol, '1d', '5d');
+    const data = await fetchChart(symbol, '1d', '5d', { includePrePost: false });
     const meta = data.chart?.result?.[0]?.meta;
     if (!meta) throw new Error('Yahoo: empty ticker');
     const last = Number(meta.regularMarketPrice);

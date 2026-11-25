@@ -8,6 +8,7 @@ export const TOOL_ICONS: Record<string, string> = {
   "cursor": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M3.2 1.8 4.1 13.2l3.1-3.2 3.6 4.4 1.8-1.5-3.6-4.3 4.5-.4z\"/></svg>",
   "trend": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M2 13 14 3\"/><circle cx=\"2\" cy=\"13\" r=\"1.15\" fill=\"currentColor\"/><circle cx=\"14\" cy=\"3\" r=\"1.15\" fill=\"currentColor\"/></svg>",
   "hline": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M1 8h14\"/><circle cx=\"8\" cy=\"8\" r=\"1.15\" fill=\"currentColor\"/></svg>",
+  "orderline": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M1 10h14\"/><rect x=\"1.5\" y=\"2.5\" width=\"8\" height=\"4\" rx=\"1\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\"/></svg>",
   "rect": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><rect fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" x=\"3\" y=\"4\" width=\"10\" height=\"8\"/></svg>",
   "ray": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M2.2 13 14 3.2\"/><circle cx=\"2.2\" cy=\"13\" r=\"1.15\" fill=\"currentColor\"/></svg>",
   "channel": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" d=\"M2 11.2 14 5.2M2 14.2 14 8.2\"/><circle cx=\"2\" cy=\"11.2\" r=\"1\" fill=\"currentColor\"/><circle cx=\"14\" cy=\"5.2\" r=\"1\" fill=\"currentColor\"/></svg>",
@@ -135,6 +136,7 @@ export const TOOL_DEFS: Record<Tool, ToolDef> = {
   cursor: { id: 'cursor', name: 'Cursor', title: 'Cursor' },
   trend: { id: 'trend', name: 'Trend Line', title: 'Trend Line (Alt+T)', shortcut: 'Alt+T' },
   hline: { id: 'hline', name: 'Horizontal Line', title: 'Horizontal Line (Alt+H)', shortcut: 'Alt+H' },
+  orderline: { id: 'orderline', name: 'Order line', title: 'Order line — named horizontal level' },
   hray: { id: 'hray', name: 'Horizontal Ray', title: 'Horizontal Ray — two clicks' },
   vline: { id: 'vline', name: 'Vertical Line', title: 'Vertical Line (Alt+V)', shortcut: 'Alt+V' },
   ray: { id: 'ray', name: 'Ray', title: 'Ray — two clicks, extends' },
@@ -190,7 +192,7 @@ export const RAIL_GROUPS: RailGroup[] = [
     label: 'Lines',
     defaultTool: 'trend',
     sections: [
-      { title: 'LINES', tools: ['trend', 'hline', 'hray', 'vline', 'ray', 'extline', 'arrow'] },
+      { title: 'LINES', tools: ['trend', 'hline', 'orderline', 'hray', 'vline', 'ray', 'extline', 'arrow'] },
       { title: 'CHANNELS', tools: ['channel', 'regress'] },
     ],
   },
@@ -200,8 +202,6 @@ export const RAIL_GROUPS: RailGroup[] = [
     defaultTool: 'fib',
     sections: [
       { title: 'FIBONACCI', tools: ['fib', 'fibext', 'fibchan', 'fibfan', 'fibarcs', 'fibspiral', 'fibtz'] },
-      { title: 'GANN', tools: ['gannbox', 'gannfan', 'gannsq'] },
-      { title: 'CHANNELS', tools: ['pitchfork'] },
     ],
   },
   {
@@ -210,7 +210,6 @@ export const RAIL_GROUPS: RailGroup[] = [
     defaultTool: 'abcd',
     sections: [
       { title: 'PATTERNS', tools: ['abcd', 'xabcd', 'hs', 'tripattern', 'flag'] },
-      { title: 'ELLIOTT', tools: ['elliottimp', 'elliottabc'] },
     ],
   },
   {
@@ -239,6 +238,16 @@ export const RAIL_GROUPS: RailGroup[] = [
     label: 'Icons',
     defaultTool: 'rect',
     sections: [{ title: 'SHAPES', tools: ['rect', 'ellipse', 'triangle', 'arc'] }],
+  },
+  {
+    id: 'more',
+    label: 'More',
+    defaultTool: 'gannfan',
+    sections: [
+      { title: 'GANN', tools: ['gannbox', 'gannfan', 'gannsq'] },
+      { title: 'ELLIOTT', tools: ['elliottimp', 'elliottabc'] },
+      { title: 'CHANNELS', tools: ['pitchfork'] },
+    ],
   },
 ];
 
@@ -373,7 +382,10 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
 
   function lastOf(groupId: string): Tool {
     const g = RAIL_GROUPS.find((x) => x.id === groupId);
-    return last[groupId] ?? g?.defaultTool ?? 'cursor';
+    const saved = last[groupId];
+    const tools = g?.sections.flatMap((s) => s.tools) ?? [];
+    if (saved && tools.includes(saved)) return saved;
+    return g?.defaultTool ?? 'cursor';
   }
 
   function remember(tool: Tool): void {

@@ -3,6 +3,7 @@
 
 import type { UTCTimestamp } from 'lightweight-charts';
 import type { Candle } from '../sources';
+import type { SessionKind } from '../timezone';
 import type { IndicatorInstance, LinePoint } from './types';
 import {
   adx,
@@ -56,6 +57,7 @@ export function warmupFor(item: IndicatorInstance): number {
 export interface PlotContext {
   htf?: Map<string, Candle[]>;
   chartInterval?: string;
+  session?: SessionKind;
 }
 
 export function resolveTfCandles(item: IndicatorInstance, data: Candle[], ctx?: PlotContext): Candle[] {
@@ -81,7 +83,7 @@ export function indicatorPlots(item: IndicatorInstance, data: Candle[], ctx?: Pl
     case 'wma':
       return [line(wma(src, p.period ?? 20))];
     case 'vwap': {
-      const prof = sessionVwapProfile(src);
+      const prof = sessionVwapProfile(src, ctx?.session ?? 'utc-day');
       const bands = Math.max(0, Math.min(3, Math.round(p.bands ?? 0)));
       const plots: PlotPoint[][] = [line(prof.map((b) => ({ time: b.time, value: b.vwap })))];
       for (let n = 1; n <= bands; n++) {
@@ -209,7 +211,7 @@ export function indicatorPlots(item: IndicatorInstance, data: Candle[], ctx?: Pl
       else if (source === 'macd') base = macd(series, 12, 26, 9).map((x) => ({ time: x.time, value: x.macd }));
       else if (source === 'cvd') base = cvd(series);
       else if (source === 'volume') base = series.map((c) => ({ time: c.time, value: c.volume }));
-      else if (source === 'vwap') base = sessionVwapProfile(series).map((b) => ({ time: b.time, value: b.vwap }));
+      else if (source === 'vwap') base = sessionVwapProfile(series, ctx?.session ?? 'utc-day').map((b) => ({ time: b.time, value: b.vwap }));
       else base = series.map((c) => ({ time: c.time, value: c.close }));
       const ma = (p.mode ?? 'sma') === 'ema' ? emaLine(base, period) : smaLine(base, period);
       return [line(base), line(ma)];

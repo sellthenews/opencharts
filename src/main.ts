@@ -34,7 +34,7 @@ import { IndicatorHud, initIndicatorModal } from './indicators/ui';
 import type { IndicatorInstance, IndicatorKind } from './indicators/types';
 import { macd, rsi } from './indicators/math';
 import { describeLoadError } from './load-error';
-import { BUILTIN_INTERVALS, HISTORY_PAGE, MAX_HISTORY, formatPairLabel, getSource, intervalLabel, isIntervalId, loadIntervalFavorites, parseIntervalId, saveIntervalFavorites, sources } from './sources';
+import { BUILTIN_INTERVALS, HISTORY_PAGE, MAX_HISTORY, formatPairLabel, getSource, intervalLabel, intervalSeconds, isIntervalId, loadIntervalFavorites, parseIntervalId, saveIntervalFavorites, sources } from './sources';
 import { isValidCandle } from './sources/aggregate';
 import { lookupSymbol } from './sources/catalog';
 import type { Candle, IntervalId, PairId } from './sources';
@@ -63,6 +63,18 @@ import { loadAllSymbols } from './sources/catalog';
 import type { SymbolInfo } from './sources/catalog';
 import type { Tool } from './drawings-types';
 import { formatDate, formatNumber, initLang, localeOf, onLangChange, t } from './i18n';
+import { initDialogA11y } from './dialog-a11y';
+import { chartPngBlob, copyBlob, downloadBlob } from './snapshot';
+import { chartTimeZone, initChartTimeZone, isChartTimeZone, resolvedTimeZone, setChartTimeZone, zonedDay } from './timezone';
+import { startXrpStrip } from './xrp-strip';
+
+initChartTimeZone();
+const PREPOST_KEY = 'opencharts:prepost';
+const BACKUP_HINT_KEY = 'opencharts:backup-hint';
+const POLL_MS = 15_000;
+let includePrePost = localStorage.getItem(PREPOST_KEY) === 'on';
+let feedError = false;
+let wsStatus: LiveStatus = 'off';
 
 const DEFAULT_SOURCE = 'kraken';
 const DEFAULT_PAIR: PairId = 'XRPUSD';
@@ -365,9 +377,7 @@ function setChartInterval(id: IntervalId): void {
 
 function refreshLangChrome(): void {
   applyTheme(theme);
-  const liveEl = document.querySelector<HTMLElement>('#live-status');
-  const live = (liveEl?.dataset.live ?? appEl.dataset.live ?? 'off') as LiveStatus;
-  setLiveStatus(live);
+  setLiveStatus(wsStatus);
   chart.applyOptions({ localization: { locale: localeOf() }, timeScale: { tickMarkFormatter: formatTimeTick, timeVisible: true } });
   document.querySelectorAll<HTMLOptionElement>('#draw-width option').forEach((opt) => {
     opt.textContent = t('draw.px', { n: opt.value });
@@ -412,14 +422,14 @@ async function loadHigherTf(tf: string): Promise<void> {
   pendingHtf.add(key);
   try {
     const src = currentSource();
-    const cached = getCachedCandles(sourceId, pairId, interval);
+    const cached = getCachedCandles(sourceId, pairId, interval, cacheVariant());
     if (cached?.length) {
       indicators.setHigherTf(interval, cached);
       applyIndicators();
     }
-    const candles = await src.fetchCandles(pairId, interval);
+    const candles = await src.fetchCandles(pairId, interval, candleOpts());
     if (candles.length) {
-      setCachedCandles(sourceId, pairId, interval, candles);
+      setCachedCandles(sourceId, pairId, interval, candles, cacheVariant());
       indicators.setHigherTf(interval, candles);
       applyIndicators();
     }
@@ -446,6 +456,30 @@ indicators.setOnPaneResize((stretches) => {
 
 function isoDate(ts: number): string {
   return formatDate(ts);
+}
+
+function stamp(ts: number): string {
+  try {
+    return new Intl.DateTimeFormat(localeOf(), {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+      timeZone: resolvedTimeZone(),
+    }).format(new Date(ts * 1000));
+  } catch {
+    return formatDate(ts);
+  }
+}
+
+function cacheVariant(): string {
+  return sourceId === 'yahoo' && includePrePost ? 'pre' : '';
+}
+
+function candleOpts(extra: { before?: number; limit?: number } = {}) {
+  return sourceId === 'yahoo' ? { ...extra, includePrePost } : extra;
 }
 
 function priceFormatFor(price: number): { type: 'price'; precision: number; minMove: number } {
@@ -840,7 +874,7 @@ function resizeCharts(): void {
 
 const PHONE_MQ = window.matchMedia('(max-width: 900px), (max-height: 500px) and (orientation: landscape)');
 const PORTRAIT_MQ = window.matchMedia('(max-width: 500px)');
-const MORE_ITEM_SELECTORS = ['#exchange-field', '.compare-wrap', '#theme-btn', '.settings-wrap', '.field-lang', '#layout-btns', '#chart-type-wrap'] as const;
+const MORE_ITEM_SELECTORS = ['#exchange-field', '.compare-wrap', '#theme-btn', '.settings-wrap', '.field-lang', '#layout-btns', '#chart-type-wrap', '#tz-field', '#goto-field'] as const;
 const moreHomes = new Map<string, Comment>();
 
 function isPhoneLayout(): boolean {
@@ -1054,7 +1088,7 @@ function resetHistoryPaging(): void {
   historyLoading = false;
 }
 
-async function loadOlderHistory(): Promise<number> {
+async function loadOlderHistory(announce = false): Promise<number> {
   if (historyLoading || historyExhausted || !lastCandles.length) return 0;
   if (lastCandles.length >= MAX_HISTORY) {
     historyExhausted = true;
@@ -1067,21 +1101,20 @@ async function loadOlderHistory(): Promise<number> {
   const seq = loadSeq;
   try {
     const src = currentSource();
-    const older = await src.fetchCandles(pairId, intervalId, { before: first, limit: HISTORY_PAGE });
+    const older = await src.fetchCandles(pairId, intervalId, candleOpts({ before: first, limit: HISTORY_PAGE }));
     if (seq !== loadSeq || chartHistoryKey() !== key) return 0;
     const added = older.filter((c) => c.time < first);
     if (!added.length) {
       historyExhausted = true;
+      if (announce && src.id === 'kraken') setStatus(t('status.krakenHistoryEnd'));
       return 0;
     }
     const merged = capHistory(mergeCandleLists(added, lastCandles));
     const shift = merged.filter((c) => c.time < first).length - Math.max(0, prevCount + added.length - merged.length);
-    setCachedCandles(sourceId, pairId, intervalId, merged);
+    setCachedCandles(sourceId, pairId, intervalId, merged, cacheVariant());
     applyPriceData(merged, false, Math.max(0, shift));
     const aggregated = !src.nativeIntervals.includes(intervalId);
-    const extra = src.id === 'kraken' && added.length ? t('status.olderFrom', { source: 'Binance' }) : '';
-    const base = describeCandles(src.name, formatPairLabel(sourceId, pairId), merged, aggregated);
-    setStatus(extra ? `${base}${extra}` : base);
+    setStatus(describeCandles(src.name, formatPairLabel(sourceId, pairId), merged, aggregated));
     queueMicrotask(() => maybeLoadOlderHistory());
     return Math.max(0, shift);
   } catch (err) {
@@ -1104,7 +1137,7 @@ function isAtHistoryLeftEdge(): boolean {
 
 function maybeLoadOlderHistory(): void {
   if (historyLoading || historyExhausted || wrapEl.dataset.loading === 'full') return;
-  if (isAtHistoryLeftEdge()) void loadOlderHistory();
+  if (isAtHistoryLeftEdge()) void loadOlderHistory(true);
 }
 
 type LoaderMode = 'off' | 'full' | 'refresh';
@@ -1116,12 +1149,23 @@ function setChartLoading(mode: LoaderMode): void {
 }
 
 function setLiveStatus(status: LiveStatus): void {
+  wsStatus = status;
   const el = document.querySelector<HTMLElement>('#live-status');
-  if (el) {
-    el.dataset.live = status;
-    el.textContent = status === 'live' ? t('toolbar.live') : status === 'connecting' ? t('toolbar.connecting') : t('toolbar.offline');
+  let mode: string = status;
+  let label = status === 'live' ? t('toolbar.live') : status === 'connecting' ? t('toolbar.connecting') : t('toolbar.offline');
+  if (sourceId !== 'kraken') {
+    mode = feedError ? 'error' : 'delayed';
+    label = feedError ? t('toolbar.error') : t('toolbar.delayed');
+  } else if (feedError && status !== 'live') {
+    mode = 'error';
+    label = t('toolbar.error');
   }
-  appEl.dataset.live = status;
+  if (el) {
+    el.dataset.live = mode;
+    el.textContent = label;
+    el.title = sourceId === 'kraken' ? t('toolbar.liveTitle') : label;
+  }
+  appEl.dataset.live = mode;
 }
 
 const live = new KrakenLive(
@@ -1156,7 +1200,7 @@ function syncLiveChart(): void {
 
 function describeCandles(srcName: string, pairLabel: string, candles: Candle[], aggregated: boolean): string {
   const first = isoDate(candles[0]!.time);
-  const last = isoDate(candles[candles.length - 1]!.time);
+  const last = stamp(candles[candles.length - 1]!.time);
   return t('status.candles', { source: srcName, pair: pairLabel, interval: intervalId, extra: aggregated ? t('status.aggregated') : '', count: formatNumber(candles.length), first, last });
 }
 
@@ -1164,11 +1208,14 @@ async function loadChart(): Promise<void> {
   const seq = ++loadSeq;
   resetHistoryPaging();
   syncIndicatorContext();
+  indicators.setSession(sourceId === 'yahoo' ? 'us-rth' : 'utc-day');
+  syncSymbolChrome();
   const src = currentSource();
   const pairLabel = formatPairLabel(sourceId, pairId);
   const aggregated = !src.nativeIntervals.includes(intervalId);
   const hadData = lastCandles.length > 0;
-  const cached = getCachedCandles(sourceId, pairId, intervalId);
+  const variant = cacheVariant();
+  const cached = getCachedCandles(sourceId, pairId, intervalId, variant);
 
   if (cached?.length) {
     applyPriceData(cached, !hadData);
@@ -1183,14 +1230,16 @@ async function loadChart(): Promise<void> {
   }
 
   try {
-    const fresh = await src.fetchCandles(pairId, intervalId);
+    const fresh = await src.fetchCandles(pairId, intervalId, candleOpts());
     if (seq !== loadSeq) return;
     if (!fresh.length) throw new Error('No candles in the API response');
     const candles = capHistory(mergeCandleLists(cached ?? [], fresh));
-    setCachedCandles(sourceId, pairId, intervalId, candles);
+    setCachedCandles(sourceId, pairId, intervalId, candles, variant);
     applyPriceData(candles, !(cached?.length || hadData));
     drawings.setContext(src.id, pairId);
     syncLiveChart();
+    feedError = false;
+    setLiveStatus(wsStatus);
     setStatus(describeCandles(src.name, pairLabel, candles, aggregated));
     if (!historyExhausted && candles.length < MAX_HISTORY) await loadOlderHistory();
     if (seq !== loadSeq) return;
@@ -1208,9 +1257,58 @@ async function loadChart(): Promise<void> {
       setReady(false);
     }
     syncLiveChart();
+    feedError = true;
+    setLiveStatus(wsStatus);
     setStatus(describeLoadError(sourceId, src.name, err), true);
     setChartLoading('off');
   }
+}
+
+let pollTimer = 0;
+
+async function refreshOpenCandle(): Promise<void> {
+  if (document.hidden || sourceId === 'kraken' || wrapEl.dataset.loading === 'full') return;
+  const seq = loadSeq;
+  const key = chartHistoryKey();
+  const src = currentSource();
+  try {
+    const fresh = await src.fetchCandles(pairId, intervalId, candleOpts({ limit: 3 }));
+    if (seq !== loadSeq || chartHistoryKey() !== key || !fresh.length || !lastCandles.length) return;
+    let merged = lastCandles;
+    for (const candle of fresh.slice(-2)) merged = mergeLiveCandle(merged, candle, intervalId);
+    const last = merged[merged.length - 1];
+    const prev = lastCandles[lastCandles.length - 1];
+    if (!last || !prev) return;
+    const changed = last.time !== prev.time || last.close !== prev.close || last.high !== prev.high || last.low !== prev.low || last.open !== prev.open;
+    lastCandles = merged;
+    if (changed) {
+      if (isSyntheticChartType(chartType) || chartType === 'heikin') {
+        applyPriceData(merged, false);
+      } else {
+        const view = buildChartView(chartType, merged);
+        lastChartView = view;
+        writeSeriesUpdate(series, viewLastPoint(view));
+        applyIndicators();
+      }
+      evaluateAlerts(sourceId, pairId, last.close);
+      setCachedCandles(sourceId, pairId, intervalId, merged, cacheVariant());
+    }
+    feedError = false;
+    setLiveStatus(wsStatus);
+    if (!statusEl.classList.contains('is-error')) {
+      setStatus(describeCandles(src.name, formatPairLabel(sourceId, pairId), merged, !src.nativeIntervals.includes(intervalId)));
+    }
+  } catch (err) {
+    if (seq !== loadSeq) return;
+    feedError = true;
+    setLiveStatus(wsStatus);
+    setStatus(describeLoadError(sourceId, src.name, err), true);
+  }
+}
+
+function startCandlePoll(): void {
+  window.clearInterval(pollTimer);
+  pollTimer = window.setInterval(() => void refreshOpenCandle(), POLL_MS);
 }
 
 sourceEl.addEventListener('change', () => {
@@ -1653,7 +1751,7 @@ initChartMenu(
       requestAlertPermission();
       const selected = drawings.getSelected();
       const last = lastCandles[lastCandles.length - 1]?.close;
-      if (selected?.type === 'hline') {
+      if (selected?.type === 'hline' || selected?.type === 'orderline') {
         alerts.push(createAlert(sourceId, pairId, selected.price, 'cross', { kind: 'hline', drawingId: selected.id }));
         setStatus(t('status.alertHline', { price: selected.price }));
       } else if (selected?.type === 'trend') {
@@ -1676,7 +1774,7 @@ initChartMenu(
     },
     alertMenuLabel: (price) => {
       const selected = drawings.getSelected();
-      if (selected?.type === 'hline') return `Add alert on horizontal line (${selected.price})`;
+      if (selected?.type === 'hline' || selected?.type === 'orderline') return `Add alert on horizontal line (${selected.price})`;
       if (selected?.type === 'trend') return 'Add alert on trend line';
       if (price === null) return 'Add alert';
       const label = Math.abs(price) >= 1000 ? price.toFixed(2) : Math.abs(price) >= 1 ? price.toFixed(4) : price.toFixed(6);
@@ -1858,11 +1956,15 @@ function placeDrawBar(): void {
     drawLock.title = drawLock.textContent;
   }
   if (drawSettings) drawSettings.hidden = d.type !== 'fib' && d.type !== 'fibext';
-  const priceValue = d.type === 'hline' ? d.price : d.type === 'hray' ? d.p1.price : null;
+  const priceValue = d.type === 'hline' || d.type === 'orderline' ? d.price : d.type === 'hray' ? d.p1.price : null;
   if (drawPriceWrap) drawPriceWrap.hidden = priceValue === null;
   if (drawPrice && priceValue !== null && document.activeElement !== drawPrice) {
     drawPrice.value = String(priceValue);
   }
+  const labelWrap = document.querySelector<HTMLElement>('#draw-label-wrap');
+  const labelInput = document.querySelector<HTMLInputElement>('#draw-label');
+  if (labelWrap) labelWrap.hidden = d.type !== 'orderline';
+  if (labelInput && d.type === 'orderline' && document.activeElement !== labelInput) labelInput.value = d.text;
   applyDrawBarPos();
   syncDrawBarLayout();
 }
@@ -2115,6 +2217,138 @@ initTemplatesUi({
   setStatus,
 });
 
+function syncSymbolChrome(): void {
+  const pre = document.querySelector<HTMLButtonElement>('#prepost-btn');
+  if (pre) {
+    pre.hidden = sourceId !== 'yahoo';
+    pre.classList.toggle('is-on', includePrePost);
+    pre.setAttribute('aria-pressed', includePrePost ? 'true' : 'false');
+  }
+  const toggle = document.querySelector<HTMLButtonElement>('#xrp-toggle');
+  if (toggle) {
+    const onXrpn = sourceId === 'yahoo' && pairId.toUpperCase() === 'XRPN';
+    toggle.textContent = onXrpn ? 'XRP' : 'XRPN';
+  }
+  const tz = document.querySelector<HTMLSelectElement>('#tz-select');
+  if (tz && document.activeElement !== tz) tz.value = chartTimeZone();
+}
+
+function paintCountdown(): void {
+  const el = document.querySelector<HTMLElement>('#candle-eta');
+  const last = lastCandles[lastCandles.length - 1];
+  if (!el) return;
+  if (!last) {
+    el.textContent = '';
+    return;
+  }
+  const sec = intervalSeconds(intervalId);
+  let closeAt: number | null = null;
+  if (sec && sec > 0) closeAt = last.time + sec;
+  else if (intervalId === '1M') {
+    const d = new Date(last.time * 1000);
+    closeAt = Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1) / 1000);
+  }
+  if (closeAt === null) {
+    el.textContent = '';
+    return;
+  }
+  const left = Math.max(0, closeAt - Math.floor(Date.now() / 1000));
+  const h = Math.floor(left / 3600);
+  const m = Math.floor((left % 3600) / 60);
+  const s = left % 60;
+  const mm = String(m).padStart(2, '0');
+  const ss = String(s).padStart(2, '0');
+  el.textContent = h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
+}
+
+function goToChartDate(iso: string): void {
+  const idx = lastCandles.findIndex((c) => zonedDay(c.time) >= iso);
+  if (idx < 0) {
+    setStatus(t('status.dateNotOnChart'), true);
+    return;
+  }
+  const pad = 40;
+  chart.timeScale().setVisibleLogicalRange({
+    from: Math.max(0, idx - pad),
+    to: Math.min(lastCandles.length + 6, idx + pad),
+  });
+}
+
+async function exportChartPng(mode: 'file' | 'copy'): Promise<void> {
+  try {
+    const vp = document.querySelector<HTMLCanvasElement>('#vp-overlay');
+    const overlays = [overlayEl, vp].filter((c): c is HTMLCanvasElement => c instanceof HTMLCanvasElement);
+    const blob = await chartPngBlob(chart, overlays);
+    if (mode === 'file') {
+      downloadBlob(blob, `opencharts-${pairId}-${intervalId}.png`);
+      setStatus(t('status.pngSaved'));
+    } else {
+      await copyBlob(blob);
+      setStatus(t('status.pngCopied'));
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus(t('status.pngFailed'), true);
+  }
+}
+
+function initChartChrome(): void {
+  syncSymbolChrome();
+  document.querySelector<HTMLSelectElement>('#tz-select')?.addEventListener('change', (ev) => {
+    const value = (ev.target as HTMLSelectElement).value;
+    if (!isChartTimeZone(value)) return;
+    setChartTimeZone(value);
+    chart.applyOptions({ timeScale: { tickMarkFormatter: formatTimeTick, timeVisible: true } });
+    if (lastCandles.length) {
+      const src = currentSource();
+      setStatus(describeCandles(src.name, formatPairLabel(sourceId, pairId), lastCandles, !src.nativeIntervals.includes(intervalId)));
+    }
+  });
+  document.querySelector('#prepost-btn')?.addEventListener('click', () => {
+    includePrePost = !includePrePost;
+    localStorage.setItem(PREPOST_KEY, includePrePost ? 'on' : 'off');
+    syncSymbolChrome();
+    void loadChart();
+  });
+  document.querySelector('#xrp-toggle')?.addEventListener('click', () => {
+    const onXrpn = sourceId === 'yahoo' && pairId.toUpperCase() === 'XRPN';
+    if (onXrpn) applySelection('kraken', 'XRPUSD');
+    else applySelection('yahoo', 'XRPN');
+  });
+  document.querySelector<HTMLInputElement>('#goto-date')?.addEventListener('change', (ev) => {
+    const value = (ev.target as HTMLInputElement).value;
+    if (value) goToChartDate(value);
+  });
+  document.querySelector('#settings-png')?.addEventListener('click', () => void exportChartPng('file'));
+  document.querySelector('#settings-png-copy')?.addEventListener('click', () => void exportChartPng('copy'));
+  document.querySelector<HTMLInputElement>('#draw-label')?.addEventListener('change', (ev) => {
+    drawings.setSelectedLabel((ev.target as HTMLInputElement).value);
+  });
+  drawings.setOnStorageIssue((kind) => {
+    setStatus(kind === 'cap' ? t('status.drawingsTooLarge') : t('status.drawingsQuota'), true);
+    const note = document.querySelector<HTMLElement>('#backup-hint');
+    if (note) note.hidden = false;
+  });
+  const hint = document.querySelector<HTMLElement>('#backup-hint');
+  if (hint && localStorage.getItem(BACKUP_HINT_KEY) !== 'off') hint.hidden = false;
+  document.querySelector('#backup-hint-dismiss')?.addEventListener('click', () => {
+    if (hint) hint.hidden = true;
+    try {
+      localStorage.setItem(BACKUP_HINT_KEY, 'off');
+    } catch {
+      /* ignore */
+    }
+  });
+  const strip = document.querySelector<HTMLElement>('#xrp-strip');
+  if (strip) startXrpStrip(strip);
+  initDialogA11y();
+  startCandlePoll();
+  window.setInterval(paintCountdown, 1000);
+  paintCountdown();
+  setLiveStatus(wsStatus);
+}
+
+initChartChrome();
 void loadChart();
 
 async function checkFreshBuild(): Promise<void> {

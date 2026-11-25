@@ -59,7 +59,7 @@ test('context menu adds and removes the chart symbol; + adds, x removes, list gr
   await expect(page.locator('.watch-row')).toHaveCount(0);
 
   await page.locator('#watch-list-select').selectOption({ label: 'My list' });
-  await expect(page.locator('.watch-row')).toHaveCount(3);
+  await expect(page.locator('.watch-row')).toHaveCount(4);
   const chartPair = await page.locator('#pair').inputValue();
 
   await addFromSearch(page, 'solusd', 'SOL/USD');

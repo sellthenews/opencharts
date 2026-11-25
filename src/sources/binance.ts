@@ -4,7 +4,7 @@
 import { fetchJson } from './http';
 import { aggregateCandles, sortDedup } from './aggregate';
 import type { Candle, CandleQuery, DataSource, IntervalId, PairId, Ticker } from './types';
-import { MAX_CANDLES, pairsFromNative } from './types';
+import { MAX_CANDLES } from './types';
 import { sourceIntervalFor } from './intervals';
 import { nativeSymbol } from './catalog';
 
@@ -75,11 +75,11 @@ async function fetchKlines(
 export const binance: DataSource = {
   id: 'binance',
   name: 'Binance',
-  pairs: pairsFromNative({
-    XRPUSD: 'XRPUSDT',
-    BTCUSD: 'BTCUSDT',
-    ETHUSD: 'ETHUSDT',
-  }),
+  pairs: [
+    { id: 'XRPUSD', label: 'XRP/USDT', native: 'XRPUSDT' },
+    { id: 'BTCUSD', label: 'BTC/USDT', native: 'BTCUSDT' },
+    { id: 'ETHUSD', label: 'ETH/USDT', native: 'ETHUSDT' },
+  ],
   nativeIntervals: [...NATIVE_IDS],
   async fetchCandles(pairId: PairId, interval: IntervalId, opts?: CandleQuery): Promise<Candle[]> {
     const symbol = nativeSymbol(this, pairId);

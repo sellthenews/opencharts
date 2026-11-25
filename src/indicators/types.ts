@@ -392,8 +392,8 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     ],
     pane: 'osc',
   },
-  { kind: 'cvd', name: 'CVD (approx. from OHLCV)', short: 'CVD', aliases: ['cvd', 'cumulative volume delta', 'delta'], group: 'volume', defaults: {}, fields: [], pane: 'osc' },
-  { kind: 'footprint', name: 'Footprint', short: 'Footprint', aliases: ['footprint', 'cluster'], group: 'volume', defaults: { rows: 8 }, fields: [{ key: 'rows', label: 'Rows', min: 4, max: 24, step: 1 }], pane: 'price' },
+  { kind: 'cvd', name: 'CVD (experimental, approximate from OHLCV)', short: 'CVD', aliases: ['cvd', 'cumulative volume delta', 'delta', 'experimental'], group: 'volume', defaults: {}, fields: [], pane: 'osc' },
+  { kind: 'footprint', name: 'Footprint (experimental, approximate from OHLCV)', short: 'Footprint', aliases: ['footprint', 'cluster', 'experimental'], group: 'volume', defaults: { rows: 8 }, fields: [{ key: 'rows', label: 'Rows', min: 4, max: 24, step: 1 }], pane: 'price' },
 ];
 
 export const CATALOG_BY_KIND: Record<IndicatorKind, IndicatorMeta> = Object.fromEntries(
@@ -470,9 +470,9 @@ export function formatIndicatorLabel(item: IndicatorInstance): string {
     case 'maOf':
       return `MA of ${p.source ?? 'rsi'} ${fmtNum(p.period, 14)}`;
     case 'cvd':
-      return 'CVD';
+      return 'CVD · experimental';
     case 'footprint':
-      return `Footprint ${fmtNum(p.rows, 8)}`;
+      return `Footprint ${fmtNum(p.rows, 8)} · experimental`;
     default:
       return meta.short;
   }

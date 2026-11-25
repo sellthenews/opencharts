@@ -12,12 +12,13 @@ test('watchlist: default Kraken pairs and opening a chart', async ({ page }) => 
   const moje = state.lists.find((l) => l.name === 'My list' || l.id === 'moje');
   expect(moje?.items).toEqual([
     { sourceId: 'kraken', pairId: 'XRPUSD' },
+    { sourceId: 'yahoo', pairId: 'XRPN' },
     { sourceId: 'kraken', pairId: 'BTCUSD' },
     { sourceId: 'kraken', pairId: 'ETHUSD' },
   ]);
   expect(state.lists.some((l) => l.name === 'Crypto' || l.id === 'krypto')).toBeTruthy();
 
-  await expect(page.locator('.watch-row')).toHaveCount(3);
+  await expect(page.locator('.watch-row')).toHaveCount(4);
   await page.locator('.watch-row[data-pair="BTCUSD"]').click();
   await expect(page.locator('#pair')).toHaveValue('BTCUSD');
   await expect(page.locator('#source')).toHaveValue('kraken');

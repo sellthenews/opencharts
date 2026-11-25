@@ -108,6 +108,11 @@ function formatSpan(sec: number): string {
 }
 const SELECTED = '#ffcc66';
 const HANDLE = 5;
+
+function handleRadius(): number {
+  if (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches) return 12;
+  return HANDLE;
+}
 const HIT_PX = 7;
 const TOUCH_HIT_PX = 22;
 const LONG_PRESS_MS = 450;
@@ -146,6 +151,8 @@ function isDrawing(value: unknown): value is Drawing {
       return isPoint(d.p1) && isPoint(d.p2);
     case 'hline':
       return Number.isFinite(d.price);
+    case 'orderline':
+      return Number.isFinite(d.price) && typeof d.text === 'string' && d.text.length > 0 && d.text.length <= 64;
     case 'channel':
       return isPoint(d.p1) && isPoint(d.p2) && isPoint(d.p3);
     case 'fibext':
@@ -228,8 +235,18 @@ function load(sourceId: string, pairId: string): Drawing[] {
   }
 }
 
-function save(sourceId: string, pairId: string, drawings: Drawing[]): void {
-  localStorage.setItem(storageKey(sourceId, pairId), JSON.stringify(drawings));
+/** Per symbol. Leaves room in localStorage for the rest of the app. */
+export const DRAWINGS_BYTE_CAP = 1_500_000;
+
+function save(sourceId: string, pairId: string, drawings: Drawing[]): 'ok' | 'cap' | 'quota' {
+  const payload = JSON.stringify(drawings);
+  if (payload.length > DRAWINGS_BYTE_CAP) return 'cap';
+  try {
+    localStorage.setItem(storageKey(sourceId, pairId), payload);
+    return 'ok';
+  } catch {
+    return 'quota';
+  }
 }
 
 function distPointToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
@@ -323,6 +340,7 @@ export class DrawingLayer {
   private onToolDone: (() => void) | null = null;
   private onSelect: ((d: Drawing | null) => void) | null = null;
   private onPersist: (() => void) | null = null;
+  private onStorageIssue: ((kind: 'cap' | 'quota') => void) | null = null;
   private muteHistory = false;
   private defaultStyle = loadLineDefaults();
   private onEdit: ((d: Drawing) => void) | null = null;
@@ -394,6 +412,10 @@ export class DrawingLayer {
 
   setOnPersist(cb: () => void): void {
     this.onPersist = cb;
+  }
+
+  setOnStorageIssue(cb: (kind: 'cap' | 'quota') => void): void {
+    this.onStorageIssue = cb;
   }
 
 
@@ -531,11 +553,23 @@ export class DrawingLayer {
     if (!Number.isFinite(price)) return false;
     const d = this.getSelected();
     if (!d) return false;
-    if (d.type === 'hline') d.price = price;
+    if (d.type === 'hline' || d.type === 'orderline') d.price = price;
     else if (d.type === 'hray') {
       d.p1 = { ...d.p1, price };
       d.p2 = { ...d.p2, price };
     } else return false;
+    this.persist();
+    this.redraw();
+    this.emitSelect();
+    return true;
+  }
+
+  setSelectedLabel(text: string): boolean {
+    const d = this.getSelected();
+    if (!d || d.type !== 'orderline') return false;
+    const clean = text.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 48);
+    if (!clean) return false;
+    d.text = clean;
     this.persist();
     this.redraw();
     this.emitSelect();
@@ -547,7 +581,7 @@ export class DrawingLayer {
     if (!d) return null;
     const width = this.canvas.getBoundingClientRect().width;
     const hs = this.handlesOf(d).map((h) => {
-      if (d.type === 'hline') {
+      if (d.type === 'hline' || d.type === 'orderline') {
         const yy = this.priceToY(d.price);
         return yy === null ? null : { x: width / 2, y: yy };
       }
@@ -745,7 +779,8 @@ export class DrawingLayer {
   }
 
   private persist(): void {
-    save(this.sourceId, this.pairId, this.drawings);
+    const result = save(this.sourceId, this.pairId, this.drawings);
+    if (result !== 'ok') this.onStorageIssue?.(result);
     if (!this.muteHistory) this.onPersist?.();
   }
 
@@ -1223,6 +1258,7 @@ export class DrawingLayer {
         if (handle === 'p2') d.p2 = p;
         break;
       case 'hline':
+      case 'orderline':
         d.price = p.price;
         break;
       case 'channel':
@@ -1365,7 +1401,8 @@ export class DrawingLayer {
         }
         break;
       case 'hline':
-        if (orig.type === 'hline') current.price = orig.price + dp;
+      case 'orderline':
+        if ((orig.type === 'hline' || orig.type === 'orderline') && orig.type === current.type) current.price = orig.price + dp;
         break;
       case 'channel':
         if (orig.type === 'channel') {
@@ -1610,6 +1647,24 @@ export class DrawingLayer {
       this.onToolDone?.();
       return;
     }
+    if (this.tool === 'orderline') {
+      const suggested = `sell ${this.formatPrice(point.price)}`;
+      const text = window.prompt(t('tool.orderline.prompt'), suggested);
+      if (text && text.trim()) {
+        const clean = text.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 48);
+        if (clean) {
+          this.drawings.push(this.stampStyle({ id: newId(), type: 'orderline', price: point.price, text: clean }));
+          this.selectedId = this.drawings[this.drawings.length - 1]!.id;
+          this.persist();
+          this.emitSelect();
+          this.redraw();
+          this.onToolDone?.();
+          return;
+        }
+      }
+      this.redraw();
+      return;
+    }
     if (this.tool === 'text') {
       const text = window.prompt(t('draw.notePrompt'), t('tool.note'));
       if (text && text.trim()) {
@@ -1804,6 +1859,7 @@ export class DrawingLayer {
           { handle: 'p2', point: d.p2 },
         ];
       case 'hline':
+      case 'orderline':
         return [{ handle: 'price', point: { time: this.lastTime || 0, price: d.price } }];
       case 'channel':
         return [
@@ -2005,7 +2061,7 @@ export class DrawingLayer {
     const out: { handle: HandleName; x: number; y: number; priceOnly?: boolean; box?: boolean }[] = [];
     for (const h of this.handlesOf(d)) {
       let xy = this.pointToXy(h.point);
-      if (d.type === 'hline') {
+      if (d.type === 'hline' || d.type === 'orderline') {
         const yy = this.priceToY(d.price);
         if (yy === null) continue;
         xy = { x: width / 2, y: yy };
@@ -2058,7 +2114,7 @@ export class DrawingLayer {
   private hitDistance(d: Drawing, x: number, y: number): number | null {
     const width = this.canvas.getBoundingClientRect().width;
     const height = this.canvas.getBoundingClientRect().height;
-    if (d.type === 'hline') {
+    if (d.type === 'hline' || d.type === 'orderline') {
       const yy = this.priceToY(d.price);
       return yy === null ? null : Math.abs(y - yy);
     }
@@ -2522,7 +2578,7 @@ export class DrawingLayer {
     ctx.save();
     for (const h of this.handlesOf(d)) {
       let xy = this.pointToXy(h.point);
-      if (d.type === 'hline') {
+      if (d.type === 'hline' || d.type === 'orderline') {
         const yy = this.priceToY(d.price);
         if (yy === null) continue;
         xy = { x: width / 2, y: yy };
@@ -2543,7 +2599,7 @@ export class DrawingLayer {
       ctx.strokeStyle = SELECTED;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(xy.x, xy.y, HANDLE, 0, Math.PI * 2);
+      ctx.arc(xy.x, xy.y, handleRadius(), 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
     }
@@ -2604,7 +2660,7 @@ export class DrawingLayer {
     ctx.lineJoin = 'round';
     ctx.setLineDash(st.dash);
 
-    if (d.type === 'hline') {
+    if (d.type === 'hline' || d.type === 'orderline') {
       const y = this.priceToY(d.price);
       if (y !== null) {
         const yy = Math.round(y) + 0.5;
@@ -2612,7 +2668,10 @@ export class DrawingLayer {
         ctx.moveTo(0, yy);
         ctx.lineTo(width, yy);
         ctx.stroke();
-        this.paintBadge(ctx, this.formatPrice(d.price), width - 84, yy + 8, selected);
+        const price = this.formatPrice(d.price);
+        const badge = d.type === 'orderline' ? `${d.text} ${price}` : price;
+        const badgeX = d.type === 'orderline' ? 8 : width - 84;
+        this.paintBadge(ctx, badge, badgeX, yy + 8, selected);
       }
     } else if (d.type === 'vline') {
       const x0 = this.timeToX(d.time);

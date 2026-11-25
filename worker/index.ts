@@ -36,6 +36,30 @@ const SEARCH_PARAMS: Record<string, RegExp> = {
 
 const CACHE_TTL_S = 60;
 const UA = 'OpenCharts/0.1 (https://sellthenews.github.io/opencharts/)';
+const RATE_LIMIT = 60;
+const RATE_WINDOW_MS = 60_000;
+
+const hits = new Map<string, number[]>();
+
+export function resetRateLimit(): void {
+  hits.clear();
+}
+
+function clientKey(request: Request): string {
+  return request.headers.get('CF-Connecting-IP') || 'local';
+}
+
+function rateLimited(request: Request, now = Date.now()): boolean {
+  const key = clientKey(request);
+  const recent = (hits.get(key) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
+  if (recent.length >= RATE_LIMIT) {
+    hits.set(key, recent);
+    return true;
+  }
+  recent.push(now);
+  hits.set(key, recent);
+  return false;
+}
 
 export interface WorkerRuntime {
   cache?: Cache;
@@ -123,6 +147,25 @@ async function fetchUpstream(pathAndQuery: string, runtime: WorkerRuntime): Prom
   throw lastError ?? new Error('Upstream unavailable');
 }
 
+function asJsonResponse(upstream: Response, body: ArrayBuffer): Response | null {
+  const contentType = upstream.headers.get('Content-Type') || '';
+  if (contentType && !/json/i.test(contentType)) return null;
+  const text = new TextDecoder().decode(body);
+  try {
+    JSON.parse(text);
+  } catch {
+    return null;
+  }
+  return new Response(text, {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': `public, max-age=${CACHE_TTL_S}`,
+    },
+  });
+}
+
 async function cachedUpstream(pathAndQuery: string, runtime: WorkerRuntime): Promise<Response> {
   const cacheKeyUrl = `https://opencharts-proxy.cache${pathAndQuery}`;
   if (runtime.cache) {
@@ -130,13 +173,9 @@ async function cachedUpstream(pathAndQuery: string, runtime: WorkerRuntime): Pro
     if (hit) return hit;
   }
   const upstream = await fetchUpstream(pathAndQuery, runtime);
-  const contentType = upstream.headers.get('Content-Type') || 'application/json; charset=utf-8';
   const body = await upstream.arrayBuffer();
-  const headers = new Headers({
-    'Content-Type': contentType,
-    'Cache-Control': `public, max-age=${CACHE_TTL_S}`,
-  });
-  const stored = new Response(body, { status: upstream.status, statusText: upstream.statusText, headers });
+  const stored = asJsonResponse(upstream, body);
+  if (!stored) throw new Error('Upstream did not return JSON');
   if (runtime.cache && upstream.ok) {
     const put = runtime.cache.put(new Request(cacheKeyUrl, { method: 'GET' }), stored.clone());
     if (runtime.waitUntil) runtime.waitUntil(put);
@@ -156,6 +195,12 @@ export async function handleRequest(request: Request, runtime: WorkerRuntime = {
 
   if (request.method !== 'GET') {
     return jsonError(405, 'Method not allowed', origin);
+  }
+
+  if (rateLimited(request)) {
+    const headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Retry-After': '60' });
+    applyCors(headers, origin);
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), { status: 429, headers });
   }
 
   const url = new URL(request.url);
@@ -179,7 +224,7 @@ export async function handleRequest(request: Request, runtime: WorkerRuntime = {
   try {
     const upstream = await cachedUpstream(buildUpstreamPath(url, symbol), runtime);
     const headers = new Headers();
-    headers.set('Content-Type', upstream.headers.get('Content-Type') || 'application/json; charset=utf-8');
+    headers.set('Content-Type', 'application/json; charset=utf-8');
     headers.set('Cache-Control', upstream.headers.get('Cache-Control') || `public, max-age=${CACHE_TTL_S}`);
     applyCors(headers, origin);
     return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers });

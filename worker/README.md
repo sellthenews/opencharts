@@ -2,7 +2,12 @@
 
 A narrow GET proxy in front of Yahoo Finance. It is not an open proxy: only
 `/v8/finance/chart/{symbol}` and `/v1/finance/search` are allowed, query
-parameters are allow-listed, and client cookies or headers are never forwarded.
+parameters are allow-listed, responses must be JSON, and client cookies or
+headers are never forwarded. CORS is limited to the GitHub Pages origin and
+local preview origins (not `*`). Each client IP is limited to 60 requests
+per minute inside one Worker isolate.
+
+Changes in this Worker are not live until the owner deploys them with wrangler.
 
 Do not put `account_id` or secrets in `wrangler.toml`.
 

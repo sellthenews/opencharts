@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 OpenCharts contributors
 
+import { escapeHtml, safeCssColor } from './html';
 import { t } from './i18n';
 
 import { LineSeries } from 'lightweight-charts';
@@ -20,9 +21,33 @@ export interface CompareItem {
   color: string;
 }
 
+const COMPARE_COLOR_FALLBACK = '#42a5f5';
+
 export function loadCompare(): CompareItem[] {
-  // Do not auto-restore compared symbols from a previous session.
-  return [];
+  try {
+    const raw = localStorage.getItem(COMPARE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    const out: CompareItem[] = [];
+    for (const row of parsed) {
+      if (!row || typeof row !== 'object') continue;
+      const sourceId = String((row as CompareItem).sourceId ?? '');
+      const pairId = String((row as CompareItem).pairId ?? '');
+      if (!/^[a-z0-9_-]{1,32}$/i.test(sourceId)) continue;
+      if (!pairId || pairId.length > 48 || /[<>"'&]/.test(pairId)) continue;
+      if (!getSource(sourceId)) continue;
+      out.push({
+        sourceId,
+        pairId,
+        color: safeCssColor(String((row as CompareItem).color ?? ''), COMPARE_COLOR_FALLBACK),
+      });
+      if (out.length >= 8) break;
+    }
+    return out;
+  } catch {
+    return [];
+  }
 }
 
 export function saveCompare(items: CompareItem[]): void {
@@ -190,9 +215,12 @@ export class CompareOverlay {
         const pct = this.lastPct(item);
         const text = pct === null ? '…' : `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
         const label = formatPairLabel(item.sourceId, item.pairId);
-        return `<span class="compare-leg-item" data-compare-key="${this.keyOf(item)}">
-          <i style="background:${item.color}"></i>${label} ${text}
-          <button type="button" class="btn-danger" data-compare-remove="${this.keyOf(item)}" title="${t('compare.remove')}" aria-label="${t('compare.removeTitle', { name: label })}">×</button>
+        const color = safeCssColor(item.color);
+        const safeLabel = escapeHtml(label);
+        const key = escapeHtml(this.keyOf(item));
+        return `<span class="compare-leg-item" data-compare-key="${key}">
+          <i style="background:${color}"></i>${safeLabel} ${text}
+          <button type="button" class="btn-danger" data-compare-remove="${key}" title="${escapeHtml(t('compare.remove'))}" aria-label="${escapeHtml(t('compare.removeTitle', { name: label }))}">×</button>
         </span>`;
       })
       .join('');
@@ -237,10 +265,13 @@ export function initComparePanel(opts: {
     opts.list.innerHTML = items
       .map((item) => {
         const label = formatPairLabel(item.sourceId, item.pairId);
+        const color = safeCssColor(item.color);
+        const safeLabel = escapeHtml(label);
+        const key = escapeHtml(`${item.sourceId}:${item.pairId}`);
         return `<div class="compare-list-row">
-          <span class="compare-swatch" style="background:${item.color}"></span>
-          <span>${label}</span>
-          <button type="button" class="btn-danger" data-compare-remove="${item.sourceId}:${item.pairId}" title="${t('compare.remove')}" aria-label="${t('compare.removeTitle', { name: label })}">×</button>
+          <span class="compare-swatch" style="background:${color}"></span>
+          <span>${safeLabel}</span>
+          <button type="button" class="btn-danger" data-compare-remove="${key}" title="${escapeHtml(t('compare.remove'))}" aria-label="${escapeHtml(t('compare.removeTitle', { name: label }))}">×</button>
         </div>`;
       })
       .join('');
@@ -264,7 +295,7 @@ export function initComparePanel(opts: {
       ...hits.map((s) => ({ sourceId: s.sourceId, id: s.id, title: `${formatPairLabel(s.sourceId, s.id)} · ${s.sourceId}` })),
     ];
     opts.results.innerHTML = rows
-      .map((s) => `<button type="button" data-compare-add="${s.sourceId}:${s.id}">${s.title}</button>`)
+      .map((s) => `<button type="button" data-compare-add="${escapeHtml(s.sourceId)}:${escapeHtml(s.id)}">${escapeHtml(s.title)}</button>`)
       .join('');
   }
 
@@ -312,6 +343,13 @@ export function initComparePanel(opts: {
     setCompareOpen(false);
   });
   opts.search.addEventListener('input', () => renderResults());
+  opts.search.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') {
+      ev.preventDefault();
+      ev.stopPropagation();
+      setCompareOpen(false);
+    }
+  });
   opts.results.addEventListener('click', (ev) => {
     const btn = (ev.target as HTMLElement).closest<HTMLElement>('[data-compare-add]');
     if (!btn) return;

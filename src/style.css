@@ -697,6 +697,85 @@ button.interval.is-active:hover {
   color: #26a69a;
   border-color: #1e7a72;
 }
+.live-status[data-live="delayed"] {
+  color: #8ab4f8;
+  border-color: #3d5a80;
+}
+.live-status[data-live="error"] {
+  color: #ef5350;
+  border-color: #8a3a3a;
+}
+
+.candle-eta {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 3.2em;
+}
+
+#xrp-toggle,
+#prepost-btn {
+  font-size: 12px;
+}
+
+#prepost-btn.is-on {
+  color: var(--heading);
+  border-color: #1e7a72;
+}
+
+.field-tz select,
+.field-goto input {
+  min-height: 28px;
+}
+
+.xrp-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding: 3px 10px 5px;
+  font-size: 11px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  background: var(--bar);
+}
+
+.xrp-quote b {
+  color: var(--heading);
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.backup-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+  background: color-mix(in srgb, #ffcc66 18%, var(--bar));
+  color: var(--text);
+}
+
+.backup-hint button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 #charts {
   flex: 1;
@@ -2426,10 +2505,28 @@ label,
   .brand,
   .field span,
   #layout-btns,
-  #live-status,
-  .toolbar .status,
   .interval-favs {
     display: none !important;
+  }
+
+  #live-status,
+  .toolbar .status,
+  .candle-eta,
+  #xrp-toggle {
+    display: inline-flex !important;
+    align-items: center;
+  }
+
+  .toolbar .status {
+    flex: 1 1 100%;
+    order: 20;
+    white-space: normal;
+    font-size: 11px;
+    min-height: 22px;
+  }
+
+  .xrp-strip {
+    display: flex !important;
   }
 
   .toolbar {

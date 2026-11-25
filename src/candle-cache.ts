@@ -33,8 +33,8 @@ function writeIndex(keys: string[]): void {
   sessionStorage.setItem(INDEX_KEY, JSON.stringify(keys.slice(-MAX_SESSION)));
 }
 
-export function getCachedCandles(sourceId: string, pairId: PairId, intervalId: IntervalId): Candle[] | null {
-  const key = candleCacheKey(sourceId, pairId, intervalId);
+export function getCachedCandles(sourceId: string, pairId: PairId, intervalId: IntervalId, variant = ''): Candle[] | null {
+  const key = candleCacheKey(sourceId, pairId, intervalId) + (variant ? `:${variant}` : '');
   const hit = mem.get(key);
   if (hit?.length) return hit;
   try {
@@ -49,9 +49,9 @@ export function getCachedCandles(sourceId: string, pairId: PairId, intervalId: I
   }
 }
 
-export function setCachedCandles(sourceId: string, pairId: PairId, intervalId: IntervalId, candles: Candle[]): void {
+export function setCachedCandles(sourceId: string, pairId: PairId, intervalId: IntervalId, candles: Candle[], variant = ''): void {
   if (!candles.length) return;
-  const key = candleCacheKey(sourceId, pairId, intervalId);
+  const key = candleCacheKey(sourceId, pairId, intervalId) + (variant ? `:${variant}` : '');
   mem.set(key, candles);
   try {
     sessionStorage.setItem(PREFIX + key, JSON.stringify(candles));

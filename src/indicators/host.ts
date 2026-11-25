@@ -5,6 +5,7 @@ import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, IPriceLine, ISeriesApi, SeriesType, Time, UTCTimestamp } from 'lightweight-charts';
 import { t } from '../i18n';
 import type { Candle } from '../sources/types';
+import type { SessionKind } from '../timezone';
 import {
   adx,
   anchoredVwap,
@@ -186,6 +187,7 @@ export class IndicatorHost {
   private forceFullNext = false;
   private htf = new Map<string, Candle[]>();
   private chartInterval = '1D';
+  private session: SessionKind = 'utc-day';
   private onNeedTf: ((tf: string) => void) | null = null;
   private globalHidden = false;
 
@@ -226,6 +228,10 @@ export class IndicatorHost {
     this.chartInterval = id;
   }
 
+  setSession(kind: SessionKind): void {
+    this.session = kind;
+  }
+
   setOnNeedTimeframe(cb: (tf: string) => void): void {
     this.onNeedTf = cb;
   }
@@ -241,7 +247,7 @@ export class IndicatorHost {
   }
 
   private plotCtx(): PlotContext {
-    return { htf: this.htf, chartInterval: this.chartInterval };
+    return { htf: this.htf, chartInterval: this.chartInterval, session: this.session };
   }
 
   private itemPane(item: IndicatorInstance): 'price' | 'osc' {

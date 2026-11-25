@@ -34,10 +34,25 @@
         <label class="field field-pair">
           <span data-i18n="toolbar.pair">Pair</span>
           <button type="button" id="pair-btn" title="Search symbol (start typing)" data-i18n-title="toolbar.searchSymbol">XRP/USD</button>
+          <button type="button" id="xrp-toggle" title="Switch between XRP and XRPN" data-i18n-title="toolbar.xrpToggle">XRPN</button>
           <select id="pair" data-pair class="visually-hidden" tabindex="-1" aria-hidden="true"></select>
         </label>
 
         <div class="group" role="group" aria-label="Interval" id="intervals" data-i18n-aria="toolbar.interval"></div>
+        <span id="candle-eta" class="candle-eta" title="Time until this candle closes" data-i18n-title="toolbar.countdown"></span>
+        <label class="field field-tz" id="tz-field">
+          <span class="visually-hidden" data-i18n="toolbar.timezone">Time zone</span>
+          <select id="tz-select" aria-label="Time zone" data-i18n-aria="toolbar.timezone">
+            <option value="local" data-i18n="toolbar.tzLocal">Local</option>
+            <option value="America/New_York" data-i18n="toolbar.tzNy">New York</option>
+            <option value="UTC">UTC</option>
+          </select>
+        </label>
+        <button type="button" id="prepost-btn" hidden aria-pressed="false" title="Include pre-market and after-hours" data-i18n="toolbar.prepost" data-i18n-title="toolbar.prepostTitle">Pre/post</button>
+        <label class="field field-goto" id="goto-field">
+          <span class="visually-hidden" data-i18n="toolbar.goTo">Go to date</span>
+          <input type="date" id="goto-date" aria-label="Go to date" data-i18n-aria="toolbar.goTo" />
+        </label>
         <div class="chart-type-wrap" id="chart-type-wrap">
           <button type="button" id="chart-type-btn" title="Choose chart type" data-i18n-title="toolbar.chartTypeTitle" data-i18n-aria="toolbar.chartTypeTitle" aria-label="Choose chart type" aria-haspopup="menu" aria-expanded="false" aria-controls="chart-type-menu">
             <svg class="chart-type-icon" viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
@@ -72,7 +87,7 @@
         </button>
         <div class="compare-wrap">
           <button type="button" id="compare-btn" title="Compare symbols in percent" data-i18n="toolbar.compare" data-i18n-title="toolbar.compareTitle" aria-expanded="false" aria-controls="compare-pop">Compare</button>
-          <div id="compare-pop" hidden>
+          <div id="compare-pop" role="dialog" aria-modal="true" aria-labelledby="compare-btn" hidden>
             <div class="sheet-head">
               <h2 data-i18n="toolbar.compare">Compare</h2>
               <button type="button" id="compare-close" class="sheet-close" aria-label="Close" data-i18n-aria="mobile.close">×</button>
@@ -97,6 +112,8 @@
             <button type="button" role="menuitem" id="settings-export" data-i18n="toolbar.exportData">Export data</button>
             <button type="button" role="menuitem" id="settings-import" data-i18n="toolbar.importData">Import data</button>
             <button type="button" role="menuitem" id="settings-save-template" data-i18n="toolbar.saveTemplate">Save template…</button>
+            <button type="button" role="menuitem" id="settings-png" data-i18n="toolbar.savePng">Save chart image</button>
+            <button type="button" role="menuitem" id="settings-png-copy" data-i18n="toolbar.copyPng">Copy chart image</button>
             <div id="settings-templates" class="settings-templates" role="group" aria-label="Templates" data-i18n-aria="toolbar.templates"></div>
           </div>
         </div>
@@ -119,6 +136,11 @@
         <div id="interval-hint" class="interval-hint" hidden></div>
         <div id="status" class="status" role="status" data-i18n="toolbar.loading">Loading…</div>
       </header>
+      <div id="xrp-strip" class="xrp-strip" aria-label="XRP last price by exchange" data-i18n-aria="toolbar.xrpStrip"></div>
+      <p id="backup-hint" class="backup-hint" hidden>
+        <span data-i18n="status.backupReminder">Drawings stay in this browser. Export a backup from Settings.</span>
+        <button type="button" id="backup-hint-dismiss" aria-label="Dismiss" data-i18n-aria="mobile.close">×</button>
+      </p>
 
         <div class="workspace-body">
         <nav id="tool-rail" aria-label="Drawing tools"></nav>
@@ -155,6 +177,10 @@
               <option value="dashed" data-i18n="draw.dashed">Dashed</option>
               <option value="dotted" data-i18n="draw.dotted">Dotted</option>
             </select>
+            <label id="draw-label-wrap" class="draw-price-wrap" hidden>
+              <span data-i18n="draw.label">Label</span>
+              <input type="text" id="draw-label" maxlength="48" title="Order label" aria-label="Order label" data-i18n-title="draw.label" data-i18n-aria="draw.label" />
+            </label>
             <label id="draw-price-wrap" class="draw-price-wrap" hidden>
               <span data-i18n="draw.price">Price</span>
               <input type="number" id="draw-price" step="any" inputmode="decimal" title="Exact price" aria-label="Exact price" data-i18n-title="draw.exactPrice" data-i18n-aria="draw.exactPrice" />

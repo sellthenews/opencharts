@@ -3,6 +3,7 @@
 
 import { ColorType, CrosshairMode, LineStyle, TickMarkType } from 'lightweight-charts';
 import type { CandlestickSeriesPartialOptions, DeepPartial, ChartOptions, Time } from 'lightweight-charts';
+import { resolvedTimeZone } from './timezone';
 
 export const CHART_FONT = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
@@ -111,15 +112,18 @@ export function formatTimeTick(time: Time, tickMarkType: TickMarkType, locale: s
       : Date.UTC((time as { year: number; month: number; day: number }).year, (time as { year: number; month: number; day: number }).month - 1, (time as { year: number; month: number; day: number }).day) / 1000;
   const d = new Date(sec * 1000);
   const loc = locale || 'en-US';
-  const utc = { timeZone: 'UTC' } as const;
-  if (tickMarkType === TickMarkType.Year) return new Intl.DateTimeFormat(loc, { year: 'numeric', ...utc }).format(d);
-  if (tickMarkType === TickMarkType.Month) return new Intl.DateTimeFormat(loc, { month: 'short', year: 'numeric', ...utc }).format(d);
-  if (tickMarkType === TickMarkType.DayOfMonth) return new Intl.DateTimeFormat(loc, { day: 'numeric', month: 'short', ...utc }).format(d);
+  const zone = { timeZone: resolvedTimeZone() } as const;
+  const clock = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', ...zone }).formatToParts(d);
+  const hour = Number(clock.find((p) => p.type === 'hour')?.value);
+  const minute = Number(clock.find((p) => p.type === 'minute')?.value);
+  if (tickMarkType === TickMarkType.Year) return new Intl.DateTimeFormat(loc, { year: 'numeric', ...zone }).format(d);
+  if (tickMarkType === TickMarkType.Month) return new Intl.DateTimeFormat(loc, { month: 'short', year: 'numeric', ...zone }).format(d);
+  if (tickMarkType === TickMarkType.DayOfMonth) return new Intl.DateTimeFormat(loc, { day: 'numeric', month: 'short', ...zone }).format(d);
   if (tickMarkType === TickMarkType.TimeWithSeconds) {
-    return new Intl.DateTimeFormat(loc, { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', ...utc }).format(d);
+    return new Intl.DateTimeFormat(loc, { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', ...zone }).format(d);
   }
-  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) {
-    return new Intl.DateTimeFormat(loc, { day: 'numeric', month: 'short', ...utc }).format(d);
+  if (hour === 0 && minute === 0) {
+    return new Intl.DateTimeFormat(loc, { day: 'numeric', month: 'short', ...zone }).format(d);
   }
-  return new Intl.DateTimeFormat(loc, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', ...utc }).format(d);
+  return new Intl.DateTimeFormat(loc, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', ...zone }).format(d);
 }
