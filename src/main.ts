@@ -35,6 +35,8 @@ import type { IndicatorInstance, IndicatorKind } from './indicators/types';
 import { macd, rsi } from './indicators/math';
 import { describeLoadError } from './load-error';
 import { BUILTIN_INTERVALS, HISTORY_PAGE, MAX_HISTORY, formatPairLabel, getSource, intervalLabel, intervalSeconds, isIntervalId, loadIntervalFavorites, parseIntervalId, saveIntervalFavorites, sources } from './sources';
+import { defaultPairFor, lookupDexPair, rememberDexPair, searchDexSymbols } from './sources/dex';
+import { DEX_NETWORKS, getDexNetwork, loadDexNetworkId, saveDexNetworkId, saveDexPairId } from './sources/dex-networks';
 import { isValidCandle } from './sources/aggregate';
 import { lookupSymbol } from './sources/catalog';
 import type { Candle, IntervalId, PairId } from './sources';
@@ -109,6 +111,7 @@ registerPwa();
 const appEl = document.querySelector<HTMLDivElement>('#app')!;
 appEl.dataset.sidebar = localStorage.getItem(SIDEBAR_KEY) !== 'off' ? 'on' : 'off';
 const sourceEl = document.querySelector<HTMLSelectElement>('#source')!;
+const networkEl = document.querySelector<HTMLSelectElement>('#dex-network')!;
 const pairEl = document.querySelector<HTMLSelectElement>('#pair')!;
 const intervalsEl = document.querySelector<HTMLDivElement>('#intervals')!;
 const statusEl = document.querySelector<HTMLDivElement>('#status')!;
@@ -507,6 +510,61 @@ function fillSources(): void {
     .join('');
 }
 
+function fillNetworks(): void {
+  const current = loadDexNetworkId();
+  networkEl.innerHTML = DEX_NETWORKS.map(
+    (n) => `<option value="${n.id}"${n.id === current ? ' selected' : ''}>${n.name}</option>`,
+  ).join('');
+  networkEl.value = current;
+}
+
+function syncNetworkField(): void {
+  const field = document.querySelector<HTMLElement>('#network-field');
+  if (field) field.hidden = sourceId !== 'dex';
+  if (sourceId === 'dex') fillNetworks();
+}
+
+function rememberCurrentDexPair(): void {
+  if (sourceId !== 'dex') return;
+  const ref = lookupDexPair(pairId);
+  if (!ref) return;
+  rememberDexPair(ref);
+  saveDexNetworkId(ref.networkId);
+  saveDexPairId(ref.networkId, ref.id);
+}
+
+async function switchDexNetwork(id: string): Promise<void> {
+  const network = getDexNetwork(id);
+  if (!network) return;
+  saveDexNetworkId(id);
+  sourceId = 'dex';
+  sourceEl.value = 'dex';
+  fillNetworks();
+  syncNetworkField();
+  let next = defaultPairFor(id);
+  if (!next) {
+    setStatus(t('status.loadingChart', { source: 'DEX', pair: network.name, interval: intervalId }));
+    try {
+      const hits = await searchDexSymbols(id, '');
+      next = hits[0];
+    } catch (err) {
+      setStatus(describeLoadError('dex', 'DEX', err), true);
+      fillPairs();
+      persistLayout();
+      return;
+    }
+  }
+  if (!next) {
+    fillPairs();
+    persistLayout();
+    setStatus(t('status.dexPickPool', { network: network.name }));
+    return;
+  }
+  rememberDexPair(next);
+  saveDexPairId(id, next.id);
+  applySelection('dex', next.id, true);
+}
+
 function ensurePairOption(id: string, label: string): void {
   if (![...pairEl.options].some((o) => o.value === id)) {
     const opt = document.createElement('option');
@@ -605,9 +663,11 @@ function setReady(ready: boolean): void {
 function applySelection(nextSource: string, nextPair: PairId, reload = true): void {
   sourceId = nextSource;
   pairId = nextPair;
+  if (sourceId === 'dex') rememberCurrentDexPair();
   fillPairs();
   sourceEl.value = sourceId;
   pairEl.value = pairId;
+  syncNetworkField();
   persistLayout();
   watchlist?.highlight(sourceId, pairId);
   if (reload) void loadChart();
@@ -874,7 +934,7 @@ function resizeCharts(): void {
 
 const PHONE_MQ = window.matchMedia('(max-width: 900px), (max-height: 500px) and (orientation: landscape)');
 const PORTRAIT_MQ = window.matchMedia('(max-width: 500px)');
-const MORE_ITEM_SELECTORS = ['#exchange-field', '.compare-wrap', '#theme-btn', '.settings-wrap', '.field-lang', '#layout-btns', '#chart-type-wrap', '#tz-field', '#goto-field'] as const;
+const MORE_ITEM_SELECTORS = ['#exchange-field', '#network-field', '.compare-wrap', '#theme-btn', '.settings-wrap', '.field-lang', '#layout-btns', '#chart-type-wrap', '#tz-field', '#goto-field'] as const;
 const moreHomes = new Map<string, Comment>();
 
 function isPhoneLayout(): boolean {
@@ -1313,18 +1373,32 @@ function startCandlePoll(): void {
 
 sourceEl.addEventListener('change', () => {
   sourceId = sourceEl.value;
+  if (sourceId === 'dex') {
+    const net = loadDexNetworkId();
+    const ref = lookupDexPair(pairId);
+    if (!ref || ref.networkId !== net) {
+      void switchDexNetwork(net);
+      return;
+    }
+  }
   const src = getSource(sourceId);
   if (src && !src.pairs.some((p) => p.id === pairId) && !lookupSymbol(src.id, pairId)) {
     pairId = src.pairs[0]?.id ?? pairId;
   }
   fillPairs();
+  syncNetworkField();
   persistLayout();
   watchlist?.highlight(sourceId, pairId);
   void loadChart();
 });
 
+networkEl.addEventListener('change', () => {
+  void switchDexNetwork(networkEl.value);
+});
+
 pairEl.addEventListener('change', () => {
   pairId = pairEl.value as PairId;
+  if (sourceId === 'dex') rememberCurrentDexPair();
   persistLayout();
   watchlist?.highlight(sourceId, pairId);
   void loadChart();
@@ -1408,6 +1482,8 @@ function extendSelectedFib(): void {
 }
 
 fillSources();
+fillNetworks();
+syncNetworkField();
 fillPairs();
 fillIntervals();
 drawings.setContext(sourceId, pairId);

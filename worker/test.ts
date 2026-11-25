@@ -21,7 +21,7 @@ test('OPTIONS from the Pages origin gets CORS, other origins do not', async () =
   const ok = await handleRequest(req('/v8/finance/chart/AAPL', { method: 'OPTIONS', origin: PAGES }));
   assert.equal(ok.status, 204);
   assert.equal(ok.headers.get('Access-Control-Allow-Origin'), PAGES);
-  assert.equal(ok.headers.get('Access-Control-Allow-Methods'), 'GET, OPTIONS');
+  assert.equal(ok.headers.get('Access-Control-Allow-Methods'), 'GET, POST, OPTIONS');
 
   const local = await handleRequest(req('/v8/finance/chart/AAPL', { method: 'OPTIONS', origin: 'http://127.0.0.1:4173' }));
   assert.equal(local.status, 204);
@@ -112,4 +112,78 @@ test('GET search for a GPW ticker returns quotes', async () => {
   assert.equal(res.headers.get('Access-Control-Allow-Origin'), 'http://127.0.0.1:4173');
   const data = (await res.json()) as { quotes?: Array<{ symbol?: string; quoteType?: string }> };
   assert.ok((data.quotes ?? []).some((q) => q.symbol === 'PKN.WA'));
+});
+
+
+test('DEX GeckoTerminal paths are allow-listed and cookies are not forwarded', async () => {
+  let forwarded: { url?: string; headers?: Headers; method?: string } = {};
+  const runtime = {
+    fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+      forwarded = { url: String(input), headers: new Headers(init?.headers), method: init?.method ?? 'GET' };
+      return new Response(JSON.stringify({ data: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    },
+  };
+  const ok = await handleRequest(
+    new Request('https://opencharts-proxy.workers.dev/dex/gt/networks/eth/pools/0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640/ohlcv/hour?aggregate=1&limit=10&currency=token', {
+      headers: { Origin: PAGES, Cookie: 'session=secret' },
+    }),
+    runtime,
+  );
+  assert.equal(ok.status, 200);
+  assert.equal(ok.headers.get('Access-Control-Allow-Origin'), PAGES);
+  assert.ok(forwarded.url?.startsWith('https://api.geckoterminal.com/api/v2/networks/eth/pools/'));
+  assert.equal(forwarded.headers?.get('Cookie'), null);
+  assert.equal(forwarded.headers?.get('Authorization'), null);
+
+  assert.equal((await handleRequest(req('/dex/gt/networks/ETH/pools'), runtime)).status, 404);
+  assert.equal((await handleRequest(req('/dex/gt/../admin'), runtime)).status, 404);
+  assert.equal((await handleRequest(req('/dex/gt/networks/eth/pools/0xabc/ohlcv/week'), runtime)).status, 404);
+  assert.equal((await handleRequest(req('/dex/gt/networks/eth/pools?foo=1'), runtime)).status, 403);
+});
+
+test('ledger RPC proxy only allows official read methods and official hosts', async () => {
+  let forwarded: { url?: string; body?: string; headers?: Headers } = {};
+  const runtime = {
+    fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+      forwarded = { url: String(input), body: String(init?.body ?? ''), headers: new Headers(init?.headers) };
+      return new Response(JSON.stringify({ result: { status: 'success', info: { network_id: 0 } } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
+  };
+  const ok = await handleRequest(
+    new Request('https://opencharts-proxy.workers.dev/dex/rpc/xrpl', {
+      method: 'POST',
+      headers: { Origin: PAGES, 'Content-Type': 'application/json', Cookie: 'session=secret' },
+      body: JSON.stringify({ method: 'amm_info', params: [{ amm_account: 'rhWTXC2m2gGGA9WozUaoMm6kLAVPb1tcS3' }] }),
+    }),
+    runtime,
+  );
+  assert.equal(ok.status, 200);
+  assert.equal(ok.headers.get('Access-Control-Allow-Origin'), PAGES);
+  assert.equal(forwarded.url, 'https://xrplcluster.com/');
+  assert.equal(forwarded.headers?.get('Cookie'), null);
+  assert.match(forwarded.body ?? '', /amm_info/);
+
+  const submit = await handleRequest(
+    new Request('https://opencharts-proxy.workers.dev/dex/rpc/xrpl', {
+      method: 'POST',
+      headers: { Origin: PAGES, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method: 'submit', params: [{ tx_blob: 'abc' }] }),
+    }),
+    runtime,
+  );
+  assert.equal(submit.status, 403);
+
+  const xahau = await handleRequest(
+    new Request('https://opencharts-proxy.workers.dev/dex/rpc/xahau', {
+      method: 'POST',
+      headers: { Origin: PAGES, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method: 'book_offers', params: [{}] }),
+    }),
+    runtime,
+  );
+  assert.equal(xahau.status, 200);
+  assert.equal(forwarded.url, 'https://xahau.network/');
 });

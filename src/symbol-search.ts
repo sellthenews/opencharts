@@ -14,6 +14,8 @@ import {
   symbolFromYahooQuote,
 } from './sources/catalog';
 import { searchYahooQuotes } from './sources/yahoo';
+import { searchDexSymbols } from './sources/dex';
+import { loadDexNetworkId } from './sources/dex-networks';
 import { sources } from './sources';
 
 const SOURCE_NAME: Record<string, string> = Object.fromEntries(sources.map((s) => [s.id, s.name]));
@@ -103,6 +105,10 @@ export function initSymbolSearch(opts: {
   let yahooTimer: ReturnType<typeof setTimeout> | undefined;
   let yahooAbort: AbortController | null = null;
   let yahooFor = '';
+  let dexHits: SymbolInfo[] = [];
+  let dexTimer: ReturnType<typeof setTimeout> | undefined;
+  let dexAbort: AbortController | null = null;
+  let dexFor = '';
 
   function needsProxyHint(): boolean {
     return !getStocksProxyUrl() && (category === 'stocks' || filter === 'yahoo');
@@ -161,6 +167,55 @@ export function initSymbolSearch(opts: {
     }
   }
 
+
+  function dexSearchEnabled(): boolean {
+    if (category === 'stocks') return false;
+    return filter === 'dex' || filter === 'all';
+  }
+
+  function scheduleDexSearch(): void {
+    if (dexTimer !== undefined) clearTimeout(dexTimer);
+    dexAbort?.abort();
+    dexAbort = null;
+    if (!dexSearchEnabled()) {
+      dexHits = [];
+      dexFor = '';
+      return;
+    }
+    const q = opts.input.value.trim();
+    dexTimer = setTimeout(() => {
+      void runDexSearch(q);
+    }, 250);
+  }
+
+  async function runDexSearch(q: string): Promise<void> {
+    dexAbort?.abort();
+    const ac = new AbortController();
+    dexAbort = ac;
+    try {
+      const networkId = loadDexNetworkId();
+      const refs = await searchDexSymbols(networkId, q);
+      if (ac.signal.aborted) return;
+      dexHits = refs.map((ref) => ({
+        sourceId: 'dex',
+        id: ref.id,
+        native: ref.native,
+        base: ref.base,
+        quote: ref.quote,
+        label: ref.label,
+        kind: 'crypto' as const,
+        search: `${ref.label} ${ref.id} ${ref.native} ${ref.base} ${ref.quote} ${ref.networkId}`.toLowerCase(),
+        name: ref.networkId,
+      }));
+      dexFor = q;
+    } catch {
+      if (ac.signal.aborted) return;
+      dexHits = [];
+      dexFor = q;
+    }
+    if (open && opts.input.value.trim() === q) renderResults();
+  }
+
   function render(): void {
     if (!yahooSearchEnabled()) {
       yahooHits = [];
@@ -168,12 +223,14 @@ export function initSymbolSearch(opts: {
     }
     renderResults();
     scheduleYahooSearch();
+    scheduleDexSearch();
   }
 
   function renderResults(): void {
     const local = searchSymbols(opts.input.value, filter, items, 100, category);
-    const remote = yahooFor === opts.input.value.trim() ? yahooHits : [];
-    visible = mergeHits(local, remote);
+    const remoteYahoo = yahooFor === opts.input.value.trim() ? yahooHits : [];
+    const remoteDex = dexFor === opts.input.value.trim() ? dexHits : [];
+    visible = mergeHits(local, [...remoteYahoo, ...remoteDex]);
     if (active >= visible.length) active = 0;
     const banner = needsProxyHint() ? `<p class="sym-banner" role="status">${STOCKS_PROXY_UNCONFIGURED}</p>` : '';
     if (!visible.length) {
@@ -186,7 +243,12 @@ export function initSymbolSearch(opts: {
         .map((item, i) => {
           const currentCls = item.sourceId === current.sourceId && item.id === current.pairId ? ' is-current' : '';
           const activeCls = i === active ? ' is-active' : '';
-          const sourceLabel = item.sourceId === 'yahoo' ? 'Yahoo' : (SOURCE_NAME[item.sourceId] ?? item.sourceId);
+          const sourceLabel =
+            item.sourceId === 'yahoo'
+              ? 'Yahoo'
+              : item.sourceId === 'dex'
+                ? `DEX · ${item.name ?? loadDexNetworkId()}`
+                : (SOURCE_NAME[item.sourceId] ?? item.sourceId);
           const name = item.name ? `<span class="sym-name">${escapeHtml(item.name)}</span>` : '';
           return `<button type="button" class="sym-row${currentCls}${activeCls}" data-sym-index="${i}">
           <span class="sym-label">${escapeHtml(item.label)}${name}</span>

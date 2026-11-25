@@ -126,6 +126,14 @@ body,
   letter-spacing: 0.04em;
 }
 
+#network-field select {
+  max-width: 12rem;
+}
+
+#network-field[hidden] {
+  display: none !important;
+}
+
 select,
 button {
   background: var(--btn);

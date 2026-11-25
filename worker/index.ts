@@ -2,8 +2,10 @@
 // Copyright (C) 2026 OpenCharts contributors
 
 /**
- * Narrow Yahoo Finance proxy for OpenCharts.
- * Only GET/OPTIONS, only two Yahoo paths, no forwarding of client headers or cookies.
+ * OpenCharts proxy Worker: Yahoo Finance plus optional DEX fallbacks.
+ * Yahoo: only GET/OPTIONS, only two Yahoo paths.
+ * DEX: allow-listed GeckoTerminal GET paths and official XRPL / Xahau JSON-RPC
+ * methods. Client cookies or headers are never forwarded upstream.
  */
 
 const ALLOWED_ORIGINS = new Set([
@@ -71,7 +73,7 @@ function corsHeaders(origin: string | null): Headers {
   const headers = new Headers();
   if (origin && ALLOWED_ORIGINS.has(origin)) {
     headers.set('Access-Control-Allow-Origin', origin);
-    headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     headers.set('Access-Control-Allow-Headers', 'Content-Type');
     headers.set('Access-Control-Max-Age', '86400');
     headers.set('Vary', 'Origin');
@@ -184,6 +186,98 @@ async function cachedUpstream(pathAndQuery: string, runtime: WorkerRuntime): Pro
   return stored;
 }
 
+
+const GT_BASE = 'https://api.geckoterminal.com/api/v2';
+const GT_NET = /^[a-z0-9_]{1,32}$/;
+const GT_ADDR = /^[a-zA-Z0-9]{1,80}$/;
+const GT_TF = /^(day|hour|minute)$/;
+const GT_PARAMS: Record<string, RegExp> = {
+  page: /^\d{1,3}$/,
+  query: /^[A-Za-z0-9 ._\-/:#]{1,80}$/,
+  q: /^[A-Za-z0-9 ._\-/:#]{1,80}$/,
+  aggregate: /^\d{1,3}$/,
+  limit: /^\d{1,4}$/,
+  currency: /^(usd|token)$/,
+  before_timestamp: /^\d{1,12}$/,
+  network: GT_NET,
+  include: /^[a-z,_]{0,80}$/,
+  duration: /^(5m|15m|1h|6h|24h)$/,
+};
+
+const LEDGER_METHODS = new Set(['amm_info', 'account_tx', 'book_offers', 'ledger', 'server_info', 'account_info']);
+const LEDGER_UPSTREAM: Record<string, readonly string[]> = {
+  xrpl: ['https://xrplcluster.com/', 'https://s2.ripple.com:51234/'],
+  xahau: ['https://xahau.network/', 'https://xahau.org/'],
+};
+
+function parseGtPath(pathname: string): string | null {
+  if (!pathname.startsWith('/dex/gt/')) return null;
+  const rest = pathname.slice('/dex/gt'.length);
+  const parts = rest.split('/').filter(Boolean);
+  if (parts[0] === 'search' && parts[1] === 'pools' && parts.length === 2) return rest;
+  if (parts[0] !== 'networks' || parts.length < 1) return null;
+  if (parts.length === 1) return rest;
+  if (!GT_NET.test(parts[1]!)) return null;
+  if (parts.length === 2) return rest;
+  if (parts[2] === 'trending_pools' && parts.length === 3) return rest;
+  if (parts[2] !== 'pools') return null;
+  if (parts.length === 3) return rest;
+  if (!GT_ADDR.test(parts[3]!)) return null;
+  if (parts.length === 4) return rest;
+  if (parts[4] === 'ohlcv' && parts.length === 6 && GT_TF.test(parts[5]!)) return rest;
+  return null;
+}
+
+function parseRpcNetwork(pathname: string): 'xrpl' | 'xahau' | null {
+  if (pathname === '/dex/rpc/xrpl') return 'xrpl';
+  if (pathname === '/dex/rpc/xahau') return 'xahau';
+  return null;
+}
+
+async function proxyGecko(pathAndQuery: string, runtime: WorkerRuntime): Promise<Response> {
+  const doFetch = runtime.fetch ?? fetch;
+  const upstream = `${GT_BASE}${pathAndQuery}`;
+  const res = await doFetch(upstream, {
+    method: 'GET',
+    headers: { Accept: 'application/json', 'User-Agent': UA },
+  });
+  const contentType = res.headers.get('Content-Type') || 'application/json; charset=utf-8';
+  const body = await res.arrayBuffer();
+  return new Response(body, {
+    status: res.status,
+    statusText: res.statusText,
+    headers: { 'Content-Type': contentType, 'Cache-Control': `public, max-age=${CACHE_TTL_S}` },
+  });
+}
+
+async function proxyLedger(network: 'xrpl' | 'xahau', payload: unknown, runtime: WorkerRuntime): Promise<Response> {
+  const doFetch = runtime.fetch ?? fetch;
+  let lastError: Error | null = null;
+  for (const base of LEDGER_UPSTREAM[network]!) {
+    try {
+      const res = await doFetch(base, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'User-Agent': UA },
+        body: JSON.stringify(payload),
+      });
+      if (res.status >= 500) {
+        lastError = new Error(`Upstream HTTP ${res.status}`);
+        continue;
+      }
+      const contentType = res.headers.get('Content-Type') || 'application/json; charset=utf-8';
+      const body = await res.arrayBuffer();
+      return new Response(body, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: { 'Content-Type': contentType, 'Cache-Control': 'no-store' },
+      });
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+  throw lastError ?? new Error('Upstream unavailable');
+}
+
 export async function handleRequest(request: Request, runtime: WorkerRuntime = {}): Promise<Response> {
   const origin = request.headers.get('Origin');
 
@@ -193,10 +287,6 @@ export async function handleRequest(request: Request, runtime: WorkerRuntime = {
     return new Response(null, { status: 204, headers });
   }
 
-  if (request.method !== 'GET') {
-    return jsonError(405, 'Method not allowed', origin);
-  }
-
   if (rateLimited(request)) {
     const headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Retry-After': '60' });
     applyCors(headers, origin);
@@ -204,6 +294,55 @@ export async function handleRequest(request: Request, runtime: WorkerRuntime = {
   }
 
   const url = new URL(request.url);
+  const gtPath = parseGtPath(url.pathname);
+  const rpcNet = parseRpcNetwork(url.pathname);
+
+  if (request.method === 'POST' && rpcNet) {
+    let payload: { method?: unknown; params?: unknown };
+    try {
+      payload = (await request.json()) as { method?: unknown; params?: unknown };
+    } catch {
+      return jsonError(400, 'Invalid JSON', origin);
+    }
+    const method = typeof payload.method === 'string' ? payload.method : '';
+    if (!LEDGER_METHODS.has(method)) return jsonError(403, 'Method not allowed', origin);
+    const params = payload.params;
+    if (params !== undefined && (!Array.isArray(params) || params.length > 1 || (params[0] != null && typeof params[0] !== 'object'))) {
+      return jsonError(403, 'Invalid params', origin);
+    }
+    try {
+      const upstream = await proxyLedger(rpcNet, { method, params: params ?? [{}] }, runtime);
+      const headers = new Headers();
+      headers.set('Content-Type', upstream.headers.get('Content-Type') || 'application/json; charset=utf-8');
+      headers.set('Cache-Control', 'no-store');
+      applyCors(headers, origin);
+      return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return jsonError(502, `Proxy error: ${message}`, origin);
+    }
+  }
+
+  if (request.method !== 'GET') {
+    return jsonError(405, 'Method not allowed', origin);
+  }
+
+  if (gtPath) {
+    const invalid = validateQuery(url, GT_PARAMS);
+    if (invalid) return jsonError(403, invalid, origin);
+    try {
+      const upstream = await proxyGecko(`${gtPath}${url.search}`, runtime);
+      const headers = new Headers();
+      headers.set('Content-Type', upstream.headers.get('Content-Type') || 'application/json; charset=utf-8');
+      headers.set('Cache-Control', upstream.headers.get('Cache-Control') || `public, max-age=${CACHE_TTL_S}`);
+      applyCors(headers, origin);
+      return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return jsonError(502, `Proxy error: ${message}`, origin);
+    }
+  }
+
   const symbol = parseChartPath(url.pathname);
   const isSearch = url.pathname === '/v1/finance/search';
 

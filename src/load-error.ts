@@ -4,6 +4,7 @@
 import { t } from './i18n';
 
 import { STOCKS_PROXY_UNCONFIGURED, STOCKS_PROXY_DEFAULT, getStocksProxyUrl } from './config';
+import { DEX_PROXY_MISSING } from './sources/ledger-rpc';
 
 export const PROXY_HOST = 'opencharts-proxy.opencharts.workers.dev';
 
@@ -20,6 +21,7 @@ export function isLikelyBlocked(err: unknown): boolean {
 export function describeLoadError(sourceId: string, sourceName: string, err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
   if (msg === STOCKS_PROXY_UNCONFIGURED) return STOCKS_PROXY_UNCONFIGURED;
+  if (msg === DEX_PROXY_MISSING || msg.includes(DEX_PROXY_MISSING)) return t('status.loadDexProxyMissing');
   const proxy = getStocksProxyUrl() || STOCKS_PROXY_DEFAULT;
   const mentionsProxy =
     sourceId === 'yahoo' ||

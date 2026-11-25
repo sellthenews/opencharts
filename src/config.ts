@@ -11,10 +11,14 @@ export const STOCKS_PROXY_UNCONFIGURED = 'Stock data proxy not configured yet';
  */
 const FALLBACK_PROXY = 'https://opencharts-proxy.opencharts.workers.dev';
 
-export const STOCKS_PROXY_DEFAULT = (
-  (typeof import.meta.env.VITE_STOCKS_PROXY === 'string' ? import.meta.env.VITE_STOCKS_PROXY.trim() : '') ||
-  FALLBACK_PROXY
-).replace(/\/$/, '');
+const envProxy =
+  typeof import.meta.env === 'object' &&
+  import.meta.env &&
+  typeof import.meta.env.VITE_STOCKS_PROXY === 'string'
+    ? import.meta.env.VITE_STOCKS_PROXY.trim()
+    : '';
+
+export const STOCKS_PROXY_DEFAULT = (envProxy || FALLBACK_PROXY).replace(/\/$/, '');
 
 export function getStocksProxyUrl(): string {
   try {

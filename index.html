@@ -31,6 +31,11 @@
           <select id="source" data-source></select>
         </label>
 
+        <label class="field" id="network-field" hidden>
+          <span data-i18n="toolbar.network">Network</span>
+          <select id="dex-network" data-network aria-label="Network" data-i18n-aria="toolbar.network"></select>
+        </label>
+
         <label class="field field-pair">
           <span data-i18n="toolbar.pair">Pair</span>
           <button type="button" id="pair-btn" title="Search symbol (start typing)" data-i18n-title="toolbar.searchSymbol">XRP/USD</button>
@@ -254,6 +259,7 @@
               <button type="button" data-sym-filter="coinbase">Coinbase</button>
               <button type="button" data-sym-filter="bitstamp">Bitstamp</button>
               <button type="button" data-sym-filter="yahoo">Yahoo</button>
+              <button type="button" data-sym-filter="dex">DEX</button>
             </div>
           </div>
           <div id="sym-results" class="sym-results"></div>

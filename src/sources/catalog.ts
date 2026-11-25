@@ -6,8 +6,10 @@ import { fetchJson } from './http';
 import type { DataSource } from './types';
 import { PAIR_LABELS } from './types';
 import { YAHOO_STOCKS } from './yahoo';
+import { defaultPairsForNetwork, lookupDexPair } from './dex';
+import { loadDexNetworkId } from './dex-networks';
 
-export const SOURCE_FILTERS = ['all', 'kraken', 'binance', 'coinbase', 'bitstamp', 'yahoo'] as const;
+export const SOURCE_FILTERS = ['all', 'kraken', 'binance', 'coinbase', 'bitstamp', 'yahoo', 'dex'] as const;
 export type SourceFilter = (typeof SOURCE_FILTERS)[number];
 
 export type AssetKind = 'crypto' | 'stock';
@@ -155,6 +157,7 @@ export function formatPairLabel(sourceId: string, pairId: string): string {
   if (known) return known;
   const hit = lookupSymbol(sourceId, pairId);
   if (hit) return hit.label;
+  if (sourceId === 'dex') return lookupDexPair(pairId)?.label ?? splitPairLabel(pairId);
   return splitPairLabel(pairId);
 }
 
@@ -181,6 +184,7 @@ export function fallbackNative(sourceId: string, pairId: string): string {
     return compact.toUpperCase();
   }
   if (sourceId === 'yahoo') return pairId;
+  if (sourceId === 'dex') return lookupDexPair(pairId)?.native ?? pairId;
   return pairId;
 }
 
@@ -357,12 +361,22 @@ function fetchYahoo(): Promise<SymbolInfo[]> {
   );
 }
 
+function fetchDex(): Promise<SymbolInfo[]> {
+  const networkId = loadDexNetworkId();
+  const items = defaultPairsForNetwork(networkId).map((p) => {
+    const ref = lookupDexPair(p.id);
+    return makeInfo('dex', p.id, p.native, ref?.base ?? p.label.split('/')[0] ?? p.id, ref?.quote ?? p.label.split('/')[1] ?? '', undefined, 'crypto', ref?.networkId, p.label);
+  });
+  return Promise.resolve(items);
+}
+
 const FETCHERS: Record<string, () => Promise<SymbolInfo[]>> = {
   kraken: fetchKraken,
   binance: fetchBinance,
   coinbase: fetchCoinbase,
   bitstamp: fetchBitstamp,
   yahoo: fetchYahoo,
+  dex: fetchDex,
 };
 
 export function symbolFromYahooQuote(symbol: string, name?: string): SymbolInfo {
@@ -371,6 +385,7 @@ export function symbolFromYahooQuote(symbol: string, name?: string): SymbolInfo 
 }
 
 export async function loadSourceSymbols(sourceId: string, force = false): Promise<SymbolInfo[]> {
+  if (sourceId === 'dex') force = true;
   if (!force) {
     const cached = readCache(sourceId);
     if (cached?.length) return cached;
