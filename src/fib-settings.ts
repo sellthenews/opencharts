@@ -416,7 +416,7 @@ export function colorForFibExtValue(value: number): string {
   return last[1];
 }
 
-const FIBEXT_OURS_VISIBLE = [0, 0.618, 1, 1.272, 1.618, 2, 3.618] as const;
+const FIBEXT_OURS_VISIBLE = [0, 0.9, 1, 1.061, 1.155, 1.272, 1.414, 1.618] as const;
 
 export function builtInFibExtOptions(): FibOptions {
   return {
@@ -479,8 +479,18 @@ function sameVisibleValues(a: number[], b: number[]): boolean {
 
 export function detectFibPreset(opts: FibOptions, kind: FibToolKind): FibPreset | null {
   const visible = visibleLevelValues(opts);
-  if (sameVisibleValues(visible, visibleLevelValues(fibPresetOptions(kind, 'ours')))) return 'ours';
-  if (sameVisibleValues(visible, visibleLevelValues(fibPresetOptions(kind, 'classic')))) return 'classic';
+  const ours = sameVisibleValues(visible, visibleLevelValues(fibPresetOptions(kind, 'ours')));
+  const classic = sameVisibleValues(visible, visibleLevelValues(fibPresetOptions(kind, 'classic')));
+  if (ours && classic) {
+    if (opts.preset === 'ours' || opts.preset === 'classic') return opts.preset;
+    const oursOpacity = fibPresetOptions(kind, 'ours').backgroundOpacity;
+    const classicOpacity = fibPresetOptions(kind, 'classic').backgroundOpacity;
+    if (Math.abs(opts.backgroundOpacity - oursOpacity) < 1e-6) return 'ours';
+    if (Math.abs(opts.backgroundOpacity - classicOpacity) < 1e-6) return 'classic';
+    return 'ours';
+  }
+  if (ours) return 'ours';
+  if (classic) return 'classic';
   return null;
 }
 

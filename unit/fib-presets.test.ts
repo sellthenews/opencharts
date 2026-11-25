@@ -68,7 +68,7 @@ test('extension ours is a short set; classic keeps the previous catalog visibili
   assert.equal(ours.preset, 'ours');
   assert.deepEqual(
     ours.levels.filter((l) => l.visible).map((l) => l.value),
-    [0, 0.618, 1, 1.272, 1.618, 2, 3.618],
+    [0, 0.9, 1, 1.061, 1.155, 1.272, 1.414, 1.618],
   );
   assert.equal(ours.backgroundOpacity, 0.04);
   assert.equal(ours.extend, 'right');
