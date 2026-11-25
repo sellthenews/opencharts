@@ -165,7 +165,7 @@ function renderAlerts(): void {
         <span>${alertLabel(a, src?.name ?? a.sourceId)}</span>
         <span class="alert-item-actions">
           <button type="button" data-alert-edit="${a.id}" title="${t('alerts.editTitle')}">${t('alerts.edit')}</button>
-          <button type="button" data-alert-del="${a.id}" title="${t('alerts.removeTitle')}">×</button>
+          <button type="button" class="btn-danger" data-alert-del="${a.id}" title="${t('alerts.removeTitle')}">×</button>
         </span>
       </div>`;
     })

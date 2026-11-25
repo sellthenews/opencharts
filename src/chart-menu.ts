@@ -65,6 +65,7 @@ export function initChartMenu(
       const symbol = handlers.watchlistLabel?.() ?? 'symbol';
       const onList = handlers.isOnWatchlist?.() ?? false;
       watchItem.textContent = onList ? t('menu.removeWatch', { symbol }) : t('menu.addWatch', { symbol });
+      watchItem.classList.toggle('btn-danger', onList);
     }
     const settingsItem = menu.querySelector<HTMLElement>('[data-chart-menu="settings"]');
     if (settingsItem) settingsItem.hidden = !handlers.canOpenSettings?.();

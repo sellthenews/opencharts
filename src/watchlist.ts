@@ -577,7 +577,7 @@ export class WatchlistPanel {
       <span class="watch-ex">${escapeHtml(exch)}</span>
       <span class="watch-last">${last}</span>
       <span class="watch-chg${chgClass}">${chg}</span>
-      <span class="watch-del" data-watch-remove="${key}" title="${t('watch.removeFromList')}" role="button">×</span>
+      <span class="watch-del btn-danger" data-watch-remove="${key}" title="${t('watch.removeFromList')}" role="button">×</span>
     </button>`;
   }
 
@@ -597,7 +597,7 @@ export class WatchlistPanel {
             <button type="button" class="watch-sec-toggle" data-watch-action="toggle-section" data-watch-section-id="${sec.id}" title="${sec.collapsed ? t('watch.expand') : t('watch.collapse')}" aria-expanded="${sec.collapsed ? 'false' : 'true'}">${sec.collapsed ? '▸' : '▾'}</button>
             <span class="watch-sec-name" data-watch-section-name="${sec.id}">${escapeHtml(sec.name)}</span>
             <span class="watch-sec-count">${sec.items.length}</span>
-            <button type="button" class="watch-sec-del" data-watch-action="remove-section" data-watch-section-id="${sec.id}" title="${t('watch.deleteSection')}" aria-label="${t('watch.deleteSection')}">×</button>
+            <button type="button" class="watch-sec-del btn-danger" data-watch-action="remove-section" data-watch-section-id="${sec.id}" title="${t('watch.deleteSection')}" aria-label="${t('watch.deleteSection')}">×</button>
           </div>
           ${rows}${empty}
         </div>`;
@@ -613,7 +613,7 @@ export class WatchlistPanel {
           <button type="button" data-watch-action="add-symbol" title="${t('watch.addSymbol')}" aria-label="${t('watch.addSymbol')}">+</button>
           <button type="button" data-watch-action="add-list" title="${t('watch.newList')}" aria-label="${t('watch.newList')}">${t('watch.newList')}</button>
           <button type="button" data-watch-action="list-menu" title="${t('watch.listMenu')}" aria-label="${t('watch.listMenu')}" aria-haspopup="menu">⋯</button>
-          <button type="button" data-watch-action="remove-list" title="${t('watch.removeList')}" aria-label="${t('watch.removeList')}" ${canDeleteList ? '' : 'disabled'}>−</button>
+          <button type="button" class="btn-danger" data-watch-action="remove-list" title="${t('watch.removeList')}" aria-label="${t('watch.removeList')}" ${canDeleteList ? '' : 'disabled'}>−</button>
         </div>
       </div>
       <div class="watch-body">${body}</div>

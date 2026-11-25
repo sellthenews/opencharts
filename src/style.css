@@ -174,12 +174,6 @@ button.interval.is-active:hover {
   border-color: var(--accent-hover);
 }
 
-button.danger:hover {
-  border-color: var(--danger);
-  color: var(--heading);
-  background: #5c2b2b;
-}
-
 .status {
   margin-left: auto;
   color: var(--muted);
@@ -2802,4 +2796,28 @@ label,
   #more-body #settings-btn {
     justify-content: flex-start;
   }
+}
+
+/* Delete / remove controls. Fixed red reads on both themes; size and padding stay put. */
+.btn-danger,
+#chart-menu button.btn-danger,
+#tool-rail .rail-btn.btn-danger,
+.compare-leg-item button.btn-danger {
+  color: #e5484d;
+}
+
+.btn-danger:hover,
+.btn-danger:focus-visible,
+#chart-menu button.btn-danger:hover,
+#chart-menu button.btn-danger:focus-visible,
+#tool-rail .rail-btn.btn-danger:hover,
+#tool-rail .rail-btn.btn-danger:focus-visible,
+.compare-leg-item button.btn-danger:hover,
+.compare-leg-item button.btn-danger:focus-visible,
+.ind-ico.btn-danger:hover,
+.ind-ico.btn-danger:focus-visible,
+.watch-del.btn-danger:hover,
+.fib-level-remove.btn-danger:hover,
+.watch-sec-del.btn-danger:hover {
+  color: #ce2c31;
 }

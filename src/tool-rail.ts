@@ -418,7 +418,7 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
         </div>
         <button type="button" class="rail-btn${lockActive}" data-rail-action="lock" title="${t('rail.lockAll')}" aria-label="${t('rail.lockAll')}" aria-pressed="${opts.isLockedAll() ? 'true' : 'false'}"><span class="rail-icon">${icon('lock')}</span></button>
         <button type="button" class="rail-btn${hideActive}" data-rail-action="hide" title="${t('rail.hideAll')}" aria-label="${t('rail.hideAll')}" aria-pressed="${opts.isHidden() ? 'true' : 'false'}"><span class="rail-icon">${icon('hide')}</span></button>
-        <button type="button" class="rail-btn rail-danger" data-rail-action="trash" title="${t('rail.removeAll')}" aria-label="${t('rail.removeAll')}"><span class="rail-icon">${icon('trash')}</span></button>
+        <button type="button" class="rail-btn rail-danger btn-danger" data-rail-action="trash" title="${t('rail.removeAll')}" aria-label="${t('rail.removeAll')}"><span class="rail-icon">${icon('trash')}</span></button>
       </div>`;
   }
 
