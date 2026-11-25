@@ -60,14 +60,15 @@
         </label>
         <div class="chart-type-wrap" id="chart-type-wrap">
           <button type="button" id="chart-type-btn" title="Choose chart type" data-i18n-title="toolbar.chartTypeTitle" data-i18n-aria="toolbar.chartTypeTitle" aria-label="Choose chart type" aria-haspopup="menu" aria-expanded="false" aria-controls="chart-type-menu">
-            <svg class="chart-type-icon" viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
-              <path fill="none" stroke="currentColor" stroke-width="1.4" d="M4 3.5v11"/>
-              <rect x="2.6" y="6.5" width="2.8" height="5" rx="0.3" fill="currentColor"/>
-              <path fill="none" stroke="currentColor" stroke-width="1.4" d="M9 3v12"/>
-              <rect x="7.6" y="5" width="2.8" height="6" rx="0.3" fill="currentColor"/>
-              <path fill="none" stroke="currentColor" stroke-width="1.4" d="M14 4.5v10"/>
-              <rect x="12.6" y="7" width="2.8" height="5.5" rx="0.3" fill="currentColor"/>
+            <svg class="chart-type-icon" viewBox="0 0 18 18" width="20" height="20" aria-hidden="true">
+              <path fill="none" stroke="currentColor" stroke-width="1.6" d="M4 3.5v11"/>
+              <rect x="2.5" y="6.5" width="3" height="5" rx="0.4" fill="currentColor"/>
+              <path fill="none" stroke="currentColor" stroke-width="1.6" d="M9 3v12"/>
+              <rect x="7.5" y="5" width="3" height="6" rx="0.4" fill="currentColor"/>
+              <path fill="none" stroke="currentColor" stroke-width="1.6" d="M14 4.5v10"/>
+              <rect x="12.5" y="7" width="3" height="5.5" rx="0.4" fill="currentColor"/>
             </svg>
+            <span class="chart-type-label" data-i18n="toolbar.chartType">Chart type</span>
           </button>
           <div id="chart-type-menu" hidden role="menu" aria-labelledby="chart-type-btn">
             <div class="sheet-head">
@@ -88,7 +89,10 @@
         </button>
         <button type="button" id="ind-visibility-btn" aria-pressed="false" title="Hide all indicators" data-i18n-title="ind.hideAllTitle" data-i18n-aria="ind.hideAllTitle" aria-label="Hide all indicators">
           <span class="toolbar-label-full" data-i18n="ind.hideAll">Hide indicators</span>
-          <span class="toolbar-label-short" aria-hidden="true">◉</span>
+          <span class="toolbar-label-short" aria-hidden="true">
+            <svg class="eye-on" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10s3.2-5.5 8-5.5S18 10 18 10s-3.2 5.5-8 5.5S2 10 2 10z"/><circle cx="10" cy="10" r="2.5"/></svg>
+            <svg class="eye-off" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10s3.2-5.5 8-5.5S18 10 18 10s-3.2 5.5-8 5.5S2 10 2 10z"/><circle cx="10" cy="10" r="2.5"/><path d="M3 17 17 3"/></svg>
+          </span>
         </button>
         <div class="compare-wrap">
           <button type="button" id="compare-btn" title="Compare symbols in percent" data-i18n="toolbar.compare" data-i18n-title="toolbar.compareTitle" aria-expanded="false" aria-controls="compare-pop">Compare</button>
@@ -106,7 +110,7 @@
         <button type="button" id="theme-btn" title="Switch light/dark theme" data-i18n-title="toolbar.themeTitle">Light theme</button>
         <div class="settings-wrap">
           <button type="button" id="settings-btn" title="Settings" aria-label="Settings" data-i18n-title="toolbar.settings" data-i18n-aria="toolbar.settings" aria-haspopup="menu" aria-expanded="false" aria-controls="settings-menu">
-            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M6.5 1.2h3l.35 1.7c.42.16.81.39 1.16.67l1.65-.7 1.5 2.6-1.35 1.15c.08.4.12.8.12 1.22s-.04.82-.12 1.22l1.35 1.15-1.5 2.6-1.65-.7a5.3 5.3 0 0 1-1.16.67L9.5 14.8h-3l-.35-1.7a5.3 5.3 0 0 1-1.16-.67l-1.65.7-1.5-2.6 1.35-1.15A5.4 5.4 0 0 1 3 8.94c0-.42.04-.82.12-1.22L1.77 6.57l1.5-2.6 1.65.7c.35-.28.74-.51 1.16-.67L6.5 1.2ZM8 6.4A1.6 1.6 0 1 0 8 9.6 1.6 1.6 0 0 0 8 6.4Z"/></svg>
+            <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M6.5 1.2h3l.35 1.7c.42.16.81.39 1.16.67l1.65-.7 1.5 2.6-1.35 1.15c.08.4.12.8.12 1.22s-.04.82-.12 1.22l1.35 1.15-1.5 2.6-1.65-.7a5.3 5.3 0 0 1-1.16.67L9.5 14.8h-3l-.35-1.7a5.3 5.3 0 0 1-1.16-.67l-1.65.7-1.5-2.6 1.35-1.15A5.4 5.4 0 0 1 3 8.94c0-.42.04-.82.12-1.22L1.77 6.57l1.5-2.6 1.65.7c.35-.28.74-.51 1.16-.67L6.5 1.2ZM8 6.4A1.6 1.6 0 1 0 8 9.6 1.6 1.6 0 0 0 8 6.4Z"/></svg>
             <span data-i18n="toolbar.settings">Settings</span>
           </button>
           <div id="settings-menu" hidden role="menu" aria-labelledby="settings-btn">
@@ -130,7 +134,7 @@
         </label>
         <span id="live-status" class="live-status" data-live="off" title="Public Kraken WebSocket (OHLC and ticker)" data-i18n-title="toolbar.liveTitle">Offline</span>
         <button type="button" id="more-btn" aria-expanded="false" aria-haspopup="dialog" aria-controls="more-pop" title="More" aria-label="More" data-i18n-title="toolbar.more" data-i18n-aria="toolbar.more">
-          <span aria-hidden="true">⋯</span>
+          <svg viewBox="0 0 20 20" width="22" height="22" aria-hidden="true"><circle cx="4.5" cy="10" r="1.8" fill="currentColor"/><circle cx="10" cy="10" r="1.8" fill="currentColor"/><circle cx="15.5" cy="10" r="1.8" fill="currentColor"/></svg>
         </button>
         <div id="more-pop" role="dialog" aria-labelledby="more-title" hidden>
           <div class="sheet-head">
@@ -192,7 +196,7 @@
               <input type="number" id="draw-price" step="any" inputmode="decimal" title="Exact price" aria-label="Exact price" data-i18n-title="draw.exactPrice" data-i18n-aria="draw.exactPrice" />
             </label>
             <button type="button" id="draw-settings" title="Settings" aria-label="Settings" data-i18n-title="draw.settings" data-i18n-aria="draw.settings" hidden>
-              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M6.5 1.2h3l.35 1.7c.42.16.81.39 1.16.67l1.65-.7 1.5 2.6-1.35 1.15c.08.4.12.8.12 1.22s-.04.82-.12 1.22l1.35 1.15-1.5 2.6-1.65-.7a5.3 5.3 0 0 1-1.16.67L9.5 14.8h-3l-.35-1.7a5.3 5.3 0 0 1-1.16-.67l-1.65.7-1.5-2.6 1.35-1.15A5.4 5.4 0 0 1 3 8.94c0-.42.04-.82.12-1.22L1.77 6.57l1.5-2.6 1.65.7c.35-.28.74-.51 1.16-.67L6.5 1.2ZM8 6.4A1.6 1.6 0 1 0 8 9.6 1.6 1.6 0 0 0 8 6.4Z"/></svg>
+              <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M6.5 1.2h3l.35 1.7c.42.16.81.39 1.16.67l1.65-.7 1.5 2.6-1.35 1.15c.08.4.12.8.12 1.22s-.04.82-.12 1.22l1.35 1.15-1.5 2.6-1.65-.7a5.3 5.3 0 0 1-1.16.67L9.5 14.8h-3l-.35-1.7a5.3 5.3 0 0 1-1.16-.67l-1.65.7-1.5-2.6 1.35-1.15A5.4 5.4 0 0 1 3 8.94c0-.42.04-.82.12-1.22L1.77 6.57l1.5-2.6 1.65.7c.35-.28.74-.51 1.16-.67L6.5 1.2ZM8 6.4A1.6 1.6 0 1 0 8 9.6 1.6 1.6 0 0 0 8 6.4Z"/></svg>
             </button>
             <button type="button" id="draw-lock" title="Lock" data-i18n="draw.lock" data-i18n-title="draw.lock">Lock</button>
             <button type="button" id="draw-delete" class="btn-danger" title="Delete" data-i18n="draw.delete" data-i18n-title="draw.delete">Delete</button>

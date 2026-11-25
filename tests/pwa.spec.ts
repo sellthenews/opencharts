@@ -55,7 +55,7 @@ test('PWA manifest is linked, installable, and the service worker registers', as
   expect(swRes.ok()).toBeTruthy();
   const body = await swRes.text();
   expect(body).toContain('version.json');
-  expect(body).toContain('opencharts-assets-v3');
+  expect(body).toContain('opencharts-assets-v4');
   expect(body).not.toMatch(/https?:\/\/cdn\./i);
 
   fs.mkdirSync(path.resolve('screenshots-test'), { recursive: true });

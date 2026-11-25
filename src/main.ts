@@ -103,6 +103,8 @@ function applyTheme(name: ThemeName): void {
   persistLayout();
   const btn = document.querySelector<HTMLButtonElement>('#theme-btn');
   if (btn) btn.textContent = name === 'light' ? t('toolbar.darkTheme') : t('toolbar.lightTheme');
+  const metaTheme = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (metaTheme) metaTheme.content = name === 'light' ? '#ffffff' : '#12151c';
 }
 
 
@@ -801,8 +803,7 @@ function syncIndVisibilityChrome(): void {
     btn.setAttribute('aria-label', title);
     const full = btn.querySelector('.toolbar-label-full');
     if (full) full.textContent = hidden ? t('ind.showAll') : t('ind.hideAll');
-    const short = btn.querySelector('.toolbar-label-short');
-    if (short) short.textContent = hidden ? '○' : '◉';
+    /* short label renders SVG eye-on / eye-off via .is-off */
   }
   if (cue) cue.hidden = !hidden;
 }
@@ -936,7 +937,7 @@ function resizeCharts(): void {
 
 const PHONE_MQ = window.matchMedia('(max-width: 900px), (max-height: 500px) and (orientation: landscape)');
 const PORTRAIT_MQ = window.matchMedia('(max-width: 500px)');
-const MORE_ITEM_SELECTORS = ['#exchange-field', '#network-field', '.compare-wrap', '#theme-btn', '.settings-wrap', '.field-lang', '#layout-btns', '#chart-type-wrap', '#tz-field', '#goto-field'] as const;
+const MORE_ITEM_SELECTORS = ['#exchange-field', '#network-field', '#xrp-toggle', '.compare-wrap', '#theme-btn', '.settings-wrap', '.field-lang', '#layout-btns', '#chart-type-wrap', '#tz-field', '#goto-field', '#live-status', '#candle-eta', '#status'] as const;
 const moreHomes = new Map<string, Comment>();
 
 function isPhoneLayout(): boolean {

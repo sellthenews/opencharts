@@ -266,14 +266,19 @@ export class IndicatorHud {
       for (const item of list) {
         const label = formatIndicatorLabel(item);
         const vis = item.visible ? 'on' : 'off';
-        const gear = `<button type="button" class="ind-ico" data-ind-act="settings" data-ind-id="${item.id}" title="${t('ind.settings')}" aria-label="${t('ind.settings')}">⚙</button>`;
+        const gearSvg = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M6.5 1.2h3l.35 1.7c.42.16.81.39 1.16.67l1.65-.7 1.5 2.6-1.35 1.15c.08.4.12.8.12 1.22s-.04.82-.12 1.22l1.35 1.15-1.5 2.6-1.65-.7a5.3 5.3 0 0 1-1.16.67L9.5 14.8h-3l-.35-1.7a5.3 5.3 0 0 1-1.16-.67l-1.65.7-1.5-2.6 1.35-1.15A5.4 5.4 0 0 1 3 8.94c0-.42.04-.82.12-1.22L1.77 6.57l1.5-2.6 1.65.7c.35-.28.74-.51 1.16-.67L6.5 1.2ZM8 6.4A1.6 1.6 0 1 0 8 9.6 1.6 1.6 0 0 0 8 6.4Z"/></svg>';
+        const eyeSvg = item.visible
+          ? '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></svg>'
+          : '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/><path d="M2.5 13.5 13.5 2.5"/></svg>';
+        const closeSvg = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+        const gear = `<button type="button" class="ind-ico" data-ind-act="settings" data-ind-id="${item.id}" title="${t('ind.settings')}" aria-label="${t('ind.settings')}">${gearSvg}</button>`;
         const eyeTitle = item.visible ? t('ind.hide') : t('ind.show');
         html.push(
           `<div class="ind-label" data-ind-id="${item.id}" data-kind="${item.kind}" data-visible="${vis}">` +
             `<span class="ind-label-text">${label}</span><span class="ind-value"></span>` +
             gear +
-            `<button type="button" class="ind-ico" data-ind-act="toggle" data-ind-id="${item.id}" title="${eyeTitle}" aria-label="${eyeTitle}">${item.visible ? '◉' : '○'}</button>` +
-            `<button type="button" class="ind-ico btn-danger" data-ind-act="remove" data-ind-id="${item.id}" title="${t('ind.remove')}" aria-label="${t('ind.remove')}">×</button>` +
+            `<button type="button" class="ind-ico" data-ind-act="toggle" data-ind-id="${item.id}" title="${eyeTitle}" aria-label="${eyeTitle}">${eyeSvg}</button>` +
+            `<button type="button" class="ind-ico btn-danger" data-ind-act="remove" data-ind-id="${item.id}" title="${t('ind.remove')}" aria-label="${t('ind.remove')}">${closeSvg}</button>` +
             `</div>`,
         );
       }
