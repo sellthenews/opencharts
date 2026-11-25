@@ -31,6 +31,25 @@
         </label>
 
         <div class="group" role="group" aria-label="Interval" id="intervals" data-i18n-aria="toolbar.interval"></div>
+        <div class="chart-type-wrap" id="chart-type-wrap">
+          <button type="button" id="chart-type-btn" title="Choose chart type" data-i18n-title="toolbar.chartTypeTitle" data-i18n-aria="toolbar.chartTypeTitle" aria-label="Choose chart type" aria-haspopup="menu" aria-expanded="false" aria-controls="chart-type-menu">
+            <svg class="chart-type-icon" viewBox="0 0 18 18" width="16" height="16" aria-hidden="true">
+              <path fill="none" stroke="currentColor" stroke-width="1.4" d="M4 3.5v11"/>
+              <rect x="2.6" y="6.5" width="2.8" height="5" rx="0.3" fill="currentColor"/>
+              <path fill="none" stroke="currentColor" stroke-width="1.4" d="M9 3v12"/>
+              <rect x="7.6" y="5" width="2.8" height="6" rx="0.3" fill="currentColor"/>
+              <path fill="none" stroke="currentColor" stroke-width="1.4" d="M14 4.5v10"/>
+              <rect x="12.6" y="7" width="2.8" height="5.5" rx="0.3" fill="currentColor"/>
+            </svg>
+          </button>
+          <div id="chart-type-menu" hidden role="menu" aria-labelledby="chart-type-btn">
+            <div class="sheet-head">
+              <h2 data-i18n="toolbar.chartType">Chart type</h2>
+              <button type="button" class="sheet-close" data-close-chart-type aria-label="Close" data-i18n-aria="mobile.close">×</button>
+            </div>
+            <div id="chart-type-list"></div>
+          </div>
+        </div>
         <div class="group" id="layout-btns" role="group" aria-label="Chart layout" data-i18n-aria="toolbar.layout">
           <button type="button" data-panes="1" class="is-active" title="One chart" data-i18n-title="toolbar.oneChart">1</button>
           <button type="button" data-panes="2" title="Two charts" data-i18n-title="toolbar.twoCharts">2</button>

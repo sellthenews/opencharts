@@ -351,7 +351,7 @@ export class DrawingLayer {
 
   constructor(
     private readonly chart: IChartApi,
-    private readonly series: ISeriesApi<SeriesType>,
+    private series: ISeriesApi<SeriesType>,
     private readonly canvas: HTMLCanvasElement,
     private readonly wrap: HTMLElement,
   ) {
@@ -373,6 +373,11 @@ export class DrawingLayer {
     window.addEventListener('keydown', this.onKey);
     this.syncPointerEvents();
     this.startViewWatch();
+  }
+
+  setSeries(series: ISeriesApi<SeriesType>): void {
+    this.series = series;
+    this.paintFrame();
   }
 
   getDrawings(): Drawing[] {

@@ -2583,7 +2583,8 @@ label,
 
   #sidebar-head,
   #compare-pop .sheet-head,
-  #settings-menu .sheet-head {
+  #settings-menu .sheet-head,
+  #chart-type-menu .sheet-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2595,7 +2596,8 @@ label,
 
   #sidebar-head h2,
   #compare-pop .sheet-head h2,
-  #settings-menu .sheet-head h2 {
+  #settings-menu .sheet-head h2,
+  #chart-type-menu .sheet-head h2 {
     margin: 0;
     font-size: 16px;
   }
@@ -2662,6 +2664,32 @@ label,
     z-index: 45;
     padding: env(safe-area-inset-top, 0px) 8px 12px;
     overflow: auto;
+  }
+
+  #chart-type-menu:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    top: 0;
+    left: 0;
+    width: auto;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    border-radius: 0;
+    z-index: 45;
+    padding: env(safe-area-inset-top, 0px) 8px 12px;
+    overflow: auto;
+  }
+
+  #chart-type-menu .sheet-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #chart-type-menu [data-chart-type] {
+    min-height: 44px;
+    padding: 10px 12px;
   }
 
   #settings-menu button {
@@ -2765,10 +2793,12 @@ label,
 
   #more-body .compare-wrap,
   #more-body .settings-wrap,
+  #more-body .chart-type-wrap,
   #more-body .field,
   #more-body #theme-btn,
   #more-body #settings-btn,
   #more-body #layout-btns,
+  #more-body #chart-type-btn,
   #more-body select,
   #more-body #compare-btn {
     width: 100%;
@@ -2788,9 +2818,15 @@ label,
   #more-body #theme-btn,
   #more-body #settings-btn,
   #more-body #compare-btn,
+  #more-body #chart-type-btn,
   #more-body select,
   #more-body .field {
     min-height: 44px;
+  }
+
+  #more-body #chart-type-btn {
+    justify-content: flex-start;
+    width: 100%;
   }
 
   #more-body #settings-btn {
@@ -2820,4 +2856,99 @@ label,
 .fib-level-remove.btn-danger:hover,
 .watch-sec-del.btn-danger:hover {
   color: #ce2c31;
+}
+
+/* Chart type picker */
+.chart-type-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+#chart-type-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  padding: 6px 8px;
+}
+
+#chart-type-btn .chart-type-icon {
+  display: block;
+}
+
+#chart-type-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  width: 280px;
+  max-width: calc(100vw - 16px);
+  max-height: min(70vh, 520px);
+  overflow: auto;
+  padding: 4px 4px 8px;
+  background: var(--bar);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+#chart-type-menu[hidden] {
+  display: none;
+}
+
+#chart-type-menu .sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px 4px;
+}
+
+#chart-type-menu .sheet-head h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#chart-type-menu .sheet-close {
+  display: none;
+}
+
+.chart-type-heading {
+  margin: 8px 8px 4px;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.chart-type-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 0 4px;
+}
+
+#chart-type-menu [data-chart-type] {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  padding: 7px 10px;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+#chart-type-menu [data-chart-type]:hover,
+#chart-type-menu [data-chart-type]:focus-visible {
+  background: var(--btn);
+}
+
+#chart-type-menu [data-chart-type].is-active {
+  background: var(--row-active);
+  color: var(--heading);
 }

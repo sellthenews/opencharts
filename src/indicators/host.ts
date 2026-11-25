@@ -2,7 +2,7 @@
 // Copyright (C) 2026 OpenCharts contributors
 
 import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
-import type { IChartApi, IPriceLine, ISeriesApi, Time, UTCTimestamp } from 'lightweight-charts';
+import type { IChartApi, IPriceLine, ISeriesApi, SeriesType, Time, UTCTimestamp } from 'lightweight-charts';
 import { t } from '../i18n';
 import type { Candle } from '../sources/types';
 import {
@@ -191,8 +191,13 @@ export class IndicatorHost {
 
   constructor(
     private readonly chart: IChartApi,
-    private readonly candles: ISeriesApi<'Candlestick'>,
+    private candles: ISeriesApi<SeriesType>,
   ) {}
+
+  setPriceSeries(series: ISeriesApi<SeriesType>): void {
+    this.candles = series;
+    this.forceFullNext = true;
+  }
 
   isGlobalHidden(): boolean {
     return this.globalHidden;

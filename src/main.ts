@@ -3,14 +3,26 @@
 
 import './storage';
 import {
-  CandlestickSeries,
   CrosshairMode,
   LineStyle,
   PriceScaleMode,
   createChart,
 } from 'lightweight-charts';
-import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
-import { candleSeriesOptions, formatTimeTick, interactionOptions, isMagnetModifier, themeChartOptions } from './chart-options';
+import type { IChartApi, ISeriesApi, SeriesType, UTCTimestamp } from 'lightweight-charts';
+import { formatTimeTick, interactionOptions, isMagnetModifier, themeChartOptions } from './chart-options';
+import {
+  buildChartView,
+  isChartTypeId,
+  isSyntheticChartType,
+  loadChartType,
+  saveChartType,
+  viewAllPoints,
+  viewLastPoint,
+  type ChartTypeId,
+  type ChartView,
+} from './chart-types';
+import { createPriceSeries, writeBaselinePrice, writeSeriesData, writeSeriesUpdate } from './chart-type-series';
+import { initChartTypeMenu, syncChartTypeChrome } from './chart-type-ui';
 import { getCachedCandles, setCachedCandles } from './candle-cache';
 import { ohlcLegendHtml } from './ohlc-legend';
 import { DrawingLayer } from './drawings';
@@ -253,7 +265,10 @@ const chart: IChartApi = createChart(chartEl, {
 });
 chart.applyOptions({ timeScale: { tickMarkFormatter: formatTimeTick, timeVisible: true } });
 
-const series: ISeriesApi<'Candlestick'> = chart.addSeries(CandlestickSeries, candleSeriesOptions());
+let chartType: ChartTypeId = loadChartType();
+let lastChartView: ChartView | null = null;
+let series: ISeriesApi<SeriesType> = createPriceSeries(chart, chartType);
+appEl.dataset.chartType = chartType;
 
 chart.subscribeCrosshairMove((param) => {
   if (!param.point || param.time === undefined) {
@@ -265,6 +280,11 @@ chart.subscribeCrosshairMove((param) => {
     const bar = raw as { open: number; high: number; low: number; close: number };
     const found = barAtTime(param.time);
     showOhlc(bar, found?.index ?? null);
+    return;
+  }
+  const found = barAtTime(param.time);
+  if (found) {
+    showOhlc(found, found.index);
     return;
   }
   showLastOhlc();
@@ -704,7 +724,7 @@ function applyIndicators(): void {
   try {
     indicators.setChartInterval(intervalId);
     indicators.setPaneStretches(paneStretches);
-    paneMap = indicators.apply(lastCandles, indicatorItems);
+    paneMap = indicators.apply(indicatorSourceBars(), indicatorItems);
   } catch (err) {
     console.error(err);
     return;
@@ -818,7 +838,7 @@ function resizeCharts(): void {
 
 const PHONE_MQ = window.matchMedia('(max-width: 900px), (max-height: 500px) and (orientation: landscape)');
 const PORTRAIT_MQ = window.matchMedia('(max-width: 500px)');
-const MORE_ITEM_SELECTORS = ['#exchange-field', '.compare-wrap', '#theme-btn', '.settings-wrap', '.field-lang', '#layout-btns'] as const;
+const MORE_ITEM_SELECTORS = ['#exchange-field', '.compare-wrap', '#theme-btn', '.settings-wrap', '.field-lang', '#layout-btns', '#chart-type-wrap'] as const;
 const moreHomes = new Map<string, Comment>();
 
 function isPhoneLayout(): boolean {
@@ -932,32 +952,65 @@ function showLastOhlc(): void {
   showOhlc(last, lastCandles.length - 1);
 }
 
+function indicatorSourceBars(): Candle[] {
+  if (isSyntheticChartType(chartType) && lastChartView?.bars.length) return lastChartView.bars;
+  return lastCandles;
+}
+
+function paintPriceSeries(candles: Candle[]): ChartView {
+  const view = buildChartView(chartType, candles);
+  lastChartView = view;
+  const mid = view.bars[Math.floor(view.bars.length / 2)] ?? candles[Math.floor(candles.length / 2)];
+  if (mid) series.applyOptions({ priceFormat: priceFormatFor(mid.close) });
+  if (view.points.kind === 'baseline') writeBaselinePrice(series, view.points.basePrice);
+  writeSeriesData(series, viewAllPoints(view));
+  return view;
+}
+
+function setChartType(next: ChartTypeId): void {
+  if (!isChartTypeId(next)) return;
+  const prev = chartType;
+  if (next === prev) {
+    syncChartTypeChrome(prev);
+    return;
+  }
+  const created = createPriceSeries(chart, next);
+  const old = series;
+  series = created;
+  drawings.setSeries(created);
+  indicators.setPriceSeries(created);
+  chart.removeSeries(old);
+  chartType = next;
+  saveChartType(next);
+  appEl.dataset.chartType = next;
+  syncChartTypeChrome(next);
+  if (lastCandles.length) {
+    const fit = isSyntheticChartType(next) || isSyntheticChartType(prev);
+    applyPriceData(lastCandles, fit);
+  } else {
+    lastChartView = null;
+    writeSeriesData(series, []);
+  }
+}
+
 function applyPriceData(candles: Candle[], fit: boolean, shift = 0): void {
   const range = !fit ? chart.timeScale().getVisibleLogicalRange() : null;
   candles = candles.filter(isValidCandle);
   lastCandles = candles;
   restoringView = true;
   if (!candles.length) {
-    series.setData([]);
+    lastChartView = null;
+    writeSeriesData(series, []);
     applyIndicators();
     restoringView = false;
     return;
   }
-  const mid = candles[Math.floor(candles.length / 2)]!;
-  series.applyOptions({ priceFormat: priceFormatFor(mid.close) });
-  series.setData(
-    candles.map((c) => ({
-      time: c.time as UTCTimestamp,
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
-    })),
-  );
+  const view = paintPriceSeries(candles);
   applyIndicators();
   const step = candles.length >= 2 ? candles[candles.length - 1]!.time - candles[candles.length - 2]!.time : 86400;
   drawings.setTimeInfo(candles[candles.length - 1]!.time, step);
-  drawings.setPriceData(candles.map((c) => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close })));
+  const magnet = isSyntheticChartType(chartType) && view.bars.length ? view.bars : candles;
+  drawings.setPriceData(magnet.map((c) => ({ time: c.time, open: c.open, high: c.high, low: c.low, close: c.close })));
   if (fit) chart.timeScale().fitContent();
   else if (range) {
     const next = { from: range.from + shift, to: range.to + shift };
@@ -1076,14 +1129,14 @@ const live = new KrakenLive(
     lastCandles = merged;
     const last = merged[merged.length - 1];
     if (last) {
-      series.update({
-        time: last.time as UTCTimestamp,
-        open: last.open,
-        high: last.high,
-        low: last.low,
-        close: last.close,
-      });
-      applyIndicators();
+      if (isSyntheticChartType(chartType) || chartType === 'heikin') {
+        applyPriceData(merged, false);
+      } else {
+        const view = buildChartView(chartType, merged);
+        lastChartView = view;
+        writeSeriesUpdate(series, viewLastPoint(view));
+        applyIndicators();
+      }
       evaluateAlerts('kraken', pair, last.close);
     }
   },
@@ -1518,6 +1571,8 @@ declare global {
       getCrosshair: () => { time: number; price: number } | null;
       isIndicatorsHidden: () => boolean;
       setIndicatorsHidden: (hidden: boolean) => void;
+      getChartType: () => ChartTypeId;
+      setChartType: (type: ChartTypeId) => void;
       priceToCoordinate: (price: number) => number | null;
     };
   }
@@ -1626,7 +1681,12 @@ window.__opencharts = {
   priceToCoordinate: (price) => drawings.priceToCoordinate(price),
   isIndicatorsHidden: () => indicators.isGlobalHidden(),
   setIndicatorsHidden: (hidden: boolean) => setIndicatorsHidden(hidden, false),
+  getChartType: () => chartType,
+  setChartType: (type) => setChartType(type),
 };
+
+initChartTypeMenu({ getType: () => chartType, setType: setChartType });
+syncChartTypeChrome(chartType);
 
 initChartMenu(
   wrapEl,

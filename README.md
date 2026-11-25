@@ -4,7 +4,7 @@ OpenCharts – free charts for everyone. A free, open-source candlestick chartin
 
 ## Features
 
-- Candlestick chart with a dark theme and an English UI.
+- Seventeen chart types (candles, hollow candles, OHLC bars, Heikin Ashi, line, line with markers, step line, area, HLC area, baseline, columns, high-low, Renko, Kagi, Point & Figure, Line Break and Range), with a dark or light theme and an English UI (14 languages). The type is stored in `opencharts:chart-type`.
 - Exchange switcher: **Kraken** (default), **Binance**, **Coinbase**, **Bitstamp**. All four are public REST APIs that work from the browser (CORS checked with a real `fetch` in headless Chrome).
 - Symbol search (click the pair name or start typing on the chart): official spot pairs from Kraken, Binance, Coinbase and Bitstamp, plus Kraken xStocks and a Stocks list (XRPN and major US tickers) served by Yahoo Finance through an optional OpenCharts Cloudflare Worker proxy (`worker/`). Exchange and Crypto/Stocks filters, typeahead, Yahoo search (EQUITY/ETF, including GPW `.WA`) when the proxy URL is set, and a 24h `localStorage` cache for exchange lists. Selecting a result switches the source and opens that symbol. The proxy is at `https://opencharts-proxy.opencharts.workers.dev`. If the URL is unset, Stocks Yahoo shows “Stock data proxy not configured yet”; crypto and xStocks keep working.
 - Pairs shown by default: XRP/USD, BTC/USD, ETH/USD. On Binance USD maps to USDT (`XRPUSDT`, `BTCUSDT`, `ETHUSDT`); other listed pairs keep the venue’s native symbol.
