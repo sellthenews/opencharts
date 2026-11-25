@@ -1433,54 +1433,6 @@ chart.timeScale().subscribeVisibleTimeRangeChange((range) => {
   }
 });
 
-type PlotClickGuard = { x: number; y: number; t: number; moved: boolean; skip: boolean };
-let plotClickGuard: PlotClickGuard | null = null;
-
-wrapEl.addEventListener(
-  'pointerdown',
-  (ev) => {
-    if (ev.button !== 0) {
-      plotClickGuard = null;
-      return;
-    }
-    const target = ev.target as HTMLElement | null;
-    if (
-      target?.closest(
-        '#tool-rail, #fav-bar, #draw-bar, #chart-menu, #rail-flyout, .modal, [data-modal], #ind-labels, #ind-modal, #fib-modal, #sym-modal, #backup-modal, #sidebar, #watchlist, button, a, input, textarea, select, [role="dialog"]',
-      )
-    ) {
-      plotClickGuard = null;
-      return;
-    }
-    const skip =
-      drawings.getTool() !== 'cursor' ||
-      drawings.isDrawingToolActive() ||
-      !!drawings.pickAt(ev.clientX, ev.clientY) ||
-      !!pendingAnchorId ||
-      !!pendingVpfr;
-    plotClickGuard = { x: ev.clientX, y: ev.clientY, t: performance.now(), moved: false, skip };
-  },
-  true,
-);
-window.addEventListener(
-  'pointermove',
-  (ev) => {
-    if (!plotClickGuard || plotClickGuard.moved) return;
-    if (Math.hypot(ev.clientX - plotClickGuard.x, ev.clientY - plotClickGuard.y) > 6) plotClickGuard.moved = true;
-  },
-  true,
-);
-
-function shouldToggleIndicatorsOnClick(): boolean {
-  const guard = plotClickGuard;
-  plotClickGuard = null;
-  if (!guard || guard.skip || guard.moved) return false;
-  if (performance.now() - guard.t > 400) return false;
-  if (drawings.getTool() !== 'cursor' || drawings.isDrawingToolActive()) return false;
-  if (pendingAnchorId || pendingVpfr) return false;
-  return true;
-}
-
 document.querySelector('#ind-visibility-btn')?.addEventListener('click', () => {
   setIndicatorsHidden(!indicators.isGlobalHidden());
 });
@@ -1499,7 +1451,6 @@ chart.subscribeClick((param) => {
     );
     persistIndicators(indicatorItems);
     setStatus(t('status.vwapSet'));
-    plotClickGuard = null;
     return;
   }
   if (time !== null && pendingVpfr) {
@@ -1511,7 +1462,6 @@ chart.subscribeClick((param) => {
       pendingVpfr = { id, step: 1 };
       persistIndicators(indicatorItems);
       setStatus(t('status.clickVpfrEnd'));
-      plotClickGuard = null;
       return;
     }
     pendingVpfr = null;
@@ -1520,21 +1470,8 @@ chart.subscribeClick((param) => {
     );
     persistIndicators(indicatorItems);
     setStatus(t('status.vpfrSet'));
-    plotClickGuard = null;
-    return;
   }
-  plotClickGuard = null;
 });
-
-window.addEventListener(
-  'pointerup',
-  (ev) => {
-    if (ev.button !== 0) return;
-    if (pendingAnchorId || pendingVpfr) return;
-    if (shouldToggleIndicatorsOnClick()) setIndicatorsHidden(!indicators.isGlobalHidden());
-  },
-  true,
-);
 
 
 

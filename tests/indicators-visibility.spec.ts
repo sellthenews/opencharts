@@ -20,31 +20,35 @@ async function clickEmptyPlot(page: Page): Promise<void> {
   await page.waitForTimeout(120);
 }
 
-test('a click on an empty chart area toggles all indicators; drawing and dragging do not', async ({ page }) => {
+test('a click on an empty chart area does not hide indicators; the toolbar button does', async ({ page }) => {
   await page.goto('/');
   await waitReady(page);
   await expect(page.locator('.ind-label[data-kind="volume"]')).toBeVisible();
   await expect(page.locator('#ind-visibility-btn')).toHaveAttribute('aria-pressed', 'false');
 
   await clickEmptyPlot(page);
+  await expect.poll(async () => page.evaluate(() => window.__opencharts.isIndicatorsHidden())).toBe(false);
+  await expect(page.locator('#ind-hidden-cue')).toBeHidden();
+  await expect(page.locator('#ind-visibility-btn')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('.ind-label[data-kind="volume"]')).toBeVisible();
+
+  await page.locator('#ind-visibility-btn').click();
   await expect(page.locator('#app')).toHaveAttribute('data-indicators', 'off');
   await expect.poll(async () => page.evaluate(() => window.__opencharts.isIndicatorsHidden())).toBe(true);
   await expect(page.locator('#ind-hidden-cue')).toBeVisible();
   await expect(page.locator('#ind-visibility-btn')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('#app')).toHaveAttribute('data-rsi', 'off');
 
   fs.mkdirSync(path.dirname(SHOT_HIDDEN), { recursive: true });
   await page.screenshot({ path: SHOT_HIDDEN, fullPage: true });
 
   await clickEmptyPlot(page);
+  await expect.poll(async () => page.evaluate(() => window.__opencharts.isIndicatorsHidden())).toBe(true);
+  await expect(page.locator('#ind-hidden-cue')).toBeVisible();
+
+  await page.locator('#ind-visibility-btn').click();
   await expect.poll(async () => page.evaluate(() => window.__opencharts.isIndicatorsHidden())).toBe(false);
   await expect(page.locator('#ind-hidden-cue')).toBeHidden();
   await expect(page.locator('#ind-visibility-btn')).toHaveAttribute('aria-pressed', 'false');
-
-  await page.locator('#ind-visibility-btn').click();
-  await expect.poll(async () => page.evaluate(() => window.__opencharts.isIndicatorsHidden())).toBe(true);
-  await page.locator('#ind-visibility-btn').click();
-  await expect.poll(async () => page.evaluate(() => window.__opencharts.isIndicatorsHidden())).toBe(false);
 
   const box = await page.locator('#chart-wrap').boundingBox();
   const b = box!;
