@@ -1,6 +1,6 @@
 {
   "packageId": "io.github.sellthenews.opencharts",
-  "host": "sellthenews.github.io",
+  "host": "swapwick.com",
   "name": "Swapwick",
   "launcherName": "Swapwick",
   "display": "standalone",
@@ -10,18 +10,18 @@
   "navigationColorDark": "#0E1116",
   "backgroundColor": "#0E1116",
   "enableNotifications": false,
-  "startUrl": "/opencharts/",
-  "iconUrl": "https://sellthenews.github.io/opencharts/icons/icon-512.png",
-  "maskableIconUrl": "https://sellthenews.github.io/opencharts/icons/icon-512-maskable.png",
+  "startUrl": "/",
+  "iconUrl": "https://swapwick.com/icons/icon-512.png",
+  "maskableIconUrl": "https://swapwick.com/icons/icon-512-maskable.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
     "path": "./android-release.keystore",
     "alias": "android"
   },
-  "appVersionCode": 4,
+  "appVersionCode": 5,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
-  "webManifestUrl": "https://sellthenews.github.io/opencharts/manifest.webmanifest",
+  "webManifestUrl": "https://swapwick.com/manifest.webmanifest",
   "fallbackType": "customtabs",
   "features": {},
   "alphaDependencies": {
@@ -30,7 +30,7 @@
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "orientation": "default",
-  "fullScopeUrl": "https://sellthenews.github.io/opencharts/",
-  "appVersion": "0.2.0",
+  "fullScopeUrl": "https://swapwick.com/",
+  "appVersion": "0.2.1",
   "minSdkVersion": 24
 }

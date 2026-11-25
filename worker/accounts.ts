@@ -424,9 +424,10 @@ async function oauthCallback(request: Request, env: Env & { DB: D1Database; ACCO
 function appOrigin(env: Env, request: Request): string {
   if (env.APP_ORIGIN) return env.APP_ORIGIN.replace(/\/$/, '') + '/';
   const origin = request.headers.get('Origin');
+  if (origin === 'https://swapwick.com' || origin === 'https://www.swapwick.com') return origin + '/';
   if (origin === 'https://sellthenews.github.io') return 'https://sellthenews.github.io/opencharts/';
   if (origin) return origin + '/';
-  return 'https://sellthenews.github.io/opencharts/';
+  return 'https://swapwick.com/';
 }
 
 function redirectApp(helpers: AccountHelpers, dest: string, status: string, cookie?: string): Response {

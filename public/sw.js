@@ -4,10 +4,10 @@
 // Network-first for HTML and version.json so a new GitHub Pages deploy
 // reaches users. Cache-first only for hashed /assets/ files (content-hashed
 // by Vite, safe to keep). Cross-origin market-data requests are never
-// intercepted. Scope is "./" so this works under the /opencharts/ base path.
+// intercepted. Scope is "./" so this works at root and subpaths.
 
-const CACHE_ASSETS = 'opencharts-assets-v6';
-const CACHE_PAGES = 'opencharts-pages-v6';
+const CACHE_ASSETS = 'opencharts-assets-v7';
+const CACHE_PAGES = 'opencharts-pages-v7';
 
 self.addEventListener('install', () => {
   self.skipWaiting();

@@ -13,6 +13,8 @@
 import { tryHandleAccounts, type Env } from './accounts';
 
 const ALLOWED_ORIGINS = new Set([
+  'https://swapwick.com',
+  'https://www.swapwick.com',
   'https://sellthenews.github.io',
   'http://127.0.0.1:4173',
   'http://localhost:4173',
@@ -41,7 +43,7 @@ const SEARCH_PARAMS: Record<string, RegExp> = {
 };
 
 const CACHE_TTL_S = 60;
-const UA = 'Swapwick/0.2 (https://sellthenews.github.io/opencharts/)';
+const UA = 'Swapwick/0.2 (https://swapwick.com/)';
 const RATE_LIMIT = 60;
 const RATE_WINDOW_MS = 60_000;
 

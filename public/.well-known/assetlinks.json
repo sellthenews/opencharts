@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "io.github.sellthenews.opencharts",
+      "sha256_cert_fingerprints": [
+        "56:78:B2:48:BA:C0:29:F3:7A:2C:39:D0:A8:61:F3:99:E1:E9:2E:02:D9:E8:E4:C2:45:32:2A:14:2A:3B:0C:C0"
+      ]
+    }
+  }
+]

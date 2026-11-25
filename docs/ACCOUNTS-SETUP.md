@@ -58,7 +58,7 @@ Migracja jest w `worker/migrations/0001_users.sql`.
 
 1. GitHub → Settings → Developer settings → OAuth Apps → New OAuth App.
 2. Application name: `Swapwick`.
-3. Homepage URL: `https://sellthenews.github.io/opencharts/`
+3. Homepage URL: `https://swapwick.com/`
 4. Authorization callback URL:
    `https://opencharts-proxy.opencharts.workers.dev/auth/github/callback`
 5. Zapisz **Client ID** (może trafić do `[vars]` w `wrangler.toml` jako
@@ -73,6 +73,7 @@ Jeśli testujesz też podgląd lokalny, dodaj drugi callback
 1. Google Cloud Console → APIs & Services → Credentials → Create credentials
    → OAuth client ID → typ **Web application**.
 2. Authorized JavaScript origins:
+   - `https://swapwick.com`
    - `https://sellthenews.github.io`
    - `https://opencharts-proxy.opencharts.workers.dev`
 3. Authorized redirect URIs:
@@ -82,7 +83,7 @@ Jeśli testujesz też podgląd lokalny, dodaj drugi callback
 
 Ekran zgody OAuth (Consent screen) musi zawierać zakresy `email` i `profile`
 (oraz `openid`). Adres polityki prywatności, którego wymaga Google przy publikacji
-ekranu zgody, to https://sellthenews.github.io/opencharts/privacy.html
+ekranu zgody, to https://swapwick.com/privacy.html
 
 ## 5. Ustaw sekrety (nigdy w repozytorium)
 
@@ -104,7 +105,7 @@ W `wrangler.toml` w `[vars]` ustaw też (to nie są sekrety):
 [vars]
 GITHUB_CLIENT_ID = "…"
 GOOGLE_CLIENT_ID = "…"
-APP_ORIGIN = "https://sellthenews.github.io/opencharts/"
+APP_ORIGIN = "https://swapwick.com/"
 ```
 
 ## 6. Wdróż Workera

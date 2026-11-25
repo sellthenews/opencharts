@@ -25,6 +25,10 @@ test('OPTIONS from the Pages origin gets CORS, other origins do not', async () =
   assert.equal(ok.headers.get('Access-Control-Allow-Methods'), 'GET, POST, PUT, OPTIONS');
   assert.equal(ok.headers.get('Access-Control-Allow-Credentials'), 'true');
 
+  const custom = await handleRequest(req('/v8/finance/chart/AAPL', { method: 'OPTIONS', origin: 'https://swapwick.com' }));
+  assert.equal(custom.status, 204);
+  assert.equal(custom.headers.get('Access-Control-Allow-Origin'), 'https://swapwick.com');
+
   const local = await handleRequest(req('/v8/finance/chart/AAPL', { method: 'OPTIONS', origin: 'http://127.0.0.1:4173' }));
   assert.equal(local.status, 204);
   assert.equal(local.headers.get('Access-Control-Allow-Origin'), 'http://127.0.0.1:4173');

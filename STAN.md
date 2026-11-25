@@ -2,7 +2,7 @@
 
 Aktualizacja: 24 listopada 2026, ok. 16:50 (Europe/Warsaw).
 
-Projekt nazywa się **Swapwick** (dawniej OpenCharts). Etap 1 i etap 2 są ukończone. Repozytorium publiczne: [sellthenews/opencharts](https://github.com/sellthenews/opencharts). GitHub Pages: [https://sellthenews.github.io/opencharts/](https://sellthenews.github.io/opencharts/). Licencja projektu: **AGPL-3.0-or-later**. Interfejs jest po angielsku.
+Projekt nazywa się **Swapwick** (dawniej OpenCharts). Etap 1 i etap 2 są ukończone. Repozytorium publiczne: [sellthenews/opencharts](https://github.com/sellthenews/opencharts). Strona live (custom domain): [https://swapwick.com/](https://swapwick.com/) (stary adres `sellthenews.github.io/opencharts/` przekierowuje na `swapwick.com`). Licencja projektu: **AGPL-3.0-or-later**. Interfejs jest po angielsku.
 
 ## Commity
 

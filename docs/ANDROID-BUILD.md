@@ -2,7 +2,7 @@
 
 Ten przewodnik jest dla Mateusza. Na środowisku, w którym przygotowano te pliki, nie było oficjalnego JDK ani Android SDK, więc APK nie został tu zbudowany. Konfiguracja jest gotowa w `twa/twa-manifest.json`. Nie trzeba zakładać żadnego konta (ani Google Play, ani innego), żeby powstał podpisany APK do instalacji ręcznej (sideload).
 
-Aplikacja to opakowanie live site [https://sellthenews.github.io/opencharts/](https://sellthenews.github.io/opencharts/) jako [Trusted Web Activity](https://developer.chrome.com/docs/android/trusted-web-activity) przez oficjalne [Bubblewrap](https://github.com/GoogleChromeLabs/bubblewrap). Najpierw poczekaj, aż PWA z tej gałęzi będzie już opublikowana (manifest, ikony 512 px, service worker).
+Aplikacja to opakowanie live site [https://swapwick.com/](https://swapwick.com/) jako [Trusted Web Activity](https://developer.chrome.com/docs/android/trusted-web-activity) przez oficjalne [Bubblewrap](https://github.com/GoogleChromeLabs/bubblewrap). Najpierw poczekaj, aż PWA z tej gałęzi będzie już opublikowana (manifest, ikony 512 px, service worker).
 
 ## 1. JDK 17
 
@@ -77,9 +77,9 @@ Jeśli `bubblewrap update` zapyta o wersję, zostaw `0.1.0` / kod `1` przy pierw
 
 Żeby Android uznał APK za zweryfikowaną TWA i **ukrył pasek URL**, host musi serwować `assetlinks.json` **w korzeniu domeny**:
 
-`https://sellthenews.github.io/.well-known/assetlinks.json`
+`https://swapwick.com/.well-known/assetlinks.json`
 
-To **nie** może być `https://sellthenews.github.io/opencharts/.well-known/assetlinks.json`. GitHub Pages dla repozytorium projektowego (`sellthenews/opencharts`) publikuje tylko pod `/opencharts/`, więc plik trzeba dodać w repozytorium strony użytkownika/organizacji (`sellthenews.github.io`) albo na własnej domenie ustawionej jako host.
+To **nie** może być `https://swapwick.com/.well-known/assetlinks.json`. GitHub Pages dla repozytorium projektowego (`sellthenews/opencharts`) publikuje tylko pod `/opencharts/`, więc plik trzeba dodać w repozytorium strony użytkownika/organizacji (`sellthenews.github.io`) albo na własnej domenie ustawionej jako host.
 
 Szablon jest w [assetlinks.example.json](assetlinks.example.json). Odczytaj odcisk SHA-256 keystore:
 
@@ -93,7 +93,7 @@ Bez tego pliku APK i tak się zainstaluje i otworzy Swapwick, ale Chrome może p
 
 Sprawdzenie po publikacji:
 
-`https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://sellthenews.github.io&relation=delegate_permission/common.handle_all_urls`
+`https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://swapwick.com&relation=delegate_permission/common.handle_all_urls`
 
 ## Czego tu nie robić
 
