@@ -1573,6 +1573,40 @@ html[data-theme="light"] #rail-flyout {
   gap: 8px;
 }
 
+.fib-preset-row {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.fib-preset {
+  display: inline-flex;
+  margin-left: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.fib-preset button {
+  border: 0;
+  background: var(--panel);
+  color: var(--text);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.fib-preset button + button {
+  border-left: 1px solid var(--border);
+}
+
+.fib-preset button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--heading);
+}
+
 .fib-levels {
   display: flex;
   flex-direction: column;

@@ -61,8 +61,10 @@ export interface FibLevel {
 export type FibLabelVAlign = 'top' | 'middle' | 'bottom';
 export type FibTrendStyle = 'solid' | 'dashed' | 'dotted';
 export type FibToolKind = 'fib' | 'fibext';
+export type FibPreset = 'ours' | 'classic';
 
 export interface FibOptions {
+  preset?: FibPreset;
   levels: FibLevel[];
   background: boolean;
   backgroundOpacity: number;
@@ -127,6 +129,7 @@ export function colorForFibValue(value: number): string {
 
 export function builtInFibOptions(): FibOptions {
   return {
+    preset: 'ours',
     levels: FIB_DEFAULT_VALUES.map((value) => ({
       value,
       visible: FIB_VISIBLE_DEFAULTS.some((v) => nearlyEqual(v, value)),
@@ -135,6 +138,28 @@ export function builtInFibOptions(): FibOptions {
     background: true,
     backgroundOpacity: 0.04,
     // false = default order (level 1 at the first point, 0 at the second).
+    reverse: false,
+    showPrices: true,
+    showLevels: true,
+    labels: 'right',
+    labelVAlign: 'middle',
+    extendLines: false,
+    showTrend: true,
+    trendStyle: 'dashed',
+  };
+}
+
+/** Previous full retracement set: all catalog levels visible, stronger fill, extensions off. */
+export function classicFibOptions(): FibOptions {
+  return {
+    preset: 'classic',
+    levels: FIB_DEFAULT_VALUES.map((value) => ({
+      value,
+      visible: true,
+      color: colorForFibValue(value),
+    })),
+    background: true,
+    backgroundOpacity: 0.08,
     reverse: false,
     showPrices: true,
     showLevels: true,
@@ -183,7 +208,9 @@ export function sanitizeFibOptions(raw: unknown, fallback: FibOptions = builtInF
     typeof o.backgroundOpacity === 'number' && Number.isFinite(o.backgroundOpacity)
       ? Math.min(0.4, Math.max(0.02, o.backgroundOpacity))
       : fallback.backgroundOpacity;
+  const preset: FibPreset | undefined = o.preset === 'ours' || o.preset === 'classic' ? o.preset : undefined;
   return {
+    preset,
     levels: levels.length ? levels : cloneFibOptions(fallback).levels,
     background: asBoolean(o.background, fallback.background),
     backgroundOpacity: opacity,
@@ -321,8 +348,33 @@ export function colorForFibExtValue(value: number): string {
   return last[1];
 }
 
+const FIBEXT_OURS_VISIBLE = [0, 0.618, 1, 1.272, 1.618, 2, 3.618] as const;
+
 export function builtInFibExtOptions(): FibOptions {
   return {
+    preset: 'ours',
+    levels: FIBEXT_DEFAULT_LEVELS.map((row) => ({
+      value: row.value,
+      visible: FIBEXT_OURS_VISIBLE.some((v) => nearlyEqual(v, row.value)),
+      color: colorForFibExtValue(row.value),
+    })),
+    background: true,
+    backgroundOpacity: 0.04,
+    reverse: false,
+    showPrices: false,
+    showLevels: true,
+    labels: 'left',
+    labelVAlign: 'middle',
+    extendLines: true,
+    showTrend: true,
+    trendStyle: 'dotted',
+  };
+}
+
+/** Previous extension catalog: original visibility, stronger fill, lines extended. */
+export function classicFibExtOptions(): FibOptions {
+  return {
+    preset: 'classic',
     levels: FIBEXT_DEFAULT_LEVELS.map((row) => ({
       value: row.value,
       visible: row.visible,
@@ -338,6 +390,40 @@ export function builtInFibExtOptions(): FibOptions {
     extendLines: true,
     showTrend: true,
     trendStyle: 'dotted',
+  };
+}
+
+export function fibPresetOptions(kind: FibToolKind, preset: FibPreset): FibOptions {
+  if (kind === 'fibext') return preset === 'classic' ? classicFibExtOptions() : builtInFibExtOptions();
+  return preset === 'classic' ? classicFibOptions() : builtInFibOptions();
+}
+
+function visibleLevelValues(opts: FibOptions): number[] {
+  return opts.levels.filter((level) => level.visible).map((level) => level.value);
+}
+
+function sameVisibleValues(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((value, i) => nearlyEqual(value, b[i]!));
+}
+
+export function detectFibPreset(opts: FibOptions, kind: FibToolKind): FibPreset | null {
+  const visible = visibleLevelValues(opts);
+  if (sameVisibleValues(visible, visibleLevelValues(fibPresetOptions(kind, 'ours')))) return 'ours';
+  if (sameVisibleValues(visible, visibleLevelValues(fibPresetOptions(kind, 'classic')))) return 'classic';
+  return null;
+}
+
+/** Swap the level catalog and preset fill / extend flags; keep the user's label and trend choices. */
+export function applyFibPreset(current: FibOptions, kind: FibToolKind, preset: FibPreset): FibOptions {
+  const base = fibPresetOptions(kind, preset);
+  return {
+    ...cloneFibOptions(current),
+    preset,
+    levels: cloneFibOptions(base).levels,
+    background: base.background,
+    backgroundOpacity: base.backgroundOpacity,
+    extendLines: base.extendLines,
   };
 }
 

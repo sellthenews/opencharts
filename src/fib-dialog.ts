@@ -3,12 +3,14 @@
 
 import { onLangChange, t } from './i18n';
 
-import type { FibOptions, FibToolKind } from './fib-settings';
+import type { FibOptions, FibPreset, FibToolKind } from './fib-settings';
 import {
+  applyFibPreset,
   builtInOf,
   cloneFibOptions,
   colorForFibExtValue,
   colorForFibValue,
+  detectFibPreset,
   formatFibLevel,
   saveFibDefaults,
   saveFibExtDefaults,
@@ -38,6 +40,7 @@ export function initFibDialog(
   const trendStyle = root.querySelector<HTMLSelectElement>('#fib-trend-style')!;
   const extend = root.querySelector<HTMLInputElement>('#fib-extend')!;
   const savedNote = root.querySelector('#fib-saved-note')!;
+  const presetGroup = root.querySelector('.fib-preset');
 
   let snapshot: FibOptions | null = null;
   let current: FibOptions = builtInOf('fib');
@@ -104,7 +107,17 @@ export function initFibDialog(
     trendStyle.value = current.trendStyle;
     extend.checked = current.extendLines;
     renderLevels();
+    syncPresetButtons();
     applying = false;
+  }
+
+  function syncPresetButtons(): void {
+    const selected = detectFibPreset(current, kind);
+    for (const btn of root.querySelectorAll<HTMLButtonElement>('[data-fib-preset]')) {
+      const on = btn.dataset.fibPreset === selected;
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.classList.toggle('is-on', on);
+    }
   }
 
   function open(opts: FibOptions, nextKind: FibToolKind = 'fib'): void {
@@ -143,6 +156,15 @@ export function initFibDialog(
     el.addEventListener('input', () => readForm());
     el.addEventListener('change', () => readForm());
   }
+
+  presetGroup?.addEventListener('click', (ev) => {
+    const btn = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-fib-preset]');
+    const next = btn?.dataset.fibPreset;
+    if (next !== 'ours' && next !== 'classic') return;
+    readForm();
+    fillForm(applyFibPreset(current, kind, next as FibPreset));
+    emit(false);
+  });
 
   root.querySelector('#fib-add-level')?.addEventListener('click', () => {
     const last = current.levels[current.levels.length - 1];

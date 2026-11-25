@@ -238,6 +238,13 @@
           <button type="button" class="is-active" data-fib-tab="style" role="tab" aria-selected="true" data-i18n="fib.style">Style</button>
         </div>
         <div id="fib-style" class="fib-tab-body">
+          <div class="fib-row fib-preset-row">
+            <span id="fib-preset-label" data-i18n="fib.preset">Level set</span>
+            <div class="fib-preset" role="radiogroup" aria-labelledby="fib-preset-label">
+              <button type="button" data-fib-preset="ours" aria-pressed="true" data-i18n="fib.presetOurs">Ours (default)</button>
+              <button type="button" data-fib-preset="classic" aria-pressed="false" data-i18n="fib.presetClassic">Classic</button>
+            </div>
+          </div>
           <div id="fib-levels" class="fib-levels"></div>
           <div class="fib-level-actions">
             <button type="button" id="fib-add-level" data-i18n="fib.addLevel">Add level</button>
