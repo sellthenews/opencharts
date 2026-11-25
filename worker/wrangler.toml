@@ -7,22 +7,21 @@ compatibility_date = "2025-09-01"
 
 # account_id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"  # filled by wrangler on the operator's machine; do not commit
 
-# Accounts and drawing sync (see docs/ACCOUNTS-SETUP.md). Leave commented until
-# the operator creates the D1 database and KV namespace; paste the real IDs.
+# Accounts and drawing sync (see docs/ACCOUNTS-SETUP.md).
 # Never commit secrets. Put SESSION_SECRET, GITHUB_CLIENT_SECRET and
 # GOOGLE_CLIENT_SECRET with `wrangler secret put` after wrangler login.
-#
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "opencharts-accounts"
-# database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-# migrations_dir = "migrations"
-#
-# [[kv_namespaces]]
-# binding = "ACCOUNTS"
-# id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-#
-# [vars]
-# GITHUB_CLIENT_ID = ""
-# GOOGLE_CLIENT_ID = ""
-# APP_ORIGIN = "https://sellthenews.github.io/opencharts/"
+# Leave GITHUB_CLIENT_ID / GOOGLE_CLIENT_ID empty until the operator
+# registers those OAuth apps.
+
+[[d1_databases]]
+binding = "DB"
+database_name = "opencharts-accounts"
+database_id = "aa73cbcb-2c16-4e22-9aeb-b7981d66355a"
+migrations_dir = "migrations"
+
+[[kv_namespaces]]
+binding = "ACCOUNTS"
+id = "7680999508ca4b5a860349f8c16588c8"
+
+[vars]
+APP_ORIGIN = "https://sellthenews.github.io/opencharts/"
