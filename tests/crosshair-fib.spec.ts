@@ -75,7 +75,7 @@ test('Fib anchors stay on time/price after zoom, pan, and price-axis drag', asyn
   expect(yNow).toBeCloseTo(after!.y!, 4);
 });
 
-test('right-click cancels an in-progress drawing and Remove only appears on a selected object', async ({ page }) => {
+test('right-click cancels an in-progress drawing, exits the tool, and Remove only appears on a selected object', async ({ page }) => {
   await page.goto('/');
   await waitReady(page);
   const box = await page.locator('#chart-wrap').boundingBox();
@@ -85,19 +85,31 @@ test('right-click cancels an in-progress drawing and Remove only appears on a se
   const kept = await page.evaluate(() => window.__opencharts.getDrawings().filter((d) => d.type === 'fib').length);
   expect(kept).toBe(1);
 
+  const fibCount = () => page.evaluate(() => window.__opencharts.getDrawings().filter((d) => d.type === 'fib').length);
+
   await page.locator('#tool-rail [data-tool="fib"]').click();
   await expect.poll(async () => page.evaluate(() => window.__opencharts.getTool())).toBe('fib');
   await page.mouse.click(b.x + b.width * 0.5, b.y + b.height * 0.35, { button: 'right' });
   await expect(page.locator('#chart-menu')).toBeHidden();
-  expect(await page.evaluate(() => window.__opencharts.getDrawings().filter((d) => d.type === 'fib').length)).toBe(kept);
-  expect(await page.evaluate(() => window.__opencharts.getTool())).toBe('fib');
+  expect(await fibCount()).toBe(kept);
+  expect(await page.evaluate(() => window.__opencharts.getTool())).toBe('cursor');
+  await expect(page.locator('#app')).toHaveAttribute('data-tool', 'cursor');
+  await expect(page.locator('#tool-rail [data-tool="fib"]')).not.toHaveClass(/is-active/);
 
+  await page.locator('#tool-rail [data-tool="fib"]').click();
+  await expect.poll(async () => page.evaluate(() => window.__opencharts.getTool())).toBe('fib');
   await page.mouse.click(b.x + b.width * 0.3, b.y + b.height * 0.28);
   await page.mouse.click(b.x + b.width * 0.5, b.y + b.height * 0.45, { button: 'right' });
   await expect(page.locator('#chart-menu')).toBeHidden();
-  expect(await page.evaluate(() => window.__opencharts.getDrawings().filter((d) => d.type === 'fib').length)).toBe(kept);
+  expect(await fibCount()).toBe(kept);
+  expect(await page.evaluate(() => window.__opencharts.getTool())).toBe('cursor');
+  await expect(page.locator('#app')).toHaveAttribute('data-tool', 'cursor');
 
-  await page.locator('#cursor-tool').click();
+  await page.mouse.click(b.x + b.width * 0.3, b.y + b.height * 0.4);
+  await page.mouse.click(b.x + b.width * 0.55, b.y + b.height * 0.58);
+  expect(await fibCount()).toBe(kept);
+  expect(await page.evaluate(() => window.__opencharts.getTool())).toBe('cursor');
+
   const handle = await page.evaluate(() => window.__opencharts.handlePage('p2'));
   expect(handle).toBeTruthy();
   await page.mouse.click(handle!.x, handle!.y, { button: 'right' });

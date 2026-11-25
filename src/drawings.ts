@@ -347,6 +347,7 @@ export class DrawingLayer {
   private holdTimer: number | null = null;
   private holdOrigin: { x: number; y: number; pointerId: number } | null = null;
   private inspectPointer: number | null = null;
+  private suppressContextMenu = false;
 
   constructor(
     private readonly chart: IChartApi,
@@ -948,8 +949,17 @@ export class DrawingLayer {
     }
   }
 
+  private cancelAndExitTool(): void {
+    this.cancelInProgress(false);
+    if (this.tool !== 'cursor') {
+      this.setTool('cursor');
+      this.onToolDone?.();
+    }
+  }
+
   private onContextMenu = (ev: MouseEvent): void => {
-    if (this.inspectPointer !== null || this.holdTimer != null) {
+    if (this.suppressContextMenu || this.inspectPointer !== null || this.holdTimer != null) {
+      this.suppressContextMenu = false;
       ev.preventDefault();
       ev.stopPropagation();
       return;
@@ -958,7 +968,7 @@ export class DrawingLayer {
     if (this.tool !== 'cursor' || this.draft) {
       ev.preventDefault();
       ev.stopPropagation();
-      this.cancelInProgress(false);
+      this.cancelAndExitTool();
     }
   };
 
@@ -993,7 +1003,8 @@ export class DrawingLayer {
       if (this.tool !== 'cursor' || this.draft) {
         ev.preventDefault();
         ev.stopPropagation();
-        this.cancelInProgress(false);
+        this.suppressContextMenu = true;
+        this.cancelAndExitTool();
         return;
       }
       const rect = this.canvas.getBoundingClientRect();
