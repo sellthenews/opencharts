@@ -44,6 +44,7 @@ export function defaultWatchState(): WatchState {
         name: t('watch.myList'),
         items: [
           { sourceId: 'kraken', pairId: 'XRPUSD' },
+          { sourceId: 'yahoo', pairId: 'XRPN' },
           { sourceId: 'kraken', pairId: 'BTCUSD' },
           { sourceId: 'kraken', pairId: 'ETHUSD' },
         ],
