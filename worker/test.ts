@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { handleRequest } from './index.ts';
+import { handleRequest, resetRateLimit } from './index.ts';
 
 const PAGES = 'https://sellthenews.github.io';
 const OTHER = 'https://evil.example';
@@ -77,6 +77,33 @@ test('GET chart/XRPN returns Yahoo data and Pages CORS', async () => {
   const result = data.chart?.result?.[0];
   assert.equal(result?.meta?.symbol, 'XRPN');
   assert.ok((result?.timestamp?.length ?? 0) > 10);
+});
+
+test('non-JSON upstream is rejected and a burst from one IP is rate limited', async () => {
+  resetRateLimit();
+  const bad = await handleRequest(req('/v8/finance/chart/AAPL?interval=1d&range=1d', { origin: PAGES }), {
+    fetch: async () => new Response('<html>nope</html>', { status: 200, headers: { 'Content-Type': 'text/html' } }),
+  });
+  assert.equal(bad.status, 502);
+  const body = (await bad.json()) as { error?: string };
+  assert.match(body.error ?? '', /JSON/);
+
+  resetRateLimit();
+  const runtime = {
+    fetch: async () => new Response('{"ok":true}', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+  };
+  const burst = (path: string) => {
+    const headers = new Headers({ Origin: PAGES, 'CF-Connecting-IP': '203.0.113.9' });
+    return new Request(`https://opencharts-proxy.workers.dev${path}`, { headers });
+  };
+  for (let i = 0; i < 60; i++) {
+    const res = await handleRequest(burst('/v8/finance/chart/AAPL?interval=1d&range=1d'), runtime);
+    assert.equal(res.status, 200);
+  }
+  const blocked = await handleRequest(burst('/v8/finance/chart/AAPL?interval=1d&range=1d'), runtime);
+  assert.equal(blocked.status, 429);
+  assert.equal(blocked.headers.get('Access-Control-Allow-Origin'), PAGES);
+  assert.equal(blocked.headers.get('Retry-After'), '60');
 });
 
 test('GET search for a GPW ticker returns quotes', async () => {
