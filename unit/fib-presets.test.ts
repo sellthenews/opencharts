@@ -11,11 +11,15 @@ import {
   classicFibExtOptions,
   classicFibOptions,
   detectFibPreset,
+  FIB_DEFAULTS_KEY,
   fibExtLevelXRange,
   fibLevelXRange,
   fibOptionsOf,
+  loadFibDefaults,
+  looksLikeFibExtLevelSet,
   parseFibExtend,
   sanitizeFibOptions,
+  saveFibDefaults,
 } from '../src/fib-settings';
 
 test('retracement ours is the built-in default: 7 levels, fill 0.04, lines extend right', () => {
@@ -134,4 +138,60 @@ test('level line spans follow Right, Left, Both, and None', () => {
   assert.deepEqual(fibExtLevelXRange(10, 40, 30, 200, 'right'), { start: 10, end: 200 });
   assert.deepEqual(fibExtLevelXRange(10, 40, 30, 200, 'left'), { start: 0, end: 40 });
   assert.deepEqual(fibExtLevelXRange(10, 40, 30, 200, 'both'), { start: 0, end: 200 });
+});
+
+function installMemoryStorage(): void {
+  const mem = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => (mem.has(key) ? mem.get(key)! : null),
+    setItem: (key: string, value: string) => {
+      mem.set(key, String(value));
+    },
+    removeItem: (key: string) => {
+      mem.delete(key);
+    },
+    clear: () => mem.clear(),
+    key: (index: number) => [...mem.keys()][index] ?? null,
+    get length() {
+      return mem.size;
+    },
+  };
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: storage });
+}
+
+test('looksLikeFibExtLevelSet detects the extension visible set and catalog', () => {
+  assert.equal(looksLikeFibExtLevelSet(builtInFibOptions()), false);
+  assert.equal(looksLikeFibExtLevelSet(classicFibOptions()), false);
+  assert.equal(looksLikeFibExtLevelSet(builtInFibExtOptions()), true);
+  assert.equal(looksLikeFibExtLevelSet(classicFibExtOptions()), true);
+  const custom = sanitizeFibOptions({
+    levels: [
+      { value: 0, visible: true, color: '#888888' },
+      { value: 0.5, visible: true, color: '#888888' },
+    ],
+  });
+  assert.equal(looksLikeFibExtLevelSet(custom), false);
+});
+
+test('polluted retracement defaults that match the extension set self-heal to the 7 Ours levels', () => {
+  installMemoryStorage();
+  saveFibDefaults(builtInFibExtOptions());
+  const raw = localStorage.getItem(FIB_DEFAULTS_KEY);
+  assert.ok(raw);
+  const stored = JSON.parse(raw!) as { levels?: { value: number; visible?: boolean }[] };
+  assert.deepEqual(
+    (stored.levels ?? []).filter((l) => l.visible !== false).map((l) => l.value),
+    [0, 0.236, 0.38, 0.5, 0.61, 0.786, 1],
+  );
+  localStorage.setItem(FIB_DEFAULTS_KEY, JSON.stringify(builtInFibExtOptions()));
+  const loaded = loadFibDefaults();
+  assert.deepEqual(
+    loaded.levels.filter((l) => l.visible).map((l) => l.value),
+    [0, 0.236, 0.38, 0.5, 0.61, 0.786, 1],
+  );
+  const healed = JSON.parse(localStorage.getItem(FIB_DEFAULTS_KEY)!) as { levels?: { value: number; visible?: boolean }[] };
+  assert.deepEqual(
+    (healed.levels ?? []).filter((l) => l.visible !== false).map((l) => l.value),
+    [0, 0.236, 0.38, 0.5, 0.61, 0.786, 1],
+  );
 });

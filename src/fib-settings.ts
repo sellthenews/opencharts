@@ -293,7 +293,17 @@ export function loadFibDefaults(): FibOptions {
   try {
     const raw = localStorage.getItem(FIB_DEFAULTS_KEY);
     if (!raw) return builtInFibOptions();
-    return sanitizeFibOptions(JSON.parse(raw), builtInFibOptions());
+    const opts = sanitizeFibOptions(JSON.parse(raw), builtInFibOptions());
+    if (looksLikeFibExtLevelSet(opts)) {
+      const healed = builtInFibOptions();
+      try {
+        localStorage.setItem(FIB_DEFAULTS_KEY, JSON.stringify(healed));
+      } catch {
+        /* quota */
+      }
+      return healed;
+    }
+    return opts;
   } catch {
     return builtInFibOptions();
   }
@@ -301,7 +311,8 @@ export function loadFibDefaults(): FibOptions {
 
 export function saveFibDefaults(opts: FibOptions): void {
   try {
-    localStorage.setItem(FIB_DEFAULTS_KEY, JSON.stringify(sanitizeFibOptions(opts)));
+    const clean = looksLikeFibExtLevelSet(opts) ? builtInFibOptions() : sanitizeFibOptions(opts);
+    localStorage.setItem(FIB_DEFAULTS_KEY, JSON.stringify(clean));
   } catch {
     /* quota */
   }
@@ -475,6 +486,20 @@ function visibleLevelValues(opts: FibOptions): number[] {
 function sameVisibleValues(a: number[], b: number[]): boolean {
   if (a.length !== b.length) return false;
   return a.every((value, i) => nearlyEqual(value, b[i]!));
+}
+
+/** True when a retracement style carries the extension visible set or the extension catalog. */
+export function looksLikeFibExtLevelSet(opts: FibOptions): boolean {
+  const visible = visibleLevelValues(opts);
+  if (
+    sameVisibleValues(visible, visibleLevelValues(builtInFibExtOptions())) ||
+    sameVisibleValues(visible, visibleLevelValues(classicFibExtOptions()))
+  ) {
+    return true;
+  }
+  const values = opts.levels.map((level) => level.value);
+  const extCatalog = FIBEXT_DEFAULT_LEVELS.map((row) => row.value);
+  return sameVisibleValues(values, extCatalog);
 }
 
 export function detectFibPreset(opts: FibOptions, kind: FibToolKind): FibPreset | null {

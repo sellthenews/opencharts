@@ -258,3 +258,82 @@ test('Extend lines switch supports Right and Both and persists', async ({ page }
   });
   expect(fresh?.extend).toBe('both');
 });
+
+
+const RETRACEMENT_OURS = [0, 0.236, 0.38, 0.5, 0.61, 0.786, 1];
+
+test('saving Fib extension as default does not change retracement levels, and polluted retracement defaults self-heal', async ({ page }) => {
+  await page.goto('/');
+  await waitReady(page);
+
+  const box = await page.locator('#chart-wrap').boundingBox();
+  expect(box).toBeTruthy();
+  const b = box!;
+
+  await page.locator('#tool-rail [data-rail-caret="fib"]').click();
+  await page.locator('#rail-flyout [data-tool="fibext"]').click();
+  await page.mouse.click(b.x + b.width * 0.22, b.y + b.height * 0.62);
+  await page.mouse.click(b.x + b.width * 0.38, b.y + b.height * 0.34);
+  await page.mouse.click(b.x + b.width * 0.5, b.y + b.height * 0.5);
+  await expect.poll(async () => page.evaluate(() => window.__opencharts.getDrawings().some((d) => d.type === 'fibext'))).toBe(true);
+
+  await page.locator('#cursor-tool').click();
+  await page.mouse.dblclick(b.x + b.width * 0.4, b.y + b.height * 0.48);
+  await expect(page.locator('#fib-modal')).toBeVisible();
+  await expect(page.locator('#fib-modal-title')).toContainText(/extension/i);
+  await page.locator('#fib-save-default').click();
+  await expect(page.locator('#fib-saved-note')).toContainText('Saved as default');
+  await page.locator('#fib-ok').click();
+  await expect(page.locator('#fib-modal')).toBeHidden();
+
+  await page.evaluate(() => window.__opencharts.importDrawings(JSON.stringify([])));
+  await page.locator('#tool-rail [data-rail-caret="fib"]').click();
+  await page.locator('#rail-flyout [data-tool="fib"]').click();
+  const box2 = await page.locator('#chart-wrap').boundingBox();
+  expect(box2).toBeTruthy();
+  const r = box2!;
+  await page.mouse.click(r.x + r.width * 0.22, r.y + r.height * 0.32);
+  await page.mouse.click(r.x + r.width * 0.58, r.y + r.height * 0.58);
+  await expect.poll(async () => page.evaluate(() => window.__opencharts.getDrawings().some((d) => d.type === 'fib'))).toBe(true);
+  const retr = await page.evaluate(() => {
+    const d = window.__opencharts.getDrawings().find((x) => x.type === 'fib');
+    if (!d || d.type !== 'fib') return null;
+    return (d.fib?.levels ?? []).filter((l) => l.visible).map((l) => l.value);
+  });
+  expect(retr).toEqual(RETRACEMENT_OURS);
+
+  await page.evaluate(() => {
+    const extRaw = localStorage.getItem('opencharts:fibext-defaults');
+    if (extRaw) localStorage.setItem('opencharts:fib-defaults', extRaw);
+  });
+  await page.reload();
+  await waitReady(page);
+  await page.locator('#tool-rail [data-rail-caret="fib"]').click();
+  await page.locator('#rail-flyout [data-tool="fib"]').click();
+  const box3 = await page.locator('#chart-wrap').boundingBox();
+  expect(box3).toBeTruthy();
+  const r2 = box3!;
+  await page.mouse.click(r2.x + r2.width * 0.22, r2.y + r2.height * 0.32);
+  await page.mouse.click(r2.x + r2.width * 0.58, r2.y + r2.height * 0.58);
+  await expect.poll(async () => page.evaluate(() => window.__opencharts.getDrawings().some((d) => d.type === 'fib'))).toBe(true);
+  const healed = await page.evaluate(() => {
+    const d = window.__opencharts.getDrawings().find((x) => x.type === 'fib');
+    if (!d || d.type !== 'fib') return null;
+    const stored = localStorage.getItem('opencharts:fib-defaults');
+    let storedVisible: number[] | null = null;
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as { levels?: { value: number; visible?: boolean }[] };
+        storedVisible = (parsed.levels ?? []).filter((l) => l.visible !== false).map((l) => l.value);
+      } catch {
+        storedVisible = null;
+      }
+    }
+    return {
+      visible: (d.fib?.levels ?? []).filter((l) => l.visible).map((l) => l.value),
+      storedVisible,
+    };
+  });
+  expect(healed?.visible).toEqual(RETRACEMENT_OURS);
+  expect(healed?.storedVisible).toEqual(RETRACEMENT_OURS);
+});

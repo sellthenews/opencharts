@@ -6,7 +6,7 @@ import { onLangChange, t } from './i18n';
 import './storage';
 import type { DrawStyle } from './drawings-types';
 import type { FibOptions } from './fib-settings';
-import { loadFibDefaults, loadFibExtDefaults, sanitizeFibOptions, saveFibDefaults, saveFibExtDefaults } from './fib-settings';
+import { builtInFibOptions, loadFibDefaults, loadFibExtDefaults, looksLikeFibExtLevelSet, sanitizeFibOptions, saveFibDefaults, saveFibExtDefaults } from './fib-settings';
 import type { IndicatorInstance } from './indicators/types';
 import { clampParams, clampStyle, newIndicatorId } from './indicators/settings';
 import { CATALOG_BY_KIND } from './indicators/types';
@@ -66,6 +66,10 @@ function cloneIndicators(items: IndicatorInstance[]): IndicatorInstance[] {
     }));
 }
 
+function healRetracementStyle(opts: FibOptions): FibOptions {
+  return looksLikeFibExtLevelSet(opts) ? builtInFibOptions() : opts;
+}
+
 function normalizeTemplate(raw: unknown): ChartTemplate | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Partial<ChartTemplate> & { styles?: Partial<ChartTemplate['styles']> };
@@ -77,7 +81,7 @@ function normalizeTemplate(raw: unknown): ChartTemplate | null {
     indicators,
     panes: Array.isArray(r.panes) ? r.panes.filter((n): n is number => typeof n === 'number' && Number.isFinite(n)) : undefined,
     styles: {
-      fib: sanitizeFibOptions(r.styles?.fib ?? {}, loadFibDefaults()),
+      fib: healRetracementStyle(sanitizeFibOptions(r.styles?.fib ?? {}, loadFibDefaults())),
       fibext: sanitizeFibOptions(r.styles?.fibext ?? {}, loadFibExtDefaults()),
       line: sanitizeLineStyle(r.styles?.line),
     },
