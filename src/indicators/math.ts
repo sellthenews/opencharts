@@ -3,6 +3,7 @@
 
 import type { BandPoint, Candle, LinePoint, MacdPoint } from './types';
 import { intervalSeconds } from '../sources/intervals';
+import { nyDateId, usRthSessionId, type SessionKind } from '../timezone';
 
 export function sma(candles: Candle[], period: number): LinePoint[] {
   if (period < 1 || candles.length < period) return [];
@@ -134,16 +135,39 @@ export function vwap(candles: Candle[]): LinePoint[] {
   return anchoredVwap(candles, 0);
 }
 
-/** Session VWAP, reset at each UTC day. Typical price (H+L+C)/3. */
-export function sessionVwap(candles: Candle[]): LinePoint[] {
+function isIntradaySeries(candles: Candle[]): boolean {
+  let min = Number.POSITIVE_INFINITY;
+  for (let i = 1; i < candles.length; i++) {
+    const dt = candles[i]!.time - candles[i - 1]!.time;
+    if (dt > 0 && dt < min) min = dt;
+  }
+  return min < 20 * 3600;
+}
+
+/**
+ * Session key. UTC days stay as before.
+ * US regular hours (09:30–16:00 New York) apply to intraday stock bars.
+ * Daily (and higher) stock bars represent that session, so they keep the New York date.
+ * Bars outside the regular session return null and are left out of the VWAP.
+ */
+function sessionKey(time: number, session: SessionKind, intraday: boolean): string | null {
+  if (session === 'utc-day') return String(Math.floor(time / 86400));
+  if (!intraday) return nyDateId(time);
+  return usRthSessionId(time);
+}
+
+/** Session VWAP. Crypto resets on the UTC day; US stocks use the regular New York session. */
+export function sessionVwap(candles: Candle[], session: SessionKind = 'utc-day'): LinePoint[] {
   const out: LinePoint[] = [];
+  const intraday = session === 'us-rth' && isIntradaySeries(candles);
   let pv = 0;
   let vol = 0;
-  let day = Number.NaN;
+  let day = '';
   for (const c of candles) {
-    const d = Math.floor(c.time / 86400);
-    if (d !== day) {
-      day = d;
+    const key = sessionKey(c.time, session, intraday);
+    if (key === null) continue;
+    if (key !== day) {
+      day = key;
       pv = 0;
       vol = 0;
     }
@@ -775,19 +799,21 @@ export interface VwapBandPoint {
   low: number;
 }
 
-/** Session VWAP plus volume-weighted sigma and running session high/low (UTC day). */
-export function sessionVwapProfile(candles: Candle[]): VwapBandPoint[] {
+/** Session VWAP plus volume-weighted sigma and running session high/low. */
+export function sessionVwapProfile(candles: Candle[], session: SessionKind = 'utc-day'): VwapBandPoint[] {
   const out: VwapBandPoint[] = [];
+  const intraday = session === 'us-rth' && isIntradaySeries(candles);
   let pv = 0;
   let pv2 = 0;
   let vol = 0;
-  let day = Number.NaN;
+  let day = '';
   let hi = Number.NEGATIVE_INFINITY;
   let lo = Number.POSITIVE_INFINITY;
   for (const c of candles) {
-    const d = Math.floor(c.time / 86400);
-    if (d !== day) {
-      day = d;
+    const key = sessionKey(c.time, session, intraday);
+    if (key === null) continue;
+    if (key !== day) {
+      day = key;
       pv = 0;
       pv2 = 0;
       vol = 0;
