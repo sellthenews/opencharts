@@ -81,7 +81,8 @@ Jeśli testujesz też podgląd lokalny, dodaj drugi callback
    przez `wrangler secret put`.
 
 Ekran zgody OAuth (Consent screen) musi zawierać zakresy `email` i `profile`
-(oraz `openid`).
+(oraz `openid`). Adres polityki prywatności, którego wymaga Google przy publikacji
+ekranu zgody, to https://sellthenews.github.io/opencharts/privacy.html
 
 ## 5. Ustaw sekrety (nigdy w repozytorium)
 

@@ -1,0 +1,176 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Copyright (C) 2026 OpenCharts contributors -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Privacy Policy – OpenCharts</title>
+    <meta name="description" content="Privacy policy for OpenCharts: optional accounts, what we store, and how to request deletion." />
+    <meta name="theme-color" content="#0e1116" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <style>
+      :root {
+        --bg: #0b0e14;
+        --text: #d7dae0;
+        --muted: #8b909b;
+        --heading: #fff;
+        --accent: #2962ff;
+        --border: #22262f;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      main {
+        max-width: 42rem;
+        margin: 0 auto;
+        padding: 2rem 1.25rem 4rem;
+      }
+      h1, h2 { color: var(--heading); font-weight: 700; }
+      h1 { font-size: 1.6rem; margin: 0 0 0.35rem; }
+      h2 { font-size: 1.15rem; margin: 1.75rem 0 0.5rem; }
+      p, li { margin: 0.55rem 0; }
+      ul { padding-left: 1.2rem; }
+      .muted, .updated { color: var(--muted); }
+      .updated { font-size: 0.9rem; margin-bottom: 1.5rem; }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover, a:focus-visible { text-decoration: underline; }
+      hr {
+        border: 0;
+        border-top: 1px solid var(--border);
+        margin: 2.25rem 0;
+      }
+      nav { margin-bottom: 1.5rem; font-size: 0.95rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <nav><a href="./">OpenCharts</a></nav>
+      <h1>Privacy Policy</h1>
+      <p class="updated">Last updated: 25 November 2026</p>
+      <p>
+        OpenCharts is a free, open-source charting site at
+        <a href="https://sellthenews.github.io/opencharts/">https://sellthenews.github.io/opencharts/</a>.
+        The source code is published under the GNU Affero General Public License v3.0 or later
+        (<a href="https://github.com/sellthenews/opencharts">github.com/sellthenews/opencharts</a>).
+      </p>
+
+      <h2>Accounts are optional</h2>
+      <p>
+        You can use OpenCharts without an account. In that case your charts, drawings and settings stay
+        in your browser and are not sent to our servers for storage.
+      </p>
+      <p>
+        If you choose to create an account, you can sign in with GitHub, Google, or an email address and password.
+      </p>
+
+      <h2>What we store</h2>
+      <p>
+        Account and sync data is stored on Cloudflare, in a D1 database and a KV namespace used by the
+        OpenCharts Worker (<code>opencharts-proxy</code>). For an account we store only:
+      </p>
+      <ul>
+        <li>email address,</li>
+        <li>display name,</li>
+        <li>the sign-in provider id (GitHub user id and/or Google account id),</li>
+        <li>for email-and-password accounts, a password hash (PBKDF2 with SHA-256, 100,000 iterations, and a unique salt) — the password itself is not stored,</li>
+        <li>your drawings and settings, if you use account sync.</li>
+      </ul>
+      <p>
+        After you sign in, the Worker sets an HttpOnly session cookie named <code>opencharts_session</code>
+        (on HTTPS it is also marked Secure and SameSite=None). The session lasts 30 days. A short-lived
+        record is also stored during GitHub or Google sign-in and expires after about 10 minutes.
+      </p>
+
+      <h2>What we do not do</h2>
+      <p>OpenCharts does not show ads, does not sell your data, and does not use third-party analytics.</p>
+
+      <h2>Market data</h2>
+      <p>
+        The site requests public market data. When a direct request is blocked, a Cloudflare Worker may
+        request it from public sources, including Yahoo Finance, GeckoTerminal, and public XRPL and Xahau
+        ledger nodes. The proxy does not forward your cookies or account headers to those sources.
+        Requests through the Worker are rate-limited by client IP.
+      </p>
+
+      <h2>Deleting an account</h2>
+      <p>
+        There is no in-app account deletion yet. To ask us to delete your account and any synced drawings
+        or settings, open an issue at
+        <a href="https://github.com/sellthenews/opencharts/issues">https://github.com/sellthenews/opencharts/issues</a>.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about this policy can also be sent through
+        <a href="https://github.com/sellthenews/opencharts/issues">GitHub issues</a>.
+      </p>
+
+      <hr />
+
+      <h1 lang="pl">Polityka prywatności</h1>
+      <p class="updated" lang="pl">Ostatnia aktualizacja: 25 listopada 2026</p>
+      <p lang="pl">
+        OpenCharts to darmowa, otwarta strona z wykresami pod adresem
+        <a href="https://sellthenews.github.io/opencharts/">https://sellthenews.github.io/opencharts/</a>.
+        Kod źródłowy jest publikowany na licencji GNU Affero General Public License v3.0 lub nowszej
+        (<a href="https://github.com/sellthenews/opencharts">github.com/sellthenews/opencharts</a>).
+      </p>
+
+      <h2 lang="pl">Konto jest dobrowolne</h2>
+      <p lang="pl">
+        OpenCharts możesz używać bez konta. Wtedy wykresy, rysunki i ustawienia zostają w Twojej
+        przeglądarce i nie są zapisywane na naszych serwerach.
+      </p>
+      <p lang="pl">
+        Jeśli założysz konto, możesz zalogować się przez GitHub, Google albo adres e-mail i hasło.
+      </p>
+
+      <h2 lang="pl">Co zapisujemy</h2>
+      <p lang="pl">
+        Dane konta i synchronizacji trzymamy w Cloudflare, w bazie D1 i w przestrzeni KV Workera
+        OpenCharts (<code>opencharts-proxy</code>). Dla konta zapisujemy wyłącznie:
+      </p>
+      <ul lang="pl">
+        <li>adres e-mail,</li>
+        <li>wyświetlaną nazwę,</li>
+        <li>identyfikator dostawcy logowania (identyfikator użytkownika GitHub i/lub konta Google),</li>
+        <li>dla kont z e-mailem i hasłem: skrót hasła (PBKDF2 z SHA-256, 100&nbsp;000 iteracji i unikalną solą) — samego hasła nie zapisujemy,</li>
+        <li>Twoje rysunki i ustawienia, jeśli korzystasz z synchronizacji konta.</li>
+      </ul>
+      <p lang="pl">
+        Po zalogowaniu Worker ustawia ciasteczko sesji HttpOnly o nazwie <code>opencharts_session</code>
+        (przy HTTPS jest też oznaczone jako Secure i SameSite=None). Sesja trwa 30 dni. Przy logowaniu
+        przez GitHub albo Google zapisywany jest też krótkotrwały stan, który wygasa po około 10 minutach.
+      </p>
+
+      <h2 lang="pl">Czego nie robimy</h2>
+      <p lang="pl">OpenCharts nie wyświetla reklam, nie sprzedaje Twoich danych i nie korzysta z analityki stron trzecich.</p>
+
+      <h2 lang="pl">Dane rynkowe</h2>
+      <p lang="pl">
+        Strona pobiera publiczne dane rynkowe. Gdy bezpośrednie zapytanie jest zablokowane, Worker Cloudflare
+        może pobrać je z publicznych źródeł, w tym z Yahoo Finance, GeckoTerminal oraz publicznych węzłów
+        rejestrów XRPL i Xahau. Pośrednik nie przesyła do tych źródeł Twoich ciasteczek ani nagłówków konta.
+        Zapytania przez Workera są ograniczane według adresu IP klienta.
+      </p>
+
+      <h2 lang="pl">Usunięcie konta</h2>
+      <p lang="pl">
+        W aplikacji nie ma jeszcze opcji usunięcia konta. Żeby poprosić o usunięcie konta oraz
+        zsynchronizowanych rysunków i ustawień, otwórz zgłoszenie na
+        <a href="https://github.com/sellthenews/opencharts/issues">https://github.com/sellthenews/opencharts/issues</a>.
+      </p>
+
+      <h2 lang="pl">Kontakt</h2>
+      <p lang="pl">
+        Pytania w sprawie tej polityki też możesz wysłać przez
+        <a href="https://github.com/sellthenews/opencharts/issues">zgłoszenia na GitHubie</a>.
+      </p>
+    </main>
+  </body>
+</html>

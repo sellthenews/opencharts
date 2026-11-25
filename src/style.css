@@ -95,6 +95,11 @@ body,
   text-decoration: underline;
 }
 
+.site-foot-sep {
+  color: var(--muted);
+  margin: 0 0.55em;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
