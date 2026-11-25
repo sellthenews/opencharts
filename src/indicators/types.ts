@@ -124,6 +124,7 @@ export interface IndicatorParams {
   extensions?: string;
   tf?: string;
   source?: string;
+  ma?: string;
 }
 
 export interface IndicatorStyle {
@@ -147,7 +148,7 @@ export interface IndicatorField {
   min?: number;
   max?: number;
   step?: number;
-  type?: 'number' | 'select';
+  type?: 'number' | 'select' | 'toggle';
   options?: { value: string; label: string }[];
 }
 
@@ -189,9 +190,19 @@ const TF_FIELD: IndicatorField = {
 const DIV_FIELD: IndicatorField = {
   key: 'divergences',
   label: 'Divergences',
-  type: 'select',
+  type: 'toggle',
   options: [
-    { value: 'on', label: 'Regular and hidden' },
+    { value: 'on', label: 'On' },
+    { value: 'off', label: 'Off' },
+  ],
+};
+
+const MA_FIELD: IndicatorField = {
+  key: 'ma',
+  label: 'Moving average',
+  type: 'toggle',
+  options: [
+    { value: 'on', label: 'On' },
     { value: 'off', label: 'Off' },
   ],
 };
@@ -328,7 +339,7 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
   },
   { kind: 'donchian', name: 'Donchian Channels', short: 'Donchian', aliases: ['donchian', 'dc'], group: 'volatility', defaults: { period: 20 }, fields: [periodField()], pane: 'price' },
   { kind: 'atr', name: 'ATR', short: 'ATR', aliases: ['atr'], group: 'volatility', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
-  { kind: 'volume', name: 'Volume', short: 'Volume', aliases: ['volume', 'vol', 'wolumen', 'volume ma'], group: 'volume', defaults: { period: 20 }, fields: [periodField('MA Period')], pane: 'price' },
+  { kind: 'volume', name: 'Volume', short: 'Volume', aliases: ['volume', 'vol', 'wolumen', 'volume ma'], group: 'volume', defaults: { period: 20, ma: 'on' }, fields: [MA_FIELD, periodField('MA Period')], pane: 'price' },
   { kind: 'cmf', name: 'Chaikin Money Flow', short: 'CMF', aliases: ['cmf', 'chaikin'], group: 'volume', defaults: { period: 20 }, fields: [periodField()], pane: 'osc' },
   { kind: 'mfi', name: 'Money Flow Index', short: 'MFI', aliases: ['mfi', 'money flow'], group: 'volume', defaults: { period: 14 }, fields: [periodField()], pane: 'osc' },
   { kind: 'obv', name: 'On-Balance Volume', short: 'OBV', aliases: ['obv', 'on balance'], group: 'volume', defaults: {}, fields: [], pane: 'osc' },
@@ -382,7 +393,7 @@ export const INDICATOR_CATALOG: IndicatorMeta[] = [
     pane: 'osc',
   },
   { kind: 'cvd', name: 'CVD (approx. from OHLCV)', short: 'CVD', aliases: ['cvd', 'cumulative volume delta', 'delta'], group: 'volume', defaults: {}, fields: [], pane: 'osc' },
-  { kind: 'footprint', name: 'Footprint (approx. from OHLCV)', short: 'Footprint', aliases: ['footprint', 'cluster'], group: 'volume', defaults: { rows: 8 }, fields: [{ key: 'rows', label: 'Rows', min: 4, max: 24, step: 1 }], pane: 'price' },
+  { kind: 'footprint', name: 'Footprint', short: 'Footprint', aliases: ['footprint', 'cluster'], group: 'volume', defaults: { rows: 8 }, fields: [{ key: 'rows', label: 'Rows', min: 4, max: 24, step: 1 }], pane: 'price' },
 ];
 
 export const CATALOG_BY_KIND: Record<IndicatorKind, IndicatorMeta> = Object.fromEntries(

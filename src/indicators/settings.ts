@@ -33,12 +33,11 @@ export function clampParams(kind: IndicatorKind, params: IndicatorParams): Indic
   const meta = CATALOG_BY_KIND[kind];
   const out: IndicatorParams = { ...meta.defaults };
   for (const field of meta.fields) {
-    if (field.type === 'select') {
-      const raw = String(params[field.key] ?? '');
+    if (field.type === 'select' || field.type === 'toggle') {
+      const fallback = String(meta.defaults[field.key] ?? field.options?.[0]?.value ?? '');
+      const raw = params[field.key] != null && params[field.key] !== '' ? String(params[field.key]) : fallback;
       const allowed = field.options?.some((o) => o.value === raw);
-      (out as Record<string, string | number | undefined>)[field.key] = allowed
-        ? raw
-        : (field.options?.[0]?.value ?? (meta.defaults[field.key] as string | undefined) ?? '');
+      (out as Record<string, string | number | undefined>)[field.key] = allowed ? raw : fallback;
       continue;
     }
     const raw = Number(params[field.key]);

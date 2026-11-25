@@ -42,6 +42,7 @@ export function initFibDialog(
   const trend = root.querySelector<HTMLInputElement>('#fib-trend')!;
   const trendStyle = root.querySelector<HTMLSelectElement>('#fib-trend-style')!;
   const extend = root.querySelector<HTMLSelectElement>('#fib-extend')!;
+  const logScale = root.querySelector<HTMLInputElement>('#fib-log-scale')!;
   const savedNote = root.querySelector('#fib-saved-note')!;
   const presetGroup = root.querySelector('.fib-preset');
 
@@ -70,6 +71,7 @@ export function initFibDialog(
     current.showTrend = trend.checked;
     current.trendStyle = trendStyle.value === 'dashed' || trendStyle.value === 'dotted' ? trendStyle.value : 'solid';
     current = withFibExtend(current, isFibExtend(extend.value) ? extend.value : 'right');
+    current.logScale = logScale.checked;
     current.levels = [...list.querySelectorAll<HTMLElement>('.fib-level-row')].flatMap((row) => {
       const value = Number(row.querySelector<HTMLInputElement>('.fib-level-value')?.value);
       if (!Number.isFinite(value)) return [];
@@ -109,6 +111,7 @@ export function initFibDialog(
     trend.checked = current.showTrend;
     trendStyle.value = current.trendStyle;
     extend.value = fibExtendOf(current);
+    logScale.checked = current.logScale === true;
     renderLevels();
     syncPresetButtons();
     applying = false;
@@ -155,7 +158,7 @@ export function initFibDialog(
     emit(false);
   });
 
-  for (const el of [bg, bgOpacity, reverse, prices, showLevels, labels, labelVAlign, trend, trendStyle, extend]) {
+  for (const el of [bg, bgOpacity, reverse, prices, showLevels, labels, labelVAlign, trend, trendStyle, extend, logScale]) {
     el.addEventListener('input', () => readForm());
     el.addEventListener('change', () => readForm());
   }

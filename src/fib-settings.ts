@@ -6,7 +6,10 @@ export const FIBEXT_DEFAULTS_KEY = 'opencharts:fibext-defaults';
 
 export const FIB_KEY_LEVELS = [0.5, 0.61, 0.786, 1, 1.618] as const;
 
-const FIB_VISIBLE_DEFAULTS = [0, 0.236, 0.38, 0.5, 0.61, 0.786, 1] as const;
+/** Previous built-in Ours visible set, used to upgrade stored retracement defaults. */
+export const PREV_FIB_OURS_VISIBLE = [0, 0.236, 0.38, 0.5, 0.61, 0.786, 1] as const;
+
+export const FIB_VISIBLE_DEFAULTS = [0, 0.236, 0.38, 0.5, 0.61, 0.786, 0.941, 1, 1.13, 1.25, 1.414, 1.618, 1.732, 2.058] as const;
 
 export const FIB_DEFAULT_VALUES = [
   0, 0.236, 0.278, 0.38, 0.44, 0.5, 0.577, 0.61, 0.667, 0.707, 0.77, 0.786, 0.8, 0.878, 0.941, 1, 1.13, 1.25, 1.414,
@@ -79,6 +82,8 @@ export interface FibOptions {
   extendLines: boolean;
   showTrend: boolean;
   trendStyle: FibTrendStyle;
+  /** Compute level prices on ln(price). Default off. */
+  logScale: boolean;
 }
 
 export function nearlyEqual(a: number, b: number, eps = 1e-4): boolean {
@@ -207,6 +212,7 @@ export function builtInFibOptions(): FibOptions {
     extendLines: true,
     showTrend: true,
     trendStyle: 'dashed',
+    logScale: false,
   };
 }
 
@@ -230,6 +236,7 @@ export function classicFibOptions(): FibOptions {
     extendLines: true,
     showTrend: true,
     trendStyle: 'dashed',
+    logScale: false,
   };
 }
 
@@ -286,6 +293,7 @@ export function sanitizeFibOptions(raw: unknown, fallback: FibOptions = builtInF
     extendLines: fibExtendReachesRight(extend),
     showTrend: asBoolean(o.showTrend, fallback.showTrend),
     trendStyle: o.trendStyle === 'solid' || o.trendStyle === 'dashed' || o.trendStyle === 'dotted' ? o.trendStyle : fallback.trendStyle,
+    logScale: asBoolean(o.logScale, fallback.logScale),
   };
 }
 
@@ -296,12 +304,13 @@ export function loadFibDefaults(): FibOptions {
     const opts = sanitizeFibOptions(JSON.parse(raw), builtInFibOptions());
     if (looksLikeFibExtLevelSet(opts)) {
       const healed = builtInFibOptions();
-      try {
-        localStorage.setItem(FIB_DEFAULTS_KEY, JSON.stringify(healed));
-      } catch {
-        /* quota */
-      }
+      persistRetracementDefaults(healed);
       return healed;
+    }
+    if (isLegacyOursRetracementDefaults(opts)) {
+      const upgraded = upgradeLegacyOursRetracement(opts);
+      persistRetracementDefaults(upgraded);
+      return upgraded;
     }
     return opts;
   } catch {
@@ -448,6 +457,7 @@ export function builtInFibExtOptions(): FibOptions {
     extendLines: true,
     showTrend: true,
     trendStyle: 'dotted',
+    logScale: false,
   };
 }
 
@@ -471,6 +481,7 @@ export function classicFibExtOptions(): FibOptions {
     extendLines: true,
     showTrend: true,
     trendStyle: 'dotted',
+    logScale: false,
   };
 }
 
@@ -500,6 +511,39 @@ export function looksLikeFibExtLevelSet(opts: FibOptions): boolean {
   const values = opts.levels.map((level) => level.value);
   const extCatalog = FIBEXT_DEFAULT_LEVELS.map((row) => row.value);
   return sameVisibleValues(values, extCatalog);
+}
+
+function persistRetracementDefaults(opts: FibOptions): void {
+  try {
+    localStorage.setItem(FIB_DEFAULTS_KEY, JSON.stringify(opts));
+  } catch {
+    /* quota */
+  }
+}
+
+/** True when stored retracement defaults still use the previous 7-level Ours set. */
+export function isLegacyOursRetracementDefaults(opts: FibOptions): boolean {
+  const visible = visibleLevelValues(opts);
+  if (!sameVisibleValues(visible, [...PREV_FIB_OURS_VISIBLE])) return false;
+  const values = opts.levels.map((level) => level.value);
+  return (
+    sameVisibleValues(values, [...FIB_DEFAULT_VALUES]) ||
+    sameVisibleValues(values, [...PREV_FIB_OURS_VISIBLE])
+  );
+}
+
+/** Apply the new default visibility, keeping the user's colours and style flags. */
+export function upgradeLegacyOursRetracement(opts: FibOptions): FibOptions {
+  const base = builtInFibOptions();
+  const previous = opts.levels;
+  return {
+    ...cloneFibOptions(opts),
+    preset: 'ours',
+    levels: base.levels.map((row) => {
+      const prev = previous.find((level) => nearlyEqual(level.value, row.value));
+      return prev ? { ...row, color: prev.color, visible: row.visible } : row;
+    }),
+  };
 }
 
 export function detectFibPreset(opts: FibOptions, kind: FibToolKind): FibPreset | null {

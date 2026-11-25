@@ -37,8 +37,12 @@
           <button type="button" data-panes="4" title="Four charts" data-i18n-title="toolbar.fourCharts">4</button>
         </div>
         <button type="button" id="ind-btn" title="Indicators" data-i18n-title="toolbar.indicatorsTitle" data-i18n-aria="toolbar.indicatorsTitle" aria-label="Indicators">
-          <span class="toolbar-label-full" data-i18n="toolbar.indicators">fx Indicators</span>
-          <span class="toolbar-label-short" aria-hidden="true">fx</span>
+          <span class="toolbar-label-full" data-i18n="toolbar.indicators">Indicators</span>
+          <span class="toolbar-label-short" aria-hidden="true" data-i18n="toolbar.indicatorsShort">Ind</span>
+        </button>
+        <button type="button" id="ind-visibility-btn" aria-pressed="false" title="Hide all indicators" data-i18n-title="ind.hideAllTitle" data-i18n-aria="ind.hideAllTitle" aria-label="Hide all indicators">
+          <span class="toolbar-label-full" data-i18n="ind.hideAll">Hide indicators</span>
+          <span class="toolbar-label-short" aria-hidden="true">◉</span>
         </button>
         <div class="compare-wrap">
           <button type="button" id="compare-btn" title="Compare symbols in percent" data-i18n="toolbar.compare" data-i18n-title="toolbar.compareTitle" aria-expanded="false" aria-controls="compare-pop">Compare</button>
@@ -99,6 +103,7 @@
           <div id="compare-legend" class="compare-legend" hidden></div>
           <canvas id="draw-overlay" class="passthrough"></canvas>
           <canvas id="vp-overlay"></canvas>
+          <div id="ind-hidden-cue" hidden data-i18n="ind.hiddenCue">Indicators hidden</div>
           <div id="ohlc-legend" hidden></div>
           <div id="ind-labels"></div>
           <div id="chart-loader" hidden>
@@ -241,7 +246,7 @@
           <div class="fib-row fib-preset-row">
             <span id="fib-preset-label" data-i18n="fib.preset">Level set</span>
             <div class="fib-preset" role="radiogroup" aria-labelledby="fib-preset-label">
-              <button type="button" data-fib-preset="ours" aria-pressed="true" data-i18n="fib.presetOurs">Ours (default)</button>
+              <button type="button" data-fib-preset="ours" aria-pressed="true" data-i18n="fib.presetOurs">Default</button>
               <button type="button" data-fib-preset="classic" aria-pressed="false" data-i18n="fib.presetClassic">Classic</button>
             </div>
           </div>
@@ -282,6 +287,7 @@
               <option value="none" data-i18n="fib.extendNone">None</option>
             </select>
           </label>
+          <label class="fib-row"><input type="checkbox" id="fib-log-scale" /> <span data-i18n="fib.logScale">Fib levels based on log scale</span></label>
         </div>
         <div class="fib-modal-foot">
           <button type="button" id="fib-reset" data-i18n="fib.reset">Reset to defaults</button>

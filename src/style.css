@@ -228,7 +228,7 @@ button.danger:hover {
 .ind-labels {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 11;
   pointer-events: none;
   overflow: visible;
 }
@@ -1182,6 +1182,43 @@ html[data-theme="light"] #rail-flyout {
 
 #ohlc-legend[hidden] {
   display: none;
+}
+
+#ind-hidden-cue {
+  position: absolute;
+  top: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bar) 88%, transparent);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#ind-hidden-cue[hidden] {
+  display: none;
+}
+
+#app[data-indicators="off"] #ind-labels {
+  opacity: 0.55;
+}
+
+#ind-visibility-btn.is-off {
+  color: var(--muted);
+}
+
+.ind-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ind-popover .ind-toggle input {
+  width: auto;
 }
 
 .ohlc-row {
@@ -2697,6 +2734,7 @@ label,
   }
 
   #ind-btn,
+  #ind-visibility-btn,
   #sidebar-btn,
   #more-btn,
   .interval-menu-btn,

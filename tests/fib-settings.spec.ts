@@ -33,7 +33,7 @@ test('Fib retracement: 24 levels, settings dialog, persist and Save as default',
   const levels = first && first.type === 'fib' ? first.fib?.levels ?? [] : [];
   expect(levels).toHaveLength(24);
   const visible = levels.filter((l) => l.visible).map((l) => l.value);
-  expect(visible).toEqual([0, 0.236, 0.38, 0.5, 0.61, 0.786, 1]);
+  expect(visible).toEqual([0, 0.236, 0.38, 0.5, 0.61, 0.786, 0.941, 1, 1.13, 1.25, 1.414, 1.618, 1.732, 2.058]);
   expect(first && first.type === 'fib' ? first.fib?.extend : undefined).toBe('right');
   expect(first && first.type === 'fib' ? first.fib?.extendLines : undefined).toBe(true);
   expect(first && first.type === 'fib' ? first.fib?.backgroundOpacity : undefined).toBeCloseTo(0.04);
@@ -44,6 +44,7 @@ test('Fib retracement: 24 levels, settings dialog, persist and Save as default',
 
   fs.mkdirSync(path.dirname(CHART_SHOT), { recursive: true });
   await page.screenshot({ path: CHART_SHOT, fullPage: true });
+  await page.screenshot({ path: path.resolve('screenshots-test/e1-fib-retracement-defaults.png'), fullPage: true });
 
   const box = await page.locator('#chart-wrap').boundingBox();
   const b = box!;
@@ -121,7 +122,7 @@ test('Fib level-set switch swaps ours and classic and persists', async ({ page }
   const classic = page.locator('[data-fib-preset="classic"]');
   await expect(ours).toHaveAttribute('aria-pressed', 'true');
   await expect(classic).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.locator('.fib-level-on:checked')).toHaveCount(7);
+  await expect(page.locator('.fib-level-on:checked')).toHaveCount(14);
 
   await classic.click();
   await expect(classic).toHaveAttribute('aria-pressed', 'true');
@@ -260,7 +261,7 @@ test('Extend lines switch supports Right and Both and persists', async ({ page }
 });
 
 
-const RETRACEMENT_OURS = [0, 0.236, 0.38, 0.5, 0.61, 0.786, 1];
+const RETRACEMENT_OURS = [0, 0.236, 0.38, 0.5, 0.61, 0.786, 0.941, 1, 1.13, 1.25, 1.414, 1.618, 1.732, 2.058];
 
 test('saving Fib extension as default does not change retracement levels, and polluted retracement defaults self-heal', async ({ page }) => {
   await page.goto('/');
@@ -336,4 +337,41 @@ test('saving Fib extension as default does not change retracement levels, and po
   });
   expect(healed?.visible).toEqual(RETRACEMENT_OURS);
   expect(healed?.storedVisible).toEqual(RETRACEMENT_OURS);
+});
+
+
+test('Fib settings: Default preset label, log-scale option persists on Save as default', async ({ page }) => {
+  await page.goto('/');
+  await waitReady(page);
+  await drawFib(page);
+  const box = await page.locator('#chart-wrap').boundingBox();
+  const b = box!;
+  await page.mouse.dblclick(b.x + b.width * 0.4, b.y + b.height * 0.45);
+  await expect(page.locator('#fib-modal')).toBeVisible();
+  await expect(page.locator('[data-fib-preset="ours"]')).toHaveText(/Default/);
+  await expect(page.locator('[data-fib-preset="ours"]')).not.toHaveText(/Ours/i);
+  fs.mkdirSync('screenshots-test', { recursive: true });
+  await page.screenshot({ path: path.resolve('screenshots-test/e1-fib-preset-default.png'), fullPage: true });
+  await expect(page.locator('#fib-log-scale')).not.toBeChecked();
+  await page.locator('#fib-log-scale').check();
+  await page.screenshot({ path: path.resolve('screenshots-test/e1-fib-log-scale.png'), fullPage: true });
+  await page.locator('#fib-save-default').click();
+  await expect(page.locator('#fib-saved-note')).toContainText('Saved as default');
+  await page.locator('#fib-ok').click();
+  const stored = await page.evaluate(() => {
+    const d = window.__opencharts.getDrawings().find((x) => x.type === 'fib');
+    const raw = localStorage.getItem('opencharts:fib-defaults');
+    const parsed = raw ? (JSON.parse(raw) as { logScale?: boolean }) : null;
+    return { drawing: d && d.type === 'fib' ? !!d.fib?.logScale : false, saved: parsed?.logScale === true };
+  });
+  expect(stored.drawing).toBe(true);
+  expect(stored.saved).toBe(true);
+
+  await page.evaluate(() => window.__opencharts.importDrawings(JSON.stringify([])));
+  await drawFib(page);
+  const fresh = await page.evaluate(() => {
+    const d = window.__opencharts.getDrawings().find((x) => x.type === 'fib');
+    return d && d.type === 'fib' ? !!d.fib?.logScale : false;
+  });
+  expect(fresh).toBe(true);
 });

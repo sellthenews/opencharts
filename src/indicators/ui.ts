@@ -20,6 +20,8 @@ const FIELD_KEY: Record<string, string> = {
   Timeframe: 'ind.field.tf',
   Chart: 'ind.field.chart',
   Divergences: 'ind.field.divergences',
+  'Moving average': 'ind.field.ma',
+  'MA Period': 'ind.field.period',
   'Regular and hidden': 'ind.field.regularHidden',
   On: 'ind.field.on',
   Off: 'ind.field.off',
@@ -324,6 +326,10 @@ export class IndicatorHud {
     pop.className = 'ind-popover';
     const fieldHtml = meta.fields
       .map((f) => {
+        if (f.type === 'toggle') {
+          const on = String(params[f.key] ?? 'off') === 'on';
+          return `<label class="ind-toggle"><input type="checkbox" data-ind-field="${f.key}" data-ind-toggle="1"${on ? ' checked' : ''} /> ${fieldLabel(f.label, f.key)}</label>`;
+        }
         if (f.type === 'select') {
           const val = String(params[f.key] ?? '');
           const opts = (f.options ?? []).map((o) => `<option value="${o.value}"${o.value === val ? ' selected' : ''}>${optionLabel(o.label, o.value)}</option>`).join('');
@@ -334,7 +340,7 @@ export class IndicatorHud {
       })
       .join('');
     pop.innerHTML =
-      `<label>${t('ind.color')}<input type="color" data-ind-style="color" value="${color || '#5b9cf6'}" /></label>` +
+      `<label>${item.kind === 'volume' ? t('ind.maColor') : t('ind.color')}<input type="color" data-ind-style="color" value="${color || '#5b9cf6'}" /></label>` +
       `<label>${t('ind.width')}<select data-ind-style="width">${[1, 2, 3, 4].map((w) => `<option value="${w}"${w === width ? ' selected' : ''}>${t('draw.px', { n: w })}</option>`).join('')}</select></label>` +
       fieldHtml;
     if (labelEl) labelEl.append(pop);
@@ -345,7 +351,11 @@ export class IndicatorHud {
       for (const input of pop.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-ind-field]')) {
         const key = input.dataset.indField as keyof IndicatorParams;
         const field = meta.fields.find((f) => f.key === key);
-        (next as Record<string, string | number | undefined>)[key] = field?.type === 'select' ? input.value : Number(input.value);
+        if (input instanceof HTMLInputElement && input.dataset.indToggle === '1') {
+          (next as Record<string, string | number | undefined>)[key] = input.checked ? 'on' : 'off';
+        } else {
+          (next as Record<string, string | number | undefined>)[key] = field?.type === 'select' ? input.value : Number(input.value);
+        }
       }
       const style: IndicatorStyle = { ...item.style };
       const colorEl = pop.querySelector<HTMLInputElement>('[data-ind-style="color"]');

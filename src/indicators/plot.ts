@@ -149,7 +149,8 @@ export function indicatorPlots(item: IndicatorInstance, data: Candle[], ctx?: Pl
         color: c.close >= c.open ? 'rgba(38, 166, 154, 0.45)' : 'rgba(239, 83, 80, 0.45)',
       }));
       const period = p.period ?? 20;
-      return period >= 1 ? [hist, asLine(smaVolume(data, period))] : [hist];
+      if ((p.ma ?? 'on') === 'on' && period >= 1) return [hist, asLine(smaVolume(data, period))];
+      return [hist];
     }
     case 'rsi':
       return [line(rsi(src, p.period ?? 14))];

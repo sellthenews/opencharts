@@ -3,6 +3,7 @@
 
 import { HistogramSeries, LineSeries, LineStyle } from 'lightweight-charts';
 import type { IChartApi, IPriceLine, ISeriesApi, Time, UTCTimestamp } from 'lightweight-charts';
+import { t } from '../i18n';
 import type { Candle } from '../sources/types';
 import {
   adx,
@@ -186,11 +187,22 @@ export class IndicatorHost {
   private htf = new Map<string, Candle[]>();
   private chartInterval = '1D';
   private onNeedTf: ((tf: string) => void) | null = null;
+  private globalHidden = false;
 
   constructor(
     private readonly chart: IChartApi,
     private readonly candles: ISeriesApi<'Candlestick'>,
   ) {}
+
+  isGlobalHidden(): boolean {
+    return this.globalHidden;
+  }
+
+  setGlobalHidden(hidden: boolean): void {
+    if (this.globalHidden === hidden) return;
+    this.globalHidden = hidden;
+    this.forceFullNext = true;
+  }
 
   setOverlay(canvas: HTMLCanvasElement, wrap: HTMLElement): void {
     this.vpCanvas = canvas;
@@ -291,7 +303,7 @@ export class IndicatorHost {
     this.lastData = data;
     this.lastItems = items;
     const map: PaneMap = {};
-    const visible = items.filter((i) => i.visible);
+    const visible = this.globalHidden ? [] : items.filter((i) => i.visible);
     const kindCount: Record<string, number> = {};
     let hasVolume = false;
 
@@ -345,6 +357,11 @@ export class IndicatorHost {
   private tryPatch(data: Candle[], items: IndicatorInstance[]): boolean {
     if (!this.lastData.length || itemsSignature(this.lastItems) !== itemsSignature(items)) return false;
     if (!canPatchCandles(this.lastData, data)) return false;
+    if (this.globalHidden) {
+      this.lastData = data;
+      this.lastItems = items;
+      return true;
+    }
     const visible = items.filter((i) => i.visible);
     for (const item of visible) {
       if (item.kind === 'vpvr' || item.kind === 'vpfr' || item.kind === 'autoFib' || item.kind === 'autoTrend' || item.kind === 'footprint') continue;
@@ -565,7 +582,7 @@ export class IndicatorHost {
       );
       this.keep(s);
       const period = p.period ?? 20;
-      if (period >= 1) {
+      if ((p.ma ?? 'on') === 'on' && period >= 1) {
         const ma = this.chart.addSeries(
           LineSeries,
           { ...lineBase(color, width), priceScaleId: '', lastValueVisible: false },
@@ -871,7 +888,7 @@ export class IndicatorHost {
         }
         ctx.fillStyle = 'rgba(224, 227, 234, 0.85)';
         ctx.font = '10px system-ui, sans-serif';
-        ctx.fillText('Approx. from OHLCV (no bid/ask)', Math.max(8, x - 80), 14);
+        ctx.fillText(t('ind.footprintHint'), Math.max(8, x - 80), 14);
       } else if ((item.kind === 'rsi' || item.kind === 'macd') && (item.params.divergences ?? 'off') === 'on') {
         const srcKind = item.kind;
         const ctxData = this.plotCtx();

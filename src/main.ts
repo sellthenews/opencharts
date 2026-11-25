@@ -58,6 +58,7 @@ const THEME_KEY = 'opencharts:theme';
 const SIDEBAR_KEY = 'opencharts:sidebar';
 const CURSOR_MODE_KEY = 'opencharts:cursor-mode';
 const MAGNET_KEY = 'opencharts:magnet';
+const IND_HIDDEN_KEY = 'opencharts:indicators-hidden';
 type CursorMode = 'cross' | 'dot' | 'arrow';
 type ThemeName = 'dark' | 'light';
 
@@ -359,12 +360,22 @@ function refreshLangChrome(): void {
     setStatus(describeCandles(src.name, formatPairLabel(sourceId, pairId), lastCandles, aggregated));
   }
   fillIntervals();
+  try {
+    syncIndVisibilityChrome();
+  } catch {
+    /* host may not exist yet during first lang init */
+  }
 }
 
 onLangChange(() => refreshLangChrome());
 
 drawings.setOnPersist(() => recordHistory());
 const indicators = new IndicatorHost(chart, series);
+try {
+  if (localStorage.getItem(IND_HIDDEN_KEY) === 'on') indicators.setGlobalHidden(true);
+} catch {
+  /* ignore */
+}
 indicators.setChartInterval(intervalId);
 indicators.setPaneStretches(paneStretches);
 const pendingHtf = new Set<string>();
@@ -659,6 +670,36 @@ function updateLegendValues(): void {
   indicatorHud?.setValues(indicators.valuesAt(time));
 }
 
+function syncIndVisibilityChrome(): void {
+  const hidden = indicators.isGlobalHidden();
+  appEl.dataset.indicators = hidden ? 'off' : 'on';
+  const btn = document.querySelector<HTMLButtonElement>('#ind-visibility-btn');
+  const cue = document.querySelector<HTMLElement>('#ind-hidden-cue');
+  if (btn) {
+    btn.setAttribute('aria-pressed', hidden ? 'true' : 'false');
+    btn.classList.toggle('is-off', hidden);
+    const title = hidden ? t('ind.showAllTitle') : t('ind.hideAllTitle');
+    btn.title = title;
+    btn.setAttribute('aria-label', title);
+    const full = btn.querySelector('.toolbar-label-full');
+    if (full) full.textContent = hidden ? t('ind.showAll') : t('ind.hideAll');
+    const short = btn.querySelector('.toolbar-label-short');
+    if (short) short.textContent = hidden ? '○' : '◉';
+  }
+  if (cue) cue.hidden = !hidden;
+}
+
+function setIndicatorsHidden(hidden: boolean, announce = true): void {
+  indicators.setGlobalHidden(hidden);
+  try {
+    localStorage.setItem(IND_HIDDEN_KEY, hidden ? 'on' : 'off');
+  } catch {
+    /* quota */
+  }
+  applyIndicators();
+  if (announce) setStatus(hidden ? t('status.indicatorsHidden') : t('status.indicatorsShown'));
+}
+
 function applyIndicators(): void {
   try {
     indicators.setChartInterval(intervalId);
@@ -668,7 +709,8 @@ function applyIndicators(): void {
     console.error(err);
     return;
   }
-  const kinds = visibleKinds();
+  syncIndVisibilityChrome();
+  const kinds = indicators.isGlobalHidden() ? new Set<string>() : visibleKinds();
   appEl.dataset.rsi = kinds.has('rsi') ? 'on' : 'off';
   appEl.dataset.macd = kinds.has('macd') ? 'on' : 'off';
   indicatorHud?.setPaneMap(paneMap);
@@ -1336,10 +1378,65 @@ chart.timeScale().subscribeVisibleTimeRangeChange((range) => {
   }
 });
 
+type PlotClickGuard = { x: number; y: number; t: number; moved: boolean; skip: boolean };
+let plotClickGuard: PlotClickGuard | null = null;
+
+wrapEl.addEventListener(
+  'pointerdown',
+  (ev) => {
+    if (ev.button !== 0) {
+      plotClickGuard = null;
+      return;
+    }
+    const target = ev.target as HTMLElement | null;
+    if (
+      target?.closest(
+        '#tool-rail, #fav-bar, #draw-bar, #chart-menu, #rail-flyout, .modal, [data-modal], #ind-labels, #ind-modal, #fib-modal, #sym-modal, #backup-modal, #sidebar, #watchlist, button, a, input, textarea, select, [role="dialog"]',
+      )
+    ) {
+      plotClickGuard = null;
+      return;
+    }
+    const skip =
+      drawings.getTool() !== 'cursor' ||
+      drawings.isDrawingToolActive() ||
+      !!drawings.pickAt(ev.clientX, ev.clientY) ||
+      !!pendingAnchorId ||
+      !!pendingVpfr;
+    plotClickGuard = { x: ev.clientX, y: ev.clientY, t: performance.now(), moved: false, skip };
+  },
+  true,
+);
+window.addEventListener(
+  'pointermove',
+  (ev) => {
+    if (!plotClickGuard || plotClickGuard.moved) return;
+    if (Math.hypot(ev.clientX - plotClickGuard.x, ev.clientY - plotClickGuard.y) > 6) plotClickGuard.moved = true;
+  },
+  true,
+);
+
+function shouldToggleIndicatorsOnClick(): boolean {
+  const guard = plotClickGuard;
+  plotClickGuard = null;
+  if (!guard || guard.skip || guard.moved) return false;
+  if (performance.now() - guard.t > 400) return false;
+  if (drawings.getTool() !== 'cursor' || drawings.isDrawingToolActive()) return false;
+  if (pendingAnchorId || pendingVpfr) return false;
+  return true;
+}
+
+document.querySelector('#ind-visibility-btn')?.addEventListener('click', () => {
+  setIndicatorsHidden(!indicators.isGlobalHidden());
+});
+document.querySelector('#ind-hidden-cue')?.addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  setIndicatorsHidden(false);
+});
+
 chart.subscribeClick((param) => {
   const time = typeof param.time === 'number' ? param.time : null;
-  if (time === null) return;
-  if (pendingAnchorId) {
+  if (time !== null && pendingAnchorId) {
     const id = pendingAnchorId;
     pendingAnchorId = null;
     indicatorItems = indicatorItems.map((item) =>
@@ -1347,9 +1444,10 @@ chart.subscribeClick((param) => {
     );
     persistIndicators(indicatorItems);
     setStatus(t('status.vwapSet'));
+    plotClickGuard = null;
     return;
   }
-  if (pendingVpfr) {
+  if (time !== null && pendingVpfr) {
     const { id, step } = pendingVpfr;
     if (step === 0) {
       indicatorItems = indicatorItems.map((item) =>
@@ -1358,6 +1456,7 @@ chart.subscribeClick((param) => {
       pendingVpfr = { id, step: 1 };
       persistIndicators(indicatorItems);
       setStatus(t('status.clickVpfrEnd'));
+      plotClickGuard = null;
       return;
     }
     pendingVpfr = null;
@@ -1366,8 +1465,21 @@ chart.subscribeClick((param) => {
     );
     persistIndicators(indicatorItems);
     setStatus(t('status.vpfrSet'));
+    plotClickGuard = null;
+    return;
   }
+  plotClickGuard = null;
 });
+
+window.addEventListener(
+  'pointerup',
+  (ev) => {
+    if (ev.button !== 0) return;
+    if (pendingAnchorId || pendingVpfr) return;
+    if (shouldToggleIndicatorsOnClick()) setIndicatorsHidden(!indicators.isGlobalHidden());
+  },
+  true,
+);
 
 
 
@@ -1404,6 +1516,8 @@ declare global {
       getPriceRange: () => { from: number; to: number } | null;
       getBarSpacing: () => number;
       getCrosshair: () => { time: number; price: number } | null;
+      isIndicatorsHidden: () => boolean;
+      setIndicatorsHidden: (hidden: boolean) => void;
       priceToCoordinate: (price: number) => number | null;
     };
   }
@@ -1431,14 +1545,16 @@ window.__opencharts = {
     const selected = drawings.getSelected();
     const d = selected?.type === 'fib' ? selected : list.find((x) => x.type === 'fib');
     if (!d || d.type !== 'fib') return null;
-    return fibRetracementPrice(d.p1, d.p2, k, fibOptionsOf(d).reverse);
+    const opts = fibOptionsOf(d);
+    return fibRetracementPrice(d.p1, d.p2, k, opts.reverse, opts.logScale);
   },
   fibExtensionLevelPrice: (k) => {
     const list = drawings.getDrawings();
     const selected = drawings.getSelected();
     const d = selected?.type === 'fibext' ? selected : list.find((x) => x.type === 'fibext');
     if (!d || d.type !== 'fibext') return null;
-    return fibExtensionPrice(d.a, d.b, d.c, k, fibExtOptionsOf(d).reverse);
+    const opts = fibExtOptionsOf(d);
+    return fibExtensionPrice(d.a, d.b, d.c, k, opts.reverse, opts.logScale);
   },
   getAbcdScreen: () => drawings.getAbcdScreen(),
   exportDrawings: () => drawings.exportJson(),
@@ -1508,6 +1624,8 @@ window.__opencharts = {
     return lastCrosshair;
   },
   priceToCoordinate: (price) => drawings.priceToCoordinate(price),
+  isIndicatorsHidden: () => indicators.isGlobalHidden(),
+  setIndicatorsHidden: (hidden: boolean) => setIndicatorsHidden(hidden, false),
 };
 
 initChartMenu(
