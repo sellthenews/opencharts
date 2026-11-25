@@ -13,3 +13,16 @@ playwright/.cache/
 **/.wrangler/
 .dev.vars
 worker/.dev.vars
+
+# Android TWA signing material and local Bubblewrap output (never commit keys)
+*.keystore
+*.jks
+twa/android-release-keystore-info.txt
+twa/app/
+twa/gradle/
+twa/gradlew
+twa/gradlew.bat
+twa/build.gradle
+twa/settings.gradle
+twa/AndroidManifest.xml
+twa/store_icon.png
