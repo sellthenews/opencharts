@@ -2,6 +2,7 @@
 // Copyright (C) 2026 OpenCharts contributors
 
 import './storage';
+import { registerPwa } from './pwa';
 import {
   CrosshairMode,
   LineStyle,
@@ -91,6 +92,7 @@ function applyTheme(name: ThemeName): void {
 
 
 initLang();
+registerPwa();
 
 const appEl = document.querySelector<HTMLDivElement>('#app')!;
 appEl.dataset.sidebar = localStorage.getItem(SIDEBAR_KEY) !== 'off' ? 'on' : 'off';

@@ -22,6 +22,7 @@ OpenCharts – free charts for everyone. A free, open-source candlestick chartin
 - Indicator series are updated incrementally when the last candle changes or a new candle is appended, so adding many indicators does not rebuild the chart on every tick.
 - Live updates for Kraken via the public WebSocket `wss://ws.kraken.com/v2` (OHLC + ticker), with automatic reconnect. Aggregated intervals (including 1M) update the last candle.
 - GitHub Pages-friendly build: Vite `base` is `./`, output goes to `site/`. The site is published at [https://sellthenews.github.io/opencharts/](https://sellthenews.github.io/opencharts/) from `main` via `.github/workflows/pages.yml`.
+- Progressive Web App: installable from the browser (manifest, icons, and a service worker). The worker uses network-first for HTML and `version.json` so a new deploy is picked up, and cache-first only for hashed `/assets/` files. Scope and start URL are relative (`./`) so the app works under the GitHub Pages `/opencharts/` path. See [docs/ANDROID-BUILD.md](docs/ANDROID-BUILD.md) to wrap the live site as an Android APK (Trusted Web Activity).
 
 ## Dependencies
 
