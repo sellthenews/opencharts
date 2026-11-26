@@ -19,6 +19,7 @@ import { interactionOptions, isMagnetModifier } from './chart-options';
 import type { FibOptions } from './fib-settings';
 import { cloneFibOptions, fibExtLevelXRange, fibExtOptionsOf, fibExtendOf, fibExtendReachesRight, fibLevelXRange, fibOptionsOf, isFibKeyLevel, isFibExtKeyLevel, loadFibDefaults, loadFibExtDefaults, withFibExtend } from './fib-settings';
 import { loadLineDefaults, saveLineDefaults, sanitizeLineStyle } from './templates';
+import { isLightTheme, cssVar } from './theme';
 
 export type { Drawing, Point, Tool };
 
@@ -2595,7 +2596,7 @@ export class DrawingLayer {
         xy = { x: xx, y: yy };
       }
       if (!xy) continue;
-      ctx.fillStyle = '#131722';
+      ctx.fillStyle = isLightTheme() ? '#ffffff' : cssVar('--panel', '#131722');
       ctx.strokeStyle = SELECTED;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -2617,7 +2618,7 @@ export class DrawingLayer {
     backdrop = false,
   ): void {
     ctx.save();
-    const light = document.documentElement.getAttribute('data-theme') === 'light';
+    const light = isLightTheme();
     ctx.font = `600 ${size}px system-ui, sans-serif`;
     ctx.textAlign = align;
     ctx.textBaseline = 'middle';

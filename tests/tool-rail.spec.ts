@@ -16,7 +16,7 @@ async function useLightTheme(page: import('@playwright/test').Page): Promise<voi
   const theme = await page.locator('html').getAttribute('data-theme');
   if (theme !== 'light') {
     await page.locator('#settings-btn').click();
-    await page.locator('#theme-btn').click();
+    await page.locator('#theme-btns [data-theme="light"]').click();
     await page.keyboard.press('Escape');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   }
@@ -99,14 +99,20 @@ test('group menu, pick tool, favorites persist after drag and reload', async ({ 
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('opencharts:favorites-v2') ?? 'null'));
   expect(stored?.tools).toEqual(expect.arrayContaining(['trend', 'hline', 'extline', 'shortpos']));
 
+  const afterPos = await page.evaluate(() => {
+    const el = document.querySelector<HTMLElement>('#fav-bar');
+    return { left: el?.style.left ?? '', top: el?.style.top ?? '' };
+  });
+
   await page.reload();
   await waitReady(page);
   await expect(page.locator('#fav-bar')).toBeVisible();
   await expect(page.locator('#fav-bar [data-tool="trend"]')).toBeVisible();
-  const again = await page.locator('#fav-bar').boundingBox();
-  expect(again).toBeTruthy();
-  expect(Math.abs(again!.x - after!.x)).toBeLessThan(4);
-  expect(Math.abs(again!.y - after!.y)).toBeLessThan(4);
+  const againPos = await page.evaluate(() => {
+    const el = document.querySelector<HTMLElement>('#fav-bar');
+    return { left: el?.style.left ?? '', top: el?.style.top ?? '' };
+  });
+  expect(againPos).toEqual(afterPos);
 });
 
 test('clean localStorage shows the default favorites bar', async ({ page }) => {

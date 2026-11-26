@@ -67,12 +67,11 @@ export class MiniChart {
     this.intervalEl = root.querySelector('select[data-mini="interval"]')!;
     this.statusEl = root.querySelector('.extra-status')!;
     const plot = root.querySelector<HTMLElement>('.mini-chart')!;
-    const light = document.documentElement.dataset.theme === 'light';
     this.chart = createChart(plot, {
       autoSize: true,
-      ...themeChartOptions(light),
+      ...themeChartOptions(),
       ...interactionOptions(),
-      layout: { ...themeChartOptions(light).layout, fontSize: 10 },
+      layout: { ...themeChartOptions().layout, fontSize: 10 },
       localization: { locale: localeOf() },
     });
     this.series = this.chart.addSeries(CandlestickSeries, candleSeriesOptions());
@@ -127,8 +126,9 @@ export class MiniChart {
     requestAnimationFrame(() => this.hud.relayout());
   }
 
-  setTheme(light: boolean): void {
-    this.chart.applyOptions(themeChartOptions(light));
+  setTheme(_light?: boolean): void {
+    this.chart.applyOptions(themeChartOptions());
+    this.series.applyOptions(candleSeriesOptions());
   }
 
   private emit(): void {

@@ -54,6 +54,28 @@ html[data-theme="light"] {
   --chart-border: #d1d4dc;
 }
 
+html[data-theme="dim"] {
+  --bg: #2a303a;
+  --panel: #313844;
+  --bar: #343c48;
+  --border: #586274;
+  --text: #e6ebf2;
+  --muted: #a9adb3;
+  --heading: #f4f7fb;
+  --accent: #2f6fd4;
+  --accent-hover: #245db8;
+  --danger: #e05653;
+  --btn: #3e4756;
+  --btn-hover: #4a5464;
+  --row-active: #2c3f5a;
+  --chart-bg: #252c36;
+  --chart-text: #d5dce6;
+  --chart-grid: rgba(140, 175, 220, 0.14);
+  --chart-border: #586274;
+  --up: #3dbaa8;
+  --down: #f06a67;
+}
+
 html,
 body,
 #app {
@@ -716,8 +738,8 @@ button.interval.is-active:hover,
   font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
-.watch-chg.up { color: #26a69a; }
-.watch-chg.down { color: #ef5350; }
+.watch-chg.up { color: var(--up); }
+.watch-chg.down { color: var(--down); }
 .watch-del {
   grid-area: del;
   color: var(--muted);
@@ -954,10 +976,10 @@ html[data-theme="light"] .live-status[data-live="error"] {
 }
 
 #tool-rail {
-  --rail-flyout-bg: #2c3038;
-  --rail-flyout-text: #e0e3ea;
-  --rail-flyout-muted: #9aa0a6;
-  --rail-flyout-hover: rgba(255, 255, 255, 0.08);
+  --rail-flyout-bg: var(--panel);
+  --rail-flyout-text: var(--text);
+  --rail-flyout-muted: var(--muted);
+  --rail-flyout-hover: var(--btn-hover);
   width: 46px;
   flex-shrink: 0;
   display: flex;
@@ -977,7 +999,6 @@ html[data-theme="light"] #tool-rail {
   --rail-flyout-text: var(--text);
   --rail-flyout-muted: var(--muted);
   --rail-flyout-hover: var(--btn-hover);
-  background: #eceef2;
 }
 
 #tool-rail .rail-top,
@@ -1069,10 +1090,10 @@ html[data-theme="light"] #tool-rail {
 }
 
 #rail-flyout {
-  --rail-flyout-bg: #232730;
-  --rail-flyout-text: #eef1f7;
-  --rail-flyout-muted: #a6acb8;
-  --rail-flyout-hover: rgba(255, 255, 255, 0.1);
+  --rail-flyout-bg: var(--panel);
+  --rail-flyout-text: var(--text);
+  --rail-flyout-muted: var(--muted);
+  --rail-flyout-hover: var(--btn-hover);
   position: fixed;
   z-index: 40;
   min-width: 268px;
@@ -1201,9 +1222,10 @@ html[data-theme="light"] #rail-flyout .star-btn.is-on {
   max-width: calc(100% - 16px);
   padding: 0 10px 0 8px;
   border-radius: 19px;
-  background: #131722;
-  color: #d1d4dc;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  background: color-mix(in srgb, var(--bar) 94%, transparent);
+  color: var(--text);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--border);
+  backdrop-filter: blur(10px);
   user-select: none;
   overflow-x: auto;
 }
@@ -1231,7 +1253,7 @@ html[data-theme="light"] #rail-flyout .star-btn.is-on {
   width: 2.5px;
   height: 2.5px;
   border-radius: 50%;
-  background: #8b919b;
+  background: var(--muted);
   display: block;
 }
 
@@ -1249,7 +1271,7 @@ html[data-theme="light"] #rail-flyout .star-btn.is-on {
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: #d1d4dc;
+  color: var(--text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1263,8 +1285,8 @@ html[data-theme="light"] #rail-flyout .star-btn.is-on {
 
 #fav-bar .fav-btn:hover,
 #fav-bar .fav-btn.is-active {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--heading);
+  background: var(--btn-hover);
 }
 
 #fav-bar .fav-collapse {
@@ -1275,10 +1297,10 @@ html[data-theme="light"] #rail-flyout .star-btn.is-on {
   font-size: 14px;
   font-weight: 800;
   line-height: 1;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid var(--border);
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #e0e3ea;
+  background: var(--btn);
+  color: var(--text);
   cursor: pointer;
 }
 
@@ -3268,6 +3290,11 @@ label,
     padding: 10px 12px;
   }
 
+  #settings-menu #theme-btns button {
+    min-height: 44px;
+    padding: 8px 10px;
+  }
+
   #settings-menu .sheet-close {
     width: 44px;
     min-width: 44px;
@@ -3457,6 +3484,8 @@ label,
   #more-body .chart-type-wrap,
   #more-body .field,
   #more-body #theme-btn,
+  #more-body #theme-btns,
+  #more-body #theme-btns button,
   #more-body #layout-btns,
   #more-body #chart-type-btn,
   #more-body select,
@@ -3494,6 +3523,8 @@ label,
   }
 
   #more-body #theme-btn,
+  #more-body #theme-btns,
+  #more-body #theme-btns button,
   #more-body #compare-btn,
   #more-body #chart-type-btn,
   #more-body select {
@@ -4670,6 +4701,47 @@ html[dir="rtl"] #lang-menu {
 
 #settings-menu #layout-btns button.is-active,
 #settings-menu #layout-btns button.is-active:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+#settings-menu .settings-theme {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 6px 10px;
+}
+
+#settings-menu #theme-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+#settings-menu #theme-btns button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  text-align: center;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  background: var(--btn);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+#settings-menu #theme-btns button:hover,
+#settings-menu #theme-btns button:focus-visible {
+  background: var(--btn-hover);
+}
+
+#settings-menu #theme-btns button.is-active,
+#settings-menu #theme-btns button.is-active:hover {
   background: var(--accent);
   border-color: var(--accent);
   color: #ffffff;

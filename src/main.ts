@@ -11,6 +11,7 @@ import {
 } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, SeriesType, UTCTimestamp } from 'lightweight-charts';
 import { formatTimeTick, interactionOptions, isMagnetModifier, themeChartOptions } from './chart-options';
+import { THEME_KEY, cssVar, isThemeName, loadTheme, themeColorMeta, type ThemeName } from './theme';
 import {
   buildChartView,
   isChartTypeId,
@@ -22,7 +23,7 @@ import {
   type ChartTypeId,
   type ChartView,
 } from './chart-types';
-import { createPriceSeries, writeBaselinePrice, writeSeriesData, writeSeriesUpdate } from './chart-type-series';
+import { createPriceSeries, writeBaselinePrice, writeSeriesData, writeSeriesUpdate, applyPriceSeriesTheme} from './chart-type-series';
 import { initChartTypeMenu, syncChartTypeChrome } from './chart-type-ui';
 import { getCachedCandles, setCachedCandles } from './candle-cache';
 import { ohlcLegendHtml } from './ohlc-legend';
@@ -86,29 +87,43 @@ let wsStatus: LiveStatus = 'off';
 const DEFAULT_SOURCE = 'kraken';
 const DEFAULT_PAIR: PairId = 'XRPUSD';
 const DEFAULT_INTERVAL: IntervalId = '1D';
-const THEME_KEY = 'opencharts:theme';
 const SIDEBAR_KEY = 'opencharts:sidebar';
 const CURSOR_MODE_KEY = 'opencharts:cursor-mode';
 const MAGNET_KEY = 'opencharts:magnet';
 const IND_HIDDEN_KEY = 'opencharts:indicators-hidden';
 type CursorMode = 'cross' | 'dot' | 'arrow';
-type ThemeName = 'dark' | 'light';
-
-function loadTheme(): ThemeName {
-  return localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark';
-}
 
 let theme: ThemeName = loadTheme();
+
+function syncThemeButtons(): void {
+  document.querySelectorAll<HTMLButtonElement>('#theme-btns [data-theme]').forEach((btn) => {
+    const on = btn.dataset.theme === theme;
+    btn.classList.toggle('is-active', on);
+    btn.setAttribute('aria-checked', on ? 'true' : 'false');
+  });
+}
 
 function applyTheme(name: ThemeName): void {
   theme = name;
   document.documentElement.dataset.theme = name;
   localStorage.setItem(THEME_KEY, name);
   persistLayout();
-  const btn = document.querySelector<HTMLButtonElement>('#theme-btn');
-  if (btn) btn.textContent = name === 'light' ? t('toolbar.darkTheme') : t('toolbar.lightTheme');
+  syncThemeButtons();
   const metaTheme = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-  if (metaTheme) metaTheme.content = name === 'light' ? '#ffffff' : '#12151c';
+  if (metaTheme) metaTheme.content = themeColorMeta(name);
+}
+
+function applyThemeToCharts(): void {
+  chart.applyOptions(themeChartOptions());
+  applyPriceSeriesTheme(series, chartType);
+  applyCursorAppearance();
+  miniCharts.forEach((m) => m?.setTheme());
+}
+
+function setTheme(name: ThemeName): void {
+  if (!isThemeName(name)) return;
+  applyTheme(name);
+  applyThemeToCharts();
 }
 
 
@@ -285,7 +300,7 @@ applyTheme(theme);
 
 const chart: IChartApi = createChart(chartEl, {
   autoSize: true,
-  ...themeChartOptions(theme === 'light'),
+  ...themeChartOptions(),
   ...interactionOptions(),
   localization: { locale: localeOf() },
 });
@@ -514,6 +529,20 @@ function applyRemoteChange(keys: string[], first: boolean): void {
     drawings.setContext(sourceId, pairId);
     resetHistory();
   }
+  if (keys.includes(THEME_KEY) || keys.includes('opencharts:layout')) {
+    let next = loadTheme();
+    try {
+      const raw = localStorage.getItem('opencharts:layout');
+      if (raw) {
+        const parsed = JSON.parse(raw) as { theme?: string };
+        if (isThemeName(parsed.theme) && !keys.includes(THEME_KEY)) next = parsed.theme;
+      }
+    } catch {
+      /* ignore */
+    }
+    if (next !== theme) setTheme(next);
+    else syncThemeButtons();
+  }
 }
 
 function currentSource() {
@@ -698,11 +727,10 @@ function isDexLedgerPair(src: string, pair: string): boolean {
 }
 
 
-document.querySelector<HTMLButtonElement>('#theme-btn')?.addEventListener('click', () => {
-  applyTheme(theme === 'light' ? 'dark' : 'light');
-  chart.applyOptions(themeChartOptions(theme === 'light'));
-  applyCursorAppearance();
-  miniCharts.forEach((m) => m?.setTheme(theme === 'light'));
+document.querySelector('#theme-btns')?.addEventListener('click', (ev) => {
+  const btn = (ev.target as HTMLElement | null)?.closest<HTMLButtonElement>('[data-theme]');
+  if (!btn || !isThemeName(btn.dataset.theme)) return;
+  setTheme(btn.dataset.theme);
 });
 
 function selectedAlertSpec(): { kind: PriceAlert['kind']; price: number; direction: PriceAlert['direction']; indicatorKind?: string } | null {
@@ -2001,7 +2029,7 @@ const drawDelete = document.querySelector<HTMLButtonElement>('#draw-delete');
 function applyCursorAppearance(): void {
   const light = theme === 'light';
   const line = light ? 'rgba(19, 23, 34, 0.45)' : 'rgba(209, 212, 220, 0.45)';
-  const labelBg = light ? '#4c525e' : '#2a2e39';
+  const labelBg = cssVar('--btn', light ? '#4c525e' : '#2a2e39');
   const magnetActive = magnetModifierHeld ? !magnetOn : magnetOn;
   const magnetMode = magnetActive ? CrosshairMode.MagnetOHLC : CrosshairMode.Normal;
   if (cursorMode === 'arrow') {

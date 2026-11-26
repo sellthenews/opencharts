@@ -4,6 +4,7 @@
 import { ColorType, CrosshairMode, LineStyle, TickMarkType } from 'lightweight-charts';
 import type { CandlestickSeriesPartialOptions, DeepPartial, ChartOptions, Time } from 'lightweight-charts';
 import { resolvedTimeZone } from './timezone';
+import { cssVar, isLightTheme } from './theme';
 
 export const CHART_FONT = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
@@ -63,12 +64,14 @@ export function crosshairOptions(line: string, labelBg: string): DeepPartial<Cha
 }
 
 export function candleSeriesOptions(): CandlestickSeriesPartialOptions {
+  const up = cssVar('--up', '#26a69a');
+  const down = cssVar('--down', '#ef5350');
   return {
-    upColor: '#26a69a',
-    downColor: '#ef5350',
+    upColor: up,
+    downColor: down,
     borderVisible: false,
-    wickUpColor: '#26a69a',
-    wickDownColor: '#ef5350',
+    wickUpColor: up,
+    wickDownColor: down,
     lastValueVisible: true,
     priceLineVisible: true,
     priceLineWidth: 1,
@@ -76,22 +79,20 @@ export function candleSeriesOptions(): CandlestickSeriesPartialOptions {
   };
 }
 
-export function themeChartOptions(light: boolean): DeepPartial<ChartOptions> {
-  if (light) {
-    return {
-      layout: { background: { type: ColorType.Solid, color: '#ffffff' }, textColor: '#131722', fontFamily: CHART_FONT },
-      grid: { vertLines: { color: 'rgba(19, 23, 34, 0.06)', visible: true }, horzLines: { color: 'rgba(19, 23, 34, 0.06)', visible: true } },
-      rightPriceScale: { borderColor: '#d1d4dc', borderVisible: false, ticksVisible: false },
-      timeScale: timeScaleInteraction('#d1d4dc'),
-      crosshair: crosshairOptions('rgba(19, 23, 34, 0.35)', '#4c525e'),
-    };
-  }
+export function themeChartOptions(_theme?: boolean): DeepPartial<ChartOptions> {
+  const light = isLightTheme();
+  const bg = cssVar('--chart-bg', light ? '#ffffff' : '#0e1116');
+  const text = cssVar('--chart-text', light ? '#131722' : '#b2b5be');
+  const grid = cssVar('--chart-grid', light ? 'rgba(19, 23, 34, 0.06)' : 'rgba(255, 255, 255, 0.04)');
+  const border = cssVar('--chart-border', light ? '#d1d4dc' : '#2a2e39');
+  const line = light ? 'rgba(19, 23, 34, 0.35)' : 'rgba(209, 212, 220, 0.35)';
+  const labelBg = cssVar('--btn', light ? '#4c525e' : '#2a2e39');
   return {
-    layout: { background: { type: ColorType.Solid, color: '#0e1116' }, textColor: '#b2b5be', fontFamily: CHART_FONT },
-    grid: { vertLines: { color: 'rgba(255, 255, 255, 0.04)', visible: true }, horzLines: { color: 'rgba(255, 255, 255, 0.04)', visible: true } },
-    rightPriceScale: { borderColor: '#2a2e39', borderVisible: false, ticksVisible: false },
-    timeScale: timeScaleInteraction('#2a2e39'),
-    crosshair: crosshairOptions('rgba(209, 212, 220, 0.35)', '#2a2e39'),
+    layout: { background: { type: ColorType.Solid, color: bg }, textColor: text, fontFamily: CHART_FONT },
+    grid: { vertLines: { color: grid, visible: true }, horzLines: { color: grid, visible: true } },
+    rightPriceScale: { borderColor: border, borderVisible: false, ticksVisible: false },
+    timeScale: timeScaleInteraction(border),
+    crosshair: crosshairOptions(line, labelBg),
   };
 }
 

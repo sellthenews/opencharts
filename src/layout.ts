@@ -5,6 +5,7 @@ import './storage';
 import type { IntervalId, PairId } from './sources';
 import { isIntervalId } from './sources';
 import type { MiniState } from './minichart';
+import { isThemeName, type ThemeName } from './theme';
 
 export const LAYOUT_KEY = 'opencharts:layout';
 
@@ -12,7 +13,7 @@ export interface LayoutState {
   sourceId: string;
   pairId: PairId;
   intervalId: IntervalId;
-  theme: 'dark' | 'light';
+  theme: ThemeName;
   paneCount?: 1 | 2 | 4;
   extras?: MiniState[];
 }
@@ -25,7 +26,7 @@ export function loadLayout(): LayoutState | null {
     if (typeof p.sourceId !== 'string' || !p.sourceId) return null;
     if (typeof p.pairId !== 'string' || !p.pairId) return null;
     if (!isIntervalId(p.intervalId)) return null;
-    if (p.theme !== 'light' && p.theme !== 'dark') return null;
+    if (!isThemeName(p.theme)) return null;
     const paneCount = p.paneCount === 2 || p.paneCount === 4 ? p.paneCount : 1;
     const extras = Array.isArray(p.extras) ? p.extras : undefined;
     return { sourceId: p.sourceId, pairId: p.pairId as PairId, intervalId: p.intervalId as IntervalId, theme: p.theme, paneCount, extras };

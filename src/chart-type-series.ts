@@ -26,10 +26,25 @@ import type {
 } from 'lightweight-charts';
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import { candleSeriesOptions } from './chart-options';
+import { cssVar } from './theme';
 import type { ChartTypeId } from './chart-types';
 
-const UP = '#26a69a';
-const DOWN = '#ef5350';
+function upColor(): string {
+  return cssVar('--up', '#26a69a');
+}
+
+function downColor(): string {
+  return cssVar('--down', '#ef5350');
+}
+
+function withAlpha(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  if (h.length !== 6) return `rgba(38, 166, 154, ${alpha})`;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 const COMMON = {
   lastValueVisible: true,
@@ -47,7 +62,7 @@ function ctxOf(target: CanvasRenderingTarget2D, fn: (ctx: CanvasRenderingContext
 }
 
 function barColor(up: boolean): string {
-  return up ? UP : DOWN;
+  return up ? upColor() : downColor();
 }
 
 interface HlcDatum extends CustomData<Time> {
@@ -96,7 +111,7 @@ class HlcAreaRenderer implements ICustomSeriesPaneRenderer {
       ctx.beginPath();
       ctx.moveTo(closes[0]!.x, closes[0]!.y);
       for (const p of closes) ctx.lineTo(p.x, p.y);
-      ctx.strokeStyle = this.options?.color ?? UP;
+      ctx.strokeStyle = this.options?.color ?? upColor();
       ctx.lineWidth = 2;
       ctx.stroke();
     });
@@ -123,7 +138,7 @@ export class HlcAreaSeriesView implements ICustomSeriesPaneView<Time, HlcDatum, 
   }
 
   defaultOptions(): CustomSeriesOptions {
-    return { ...customSeriesDefaultOptions, color: UP };
+    return { ...customSeriesDefaultOptions, color: upColor() };
   }
 }
 
@@ -193,7 +208,7 @@ export class HighLowSeriesView implements ICustomSeriesPaneView<Time, HighLowDat
   }
 
   defaultOptions(): CustomSeriesOptions {
-    return { ...customSeriesDefaultOptions, color: UP };
+    return { ...customSeriesDefaultOptions, color: upColor() };
   }
 }
 
@@ -259,7 +274,7 @@ export class KagiSeriesView implements ICustomSeriesPaneView<Time, KagiDatum, Cu
   }
 
   defaultOptions(): CustomSeriesOptions {
-    return { ...customSeriesDefaultOptions, color: UP };
+    return { ...customSeriesDefaultOptions, color: upColor() };
   }
 }
 
@@ -350,105 +365,122 @@ export class PnfSeriesView implements ICustomSeriesPaneView<Time, PnfDatum, Cust
   }
 
   defaultOptions(): CustomSeriesOptions {
-    return { ...customSeriesDefaultOptions, color: UP };
+    return { ...customSeriesDefaultOptions, color: upColor() };
   }
 }
 
-export function createPriceSeries(chart: IChartApi, type: ChartTypeId): ISeriesApi<SeriesType> {
+
+export function priceSeriesThemeOptions(type: ChartTypeId): Record<string, unknown> {
+  const up = upColor();
+  const down = downColor();
   switch (type) {
     case 'hollow':
-      return chart.addSeries(CandlestickSeries, {
+      return {
         ...candleSeriesOptions(),
         ...COMMON,
         upColor: 'rgba(0,0,0,0)',
-        downColor: DOWN,
+        downColor: down,
         borderVisible: true,
-        borderUpColor: UP,
-        borderDownColor: DOWN,
-        wickUpColor: UP,
-        wickDownColor: DOWN,
-      });
+        borderUpColor: up,
+        borderDownColor: down,
+        wickUpColor: up,
+        wickDownColor: down,
+      };
     case 'bars':
-      return chart.addSeries(BarSeries, {
-        ...COMMON,
-        upColor: UP,
-        downColor: DOWN,
-        thinBars: false,
-        openVisible: true,
-      });
+      return { ...COMMON, upColor: up, downColor: down, thinBars: false, openVisible: true };
     case 'line':
-      return chart.addSeries(LineSeries, {
-        ...COMMON,
-        color: UP,
-        lineWidth: 2,
-        lineType: LineType.Simple,
-        pointMarkersVisible: false,
-      });
+      return { ...COMMON, color: up, lineWidth: 2, lineType: LineType.Simple, pointMarkersVisible: false };
     case 'line-markers':
-      return chart.addSeries(LineSeries, {
+      return {
         ...COMMON,
-        color: UP,
+        color: up,
         lineWidth: 2,
         lineType: LineType.Simple,
         pointMarkersVisible: true,
         pointMarkersRadius: 3,
-      });
+      };
     case 'stepline':
-      return chart.addSeries(LineSeries, {
-        ...COMMON,
-        color: UP,
-        lineWidth: 2,
-        lineType: LineType.WithSteps,
-        pointMarkersVisible: false,
-      });
+      return { ...COMMON, color: up, lineWidth: 2, lineType: LineType.WithSteps, pointMarkersVisible: false };
     case 'area':
-      return chart.addSeries(AreaSeries, {
+      return {
         ...COMMON,
-        lineColor: UP,
-        topColor: 'rgba(38, 166, 154, 0.28)',
-        bottomColor: 'rgba(38, 166, 154, 0.02)',
+        lineColor: up,
+        topColor: withAlpha(up, 0.28),
+        bottomColor: withAlpha(up, 0.02),
         lineWidth: 2,
         lineType: LineType.Simple,
-      });
+      };
     case 'baseline':
-      return chart.addSeries(BaselineSeries, {
+      return {
         ...COMMON,
-        topLineColor: UP,
-        bottomLineColor: DOWN,
-        topFillColor1: 'rgba(38, 166, 154, 0.28)',
-        topFillColor2: 'rgba(38, 166, 154, 0.05)',
-        bottomFillColor1: 'rgba(239, 83, 80, 0.28)',
-        bottomFillColor2: 'rgba(239, 83, 80, 0.05)',
+        topLineColor: up,
+        bottomLineColor: down,
+        topFillColor1: withAlpha(up, 0.28),
+        topFillColor2: withAlpha(up, 0.05),
+        bottomFillColor1: withAlpha(down, 0.28),
+        bottomFillColor2: withAlpha(down, 0.05),
         baseValue: { type: 'price', price: 0 },
         lineWidth: 2,
-      });
+      };
     case 'columns':
-      return chart.addSeries(HistogramSeries, {
-        ...COMMON,
-        color: UP,
-      });
+      return { ...COMMON, color: up };
     case 'hlc-area':
-      return chart.addCustomSeries(new HlcAreaSeriesView(), { ...COMMON, color: UP });
     case 'high-low':
-      return chart.addCustomSeries(new HighLowSeriesView(), { ...COMMON, color: UP });
     case 'kagi':
-      return chart.addCustomSeries(new KagiSeriesView(), { ...COMMON, color: UP });
     case 'pnf':
-      return chart.addCustomSeries(new PnfSeriesView(), { ...COMMON, color: UP });
+      return { ...COMMON, color: up };
     case 'renko':
     case 'linebreak':
     case 'range':
-      return chart.addSeries(CandlestickSeries, {
+      return {
         ...candleSeriesOptions(),
         ...COMMON,
         borderVisible: true,
-        borderUpColor: UP,
-        borderDownColor: DOWN,
+        borderUpColor: up,
+        borderDownColor: down,
         wickVisible: false,
-      });
+      };
     default:
-      // candles, heikin
-      return chart.addSeries(CandlestickSeries, { ...candleSeriesOptions(), ...COMMON });
+      return { ...candleSeriesOptions(), ...COMMON };
+  }
+}
+
+export function applyPriceSeriesTheme(series: ISeriesApi<SeriesType>, type: ChartTypeId): void {
+  series.applyOptions(priceSeriesThemeOptions(type) as never);
+}
+
+export function createPriceSeries(chart: IChartApi, type: ChartTypeId): ISeriesApi<SeriesType> {
+  const opts = priceSeriesThemeOptions(type);
+  switch (type) {
+    case 'hollow':
+    case 'renko':
+    case 'linebreak':
+    case 'range':
+    case 'candles':
+    case 'heikin':
+      return chart.addSeries(CandlestickSeries, opts as never);
+    case 'bars':
+      return chart.addSeries(BarSeries, opts as never);
+    case 'line':
+    case 'line-markers':
+    case 'stepline':
+      return chart.addSeries(LineSeries, opts as never);
+    case 'area':
+      return chart.addSeries(AreaSeries, opts as never);
+    case 'baseline':
+      return chart.addSeries(BaselineSeries, opts as never);
+    case 'columns':
+      return chart.addSeries(HistogramSeries, opts as never);
+    case 'hlc-area':
+      return chart.addCustomSeries(new HlcAreaSeriesView(), opts as never);
+    case 'high-low':
+      return chart.addCustomSeries(new HighLowSeriesView(), opts as never);
+    case 'kagi':
+      return chart.addCustomSeries(new KagiSeriesView(), opts as never);
+    case 'pnf':
+      return chart.addCustomSeries(new PnfSeriesView(), opts as never);
+    default:
+      return chart.addSeries(CandlestickSeries, opts as never);
   }
 }
 
