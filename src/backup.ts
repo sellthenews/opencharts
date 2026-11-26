@@ -5,6 +5,7 @@ import { t } from './i18n';
 
 import { STORAGE_PREFIX } from './storage';
 import { mergeWatchlists } from './watchlist-merge';
+import { setThemePickerOpen } from './theme';
 
 export const BACKUP_FORMAT = 'opencharts-backup';
 export const BACKUP_VERSION = 1;
@@ -111,6 +112,7 @@ export function initBackupUi(opts: { setStatus: (text: string, error?: boolean) 
   function setMenu(open: boolean): void {
     menu!.hidden = !open;
     btn!.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (!open) setThemePickerOpen(false);
   }
 
   function closeModal(): void {

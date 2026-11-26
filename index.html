@@ -116,13 +116,36 @@
             <button type="button" role="menuitem" id="settings-account" data-i18n="toolbar.account">Account</button>
             <button type="button" role="menuitem" id="settings-support" data-i18n="support.button">Support</button>
             <div class="settings-sep" role="separator"></div>
-            <div class="settings-theme" role="radiogroup" aria-labelledby="theme-label">
-              <span class="settings-row-label" id="theme-label" data-i18n="toolbar.theme">Theme</span>
-              <div class="group" id="theme-btns">
-                <button type="button" role="radio" data-theme="dark" aria-checked="false" data-i18n="toolbar.darkTheme" data-i18n-title="toolbar.darkTheme">Dark theme</button>
-                <button type="button" role="radio" data-theme="dim" aria-checked="false" data-i18n="toolbar.dimTheme" data-i18n-title="toolbar.dimTheme">Dim</button>
-                <button type="button" role="radio" data-theme="swapwick" aria-checked="false" data-i18n="toolbar.swapwickTheme" data-i18n-title="toolbar.swapwickTheme">Swapwick</button>
-                <button type="button" role="radio" data-theme="light" aria-checked="false" data-i18n="toolbar.lightTheme" data-i18n-title="toolbar.lightTheme">Light theme</button>
+            <div class="settings-theme" id="settings-theme">
+              <button type="button" id="theme-toggle" class="settings-theme-toggle" aria-expanded="false" aria-controls="theme-btns">
+                <span class="settings-row-label" id="theme-label" data-i18n="toolbar.theme">Theme</span>
+                <span class="theme-current">
+                  <span class="theme-swatch" id="theme-current-swatch" data-swatch="dark" aria-hidden="true"></span>
+                  <span class="theme-current-name" id="theme-current-name"></span>
+                  <span class="theme-caret" aria-hidden="true"></span>
+                </span>
+              </button>
+              <div class="group" id="theme-btns" hidden role="listbox" aria-labelledby="theme-label">
+                <button type="button" role="option" data-theme="dark" aria-selected="false">
+                  <span class="theme-swatch" data-swatch="dark" aria-hidden="true"></span>
+                  <span data-i18n="toolbar.darkTheme">Dark theme</span>
+                  <span class="theme-check" aria-hidden="true"></span>
+                </button>
+                <button type="button" role="option" data-theme="dim" aria-selected="false">
+                  <span class="theme-swatch" data-swatch="dim" aria-hidden="true"></span>
+                  <span data-i18n="toolbar.dimTheme">Dim</span>
+                  <span class="theme-check" aria-hidden="true"></span>
+                </button>
+                <button type="button" role="option" data-theme="light" aria-selected="false">
+                  <span class="theme-swatch" data-swatch="light" aria-hidden="true"></span>
+                  <span data-i18n="toolbar.lightTheme">Light theme</span>
+                  <span class="theme-check" aria-hidden="true"></span>
+                </button>
+                <button type="button" role="option" data-theme="swapwick" aria-selected="false">
+                  <span class="theme-swatch" data-swatch="swapwick" aria-hidden="true"></span>
+                  <span data-i18n="toolbar.swapwickTheme">Swapwick</span>
+                  <span class="theme-check" aria-hidden="true"></span>
+                </button>
               </div>
             </div>
             <label class="field field-tz settings-row" id="tz-field">
@@ -199,6 +222,10 @@
       <div id="charts" data-panes="1">
         <div id="chart-wrap">
           <div id="chart"></div>
+          <div id="chart-brand" aria-hidden="true">
+            <img src="./favicon.svg" width="14" height="14" alt="" />
+            <span>swapwick.com</span>
+          </div>
           <div id="compare-legend" class="compare-legend" hidden></div>
           <canvas id="draw-overlay" class="passthrough"></canvas>
           <canvas id="vp-overlay"></canvas>

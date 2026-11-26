@@ -3,12 +3,34 @@
 
 export const THEME_KEY = 'opencharts:theme';
 
-export const THEME_NAMES = ['dark', 'dim', 'swapwick', 'light'] as const;
+export const THEME_NAMES = ['dark', 'dim', 'light', 'swapwick'] as const;
 
 export type ThemeName = (typeof THEME_NAMES)[number];
 
 export function isThemeName(value: unknown): value is ThemeName {
   return value === 'dark' || value === 'dim' || value === 'swapwick' || value === 'light';
+}
+
+const THEME_LABEL_KEYS: Record<ThemeName, string> = {
+  dark: 'toolbar.darkTheme',
+  dim: 'toolbar.dimTheme',
+  light: 'toolbar.lightTheme',
+  swapwick: 'toolbar.swapwickTheme',
+};
+
+export function themeLabelKey(name: ThemeName): string {
+  return THEME_LABEL_KEYS[name];
+}
+
+export function setThemePickerOpen(open: boolean): void {
+  if (typeof document === 'undefined') return;
+  const wrap = document.querySelector('#settings-theme');
+  const toggle = document.querySelector<HTMLButtonElement>('#theme-toggle');
+  const list = document.querySelector<HTMLElement>('#theme-btns');
+  if (!wrap || !toggle || !list) return;
+  wrap.classList.toggle('is-open', open);
+  toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  list.hidden = !open;
 }
 
 export function loadTheme(): ThemeName {

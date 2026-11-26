@@ -11,7 +11,7 @@ import {
 } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, SeriesType, UTCTimestamp } from 'lightweight-charts';
 import { formatTimeTick, interactionOptions, isMagnetModifier, themeChartOptions } from './chart-options';
-import { THEME_KEY, cssVar, isThemeName, loadTheme, themeColorMeta, type ThemeName } from './theme';
+import { THEME_KEY, cssVar, isThemeName, loadTheme, setThemePickerOpen, themeColorMeta, themeLabelKey, type ThemeName } from './theme';
 import {
   buildChartView,
   isChartTypeId,
@@ -99,8 +99,12 @@ function syncThemeButtons(): void {
   document.querySelectorAll<HTMLButtonElement>('#theme-btns [data-theme]').forEach((btn) => {
     const on = btn.dataset.theme === theme;
     btn.classList.toggle('is-active', on);
-    btn.setAttribute('aria-checked', on ? 'true' : 'false');
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
   });
+  const nameEl = document.querySelector('#theme-current-name');
+  if (nameEl) nameEl.textContent = t(themeLabelKey(theme));
+  const swatch = document.querySelector('#theme-current-swatch');
+  if (swatch) swatch.setAttribute('data-swatch', theme);
 }
 
 function applyTheme(name: ThemeName): void {
@@ -727,10 +731,17 @@ function isDexLedgerPair(src: string, pair: string): boolean {
 }
 
 
+document.querySelector('#theme-toggle')?.addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  const toggle = ev.currentTarget as HTMLButtonElement;
+  setThemePickerOpen(toggle.getAttribute('aria-expanded') !== 'true');
+});
 document.querySelector('#theme-btns')?.addEventListener('click', (ev) => {
+  ev.stopPropagation();
   const btn = (ev.target as HTMLElement | null)?.closest<HTMLButtonElement>('[data-theme]');
   if (!btn || !isThemeName(btn.dataset.theme)) return;
   setTheme(btn.dataset.theme);
+  setThemePickerOpen(false);
 });
 
 function selectedAlertSpec(): { kind: PriceAlert['kind']; price: number; direction: PriceAlert['direction']; indicatorKind?: string } | null {

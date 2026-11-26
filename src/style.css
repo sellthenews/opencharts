@@ -3312,9 +3312,15 @@ label,
     padding: 10px 12px;
   }
 
+  #settings-menu #theme-toggle,
   #settings-menu #theme-btns button {
     min-height: 44px;
-    padding: 8px 10px;
+    padding: 10px 12px;
+  }
+
+  #settings-menu .theme-swatch {
+    width: 14px;
+    height: 14px;
   }
 
   #settings-menu .sheet-close {
@@ -4732,27 +4738,113 @@ html[dir="rtl"] #lang-menu {
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  gap: 0;
+  padding: 0;
+}
+
+#settings-menu #theme-toggle,
+#settings-menu button.settings-theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+}
+
+#settings-menu #theme-toggle:hover,
+#settings-menu #theme-toggle:focus-visible {
+  background: var(--btn);
+}
+
+#settings-menu #theme-toggle .settings-row-label {
+  flex: 0 0 auto;
+}
+
+#settings-menu .theme-current {
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  min-width: 0;
+  color: var(--text);
+}
+
+#settings-menu .theme-current-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#settings-menu .theme-caret {
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--muted);
+  transition: transform 0.15s ease;
+}
+
+#settings-menu .settings-theme.is-open .theme-caret {
+  transform: rotate(180deg);
+}
+
+#settings-menu .theme-swatch {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+#settings-menu .theme-swatch[data-swatch="dark"] {
+  background: #0b0e14;
+  box-shadow: inset 0 0 0 1px #3a404c;
+}
+
+#settings-menu .theme-swatch[data-swatch="dim"] {
+  background: #2a303a;
+  box-shadow: inset 0 0 0 1px #586274;
+}
+
+#settings-menu .theme-swatch[data-swatch="light"] {
+  background: #eef0f3;
+  box-shadow: inset 0 0 0 1px #c4c9d4;
+}
+
+#settings-menu .theme-swatch[data-swatch="swapwick"] {
+  background: #12282c;
+  box-shadow: inset 0 0 0 1px #26a69a;
 }
 
 #settings-menu #theme-btns {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 4px 4px;
+}
+
+#settings-menu #theme-btns[hidden] {
+  display: none;
 }
 
 #settings-menu #theme-btns button {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  flex: 1 1 0;
-  width: auto;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
   min-width: 0;
-  text-align: center;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  background: var(--btn);
+  padding: 7px 10px;
+  text-align: left;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
   color: var(--text);
   white-space: nowrap;
 }
@@ -4764,9 +4856,24 @@ html[dir="rtl"] #lang-menu {
 
 #settings-menu #theme-btns button.is-active,
 #settings-menu #theme-btns button.is-active:hover {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #ffffff;
+  background: var(--btn);
+  border-color: transparent;
+  color: var(--heading);
+}
+
+#settings-menu .theme-check {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 14px;
+  margin-left: auto;
+  opacity: 0;
+  border-right: 2px solid var(--heading);
+  border-bottom: 2px solid var(--heading);
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+#settings-menu #theme-btns button.is-active .theme-check {
+  opacity: 1;
 }
 
 #settings-menu .settings-live {
@@ -5207,5 +5314,53 @@ select#pair[aria-hidden="true"] {
     border-bottom: 0;
     border-right: 1px solid var(--border);
     background: var(--bar);
+  }
+}
+
+
+/* Brand mark on the main chart: visible in screenshots, ignores pointer events. */
+#chart-brand {
+  position: absolute;
+  inset-inline-start: 10px;
+  bottom: 36px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0.32;
+  color: var(--chart-text);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#chart-brand img {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  display: block;
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
+  #chart-brand {
+    inset-inline-start: 8px;
+    bottom: 30px;
+    gap: 4px;
+    font-size: 9px;
+    opacity: 0.3;
+  }
+
+  #chart-brand img {
+    width: 11px;
+    height: 11px;
+    border-radius: 2px;
   }
 }

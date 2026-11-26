@@ -3,37 +3,61 @@
 
 import { expect, test } from '@playwright/test';
 
-test('gear menu can switch dark, dim, swapwick and light, and swapwick is remembered', async ({ page }) => {
+async function openThemePicker(page: import('@playwright/test').Page): Promise<void> {
+  const list = page.locator('#theme-btns');
+  if (await list.isHidden()) {
+    await page.locator('#theme-toggle').click();
+  }
+  await expect(list).toBeVisible();
+}
+
+test('theme row expands a vertical list, remembers Swapwick, and marks the active option', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
 
   await page.locator('#settings-btn').click();
-  const dimBtn = page.locator('#theme-btns [data-theme="dim"]');
-  const swapBtn = page.locator('#theme-btns [data-theme="swapwick"]');
-  await expect(dimBtn).toBeVisible();
-  await expect(dimBtn).toHaveText('Dim');
-  await expect(swapBtn).toBeVisible();
-  await expect(swapBtn).toHaveText('Swapwick');
-  await dimBtn.click();
+  const toggle = page.locator('#theme-toggle');
+  const list = page.locator('#theme-btns');
+  await expect(toggle).toBeVisible();
+  await expect(list).toBeHidden();
+
+  await toggle.click();
+  await expect(list).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+  const names = (await list.locator('[data-theme]').evaluateAll((els) => els.map((el) => el.getAttribute('data-theme'))));
+  expect(names).toEqual(['dark', 'dim', 'light', 'swapwick']);
+  await expect(list.locator('[data-theme="dark"] .theme-swatch')).toBeVisible();
+  await expect(list.locator('[data-theme="dim"] .theme-swatch')).toBeVisible();
+  await expect(list.locator('[data-theme="light"] .theme-swatch')).toBeVisible();
+  await expect(list.locator('[data-theme="swapwick"] .theme-swatch')).toBeVisible();
+
+  await list.locator('[data-theme="dim"]').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dim');
-  await expect(dimBtn).toHaveClass(/is-active/);
+  await expect(list).toBeHidden();
+  await expect(page.locator('#theme-current-name')).toHaveText('Dim');
   const dimBg = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--bg').trim());
   expect(dimBg).toBe('#2a303a');
 
-  await swapBtn.click();
+  await openThemePicker(page);
+  await expect(list.locator('[data-theme="dim"]')).toHaveClass(/is-active/);
+  await list.locator('[data-theme="swapwick"]').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'swapwick');
-  await expect(swapBtn).toHaveClass(/is-active/);
+  await expect(page.locator('#theme-current-name')).toHaveText('Swapwick');
   await expect.poll(() => page.evaluate(() => localStorage.getItem('opencharts:theme'))).toBe('swapwick');
   const layout = await page.evaluate(() => localStorage.getItem('opencharts:layout'));
   expect(layout).toContain('"theme":"swapwick"');
   const bg = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--bg').trim());
   expect(bg).toBe('#12282c');
 
-  await page.locator('#theme-btns [data-theme="light"]').click();
+  await openThemePicker(page);
+  await list.locator('[data-theme="light"]').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await page.locator('#theme-btns [data-theme="dark"]').click();
+  await openThemePicker(page);
+  await list.locator('[data-theme="dark"]').click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await swapBtn.click();
+  await openThemePicker(page);
+  await list.locator('[data-theme="swapwick"]').click();
   await page.keyboard.press('Escape');
 
   await page.reload();

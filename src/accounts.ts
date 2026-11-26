@@ -4,6 +4,7 @@
 import { onLangChange, t } from './i18n';
 import { getStocksProxyUrl } from './config';
 import { resetFirstSync, startAutoSync, syncNow as runSync } from './sync';
+import { setThemePickerOpen } from './theme';
 
 export const ACCOUNTS_UNAVAILABLE = 'Accounts are not available yet';
 
@@ -153,6 +154,7 @@ export function initAccounts(opts: {
   function open(): void {
     closeHeaderMenu();
     document.querySelector<HTMLElement>('#settings-menu')?.setAttribute('hidden', '');
+    setThemePickerOpen(false);
     const settingsMenu = document.querySelector<HTMLElement>('#settings-menu');
     if (settingsMenu) settingsMenu.hidden = true;
     document.querySelector('#settings-btn')?.setAttribute('aria-expanded', 'false');

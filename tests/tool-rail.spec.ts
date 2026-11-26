@@ -16,6 +16,8 @@ async function useLightTheme(page: import('@playwright/test').Page): Promise<voi
   const theme = await page.locator('html').getAttribute('data-theme');
   if (theme !== 'light') {
     await page.locator('#settings-btn').click();
+    const list = page.locator('#theme-btns');
+    if (await list.isHidden()) await page.locator('#theme-toggle').click();
     await page.locator('#theme-btns [data-theme="light"]').click();
     await page.keyboard.press('Escape');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
