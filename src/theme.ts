@@ -3,12 +3,12 @@
 
 export const THEME_KEY = 'opencharts:theme';
 
-export const THEME_NAMES = ['dark', 'dim', 'light'] as const;
+export const THEME_NAMES = ['dark', 'dim', 'swapwick', 'light'] as const;
 
 export type ThemeName = (typeof THEME_NAMES)[number];
 
 export function isThemeName(value: unknown): value is ThemeName {
-  return value === 'dark' || value === 'dim' || value === 'light';
+  return value === 'dark' || value === 'dim' || value === 'swapwick' || value === 'light';
 }
 
 export function loadTheme(): ThemeName {
@@ -35,5 +35,6 @@ export function cssVar(name: string, fallback = ''): string {
 export function themeColorMeta(theme: ThemeName): string {
   if (theme === 'light') return '#ffffff';
   if (theme === 'dim') return '#343c48';
+  if (theme === 'swapwick') return '#1a3036';
   return '#12151c';
 }

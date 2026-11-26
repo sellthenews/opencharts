@@ -76,6 +76,28 @@ html[data-theme="dim"] {
   --down: #f06a67;
 }
 
+html[data-theme="swapwick"] {
+  --bg: #12282c;
+  --panel: #173338;
+  --bar: #1a3036;
+  --border: #2d5558;
+  --text: #e8f4f4;
+  --muted: #9db8b8;
+  --heading: #f8ffff;
+  --accent: #1e847b;
+  --accent-hover: #186f68;
+  --danger: #e05653;
+  --btn: #234348;
+  --btn-hover: #2c5358;
+  --row-active: #1a3d3c;
+  --chart-bg: #0e1c1f;
+  --chart-text: #d5e4e4;
+  --chart-grid: rgba(38, 166, 154, 0.14);
+  --chart-border: #2d5558;
+  --up: #26a69a;
+  --down: #f06a67;
+}
+
 html,
 body,
 #app {
