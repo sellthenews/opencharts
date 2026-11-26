@@ -25,7 +25,7 @@ test('watchlist: default Kraken pairs and opening a chart', async ({ page }) => 
   await expect(page.locator('#pair')).toHaveValue('BTCUSD');
   await expect(page.locator('#source')).toHaveValue('kraken');
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
-  await expect(page.locator('#status')).toContainText(/BTC|XBT/);
+  await expect(page.locator('#pair-btn')).toHaveText(/BTC|XBT/);
 
   const before = await page.locator('#chart-wrap').boundingBox();
   expect(before).toBeTruthy();

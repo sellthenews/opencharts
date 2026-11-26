@@ -11,10 +11,18 @@ async function waitReady(page: Page): Promise<void> {
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
 }
 
+async function pickLang(page: Page, id: string): Promise<void> {
+  await page.locator('#lang-btn').click();
+  await expect(page.locator('#lang-menu')).toBeVisible();
+  await page.locator(`#lang-menu [data-lang="${id}"]`).click();
+  await expect(page.locator('#lang-select')).toHaveValue(id);
+}
+
 test('language switch, persistence, autodetection, and RTL', async ({ page, browser }) => {
   await page.goto('/');
   await waitReady(page);
 
+  await expect(page.locator('#lang-btn')).toBeVisible();
   await expect(page.locator('#lang-select')).toHaveValue('en');
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
@@ -22,7 +30,7 @@ test('language switch, persistence, autodetection, and RTL', async ({ page, brow
   const storedBefore = await page.evaluate(() => localStorage.getItem('opencharts:lang'));
   expect(storedBefore).toBeNull();
 
-  await page.selectOption('#lang-select', 'ar');
+  await pickLang(page, 'ar');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.locator('html')).toHaveAttribute('lang', 'ar');
   await expect(page.locator('#chart-wrap')).toHaveAttribute('dir', 'ltr');
@@ -42,6 +50,7 @@ test('language switch, persistence, autodetection, and RTL', async ({ page, brow
   const zhPage = await zhCtx.newPage();
   await zhPage.goto('/');
   await waitReady(zhPage);
+  await expect(zhPage.locator('#lang-btn')).toBeVisible();
   await expect(zhPage.locator('#lang-select')).toHaveValue('zh');
   await expect(zhPage.locator('html')).toHaveAttribute('lang', 'zh-CN');
   await expect(zhPage.locator('html')).toHaveAttribute('dir', 'ltr');
@@ -52,10 +61,10 @@ test('language switch, persistence, autodetection, and RTL', async ({ page, brow
   await zhPage.screenshot({ path: path.join(SHOT_DIR, 'jezyki-zh.png') });
   await zhCtx.close();
 
-  await page.selectOption('#lang-select', 'pl');
+  await pickLang(page, 'pl');
   await expect(page.locator('html')).toHaveAttribute('lang', 'pl');
   await page.screenshot({ path: path.join(SHOT_DIR, 'jezyki-pl.png') });
-  await page.selectOption('#lang-select', 'ar');
+  await pickLang(page, 'ar');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await page.screenshot({ path: path.join(SHOT_DIR, 'jezyki-ar.png') });
 });

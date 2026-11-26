@@ -110,7 +110,7 @@ body,
 
 .toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px 10px;
   padding: 8px 12px;
@@ -2081,7 +2081,7 @@ html[data-theme="light"] #rail-flyout .star-btn.is-on {
   top: calc(100% + 4px);
   right: 0;
   z-index: 30;
-  min-width: 168px;
+  min-width: 220px;
   padding: 4px;
   display: flex;
   flex-direction: column;
@@ -2443,8 +2443,7 @@ html[data-theme="light"] .ind-fav.is-on {
 
 
 #lang-select {
-  max-width: 11.5rem;
-  min-width: 7.5rem;
+  max-width: none;
 }
 
 html[dir="rtl"] #charts,
@@ -2466,13 +2465,15 @@ html[dir="rtl"] #cursor-dot {
   display: flex;
   align-items: center;
   gap: 4px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .interval-favs {
   display: flex;
   gap: 4px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .interval-picker {
@@ -2768,7 +2769,7 @@ html[data-theme="light"] .interval-star.is-on {
 
 .header-account {
   position: relative;
-  margin-left: auto;
+  margin-left: 0;
   flex: 0 0 auto;
 }
 
@@ -2911,8 +2912,7 @@ label,
 
   .site-foot,
   .brand-name,
-  .field span,
-  #layout-btns,
+  .toolbar-left .field span,
   .interval-favs {
     display: none !important;
   }
@@ -2952,7 +2952,7 @@ label,
     padding: 6px 8px;
     padding-left: max(8px, env(safe-area-inset-left));
     padding-right: max(8px, env(safe-area-inset-right));
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .toolbar button,
@@ -3402,7 +3402,7 @@ label,
   }
 
   .header-account {
-    margin-left: auto;
+    margin-left: 0;
   }
 
   #header-account-btn {
@@ -3999,7 +3999,7 @@ html[data-theme="light"] .watch-del {
   align-items: center;
   gap: 6px;
   flex: 0 0 auto;
-  margin-left: auto;
+  margin-left: 0;
   padding: 6px 14px;
   border: 0;
   border-radius: 999px;
@@ -4470,6 +4470,340 @@ html[data-mode="dex"] .sym-source {
   }
 
   .dex-btn-dot {
+    display: none;
+  }
+}
+
+
+/* ---------- Grouped header (logo/search/timeframe | DEX | flags/gear/sign-in) ---------- */
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.toolbar-left {
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+}
+
+.toolbar-left > * {
+  flex-shrink: 0;
+}
+
+.toolbar-left .field-pair {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+#intervals .interval,
+#intervals .interval-menu-btn {
+  white-space: nowrap;
+}
+
+.candle-eta:empty {
+  display: none;
+}
+
+.toolbar-right {
+  flex: 0 0 auto;
+  margin-left: auto;
+  gap: 6px;
+}
+
+.toolbar .icon-btn,
+#lang-btn.icon-btn,
+#settings-btn.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  padding: 0;
+  line-height: 0;
+}
+
+.lang-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.lang-flag {
+  display: inline-flex;
+  width: 20px;
+  height: 14px;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent);
+  line-height: 0;
+  background: var(--btn);
+}
+
+.lang-flag svg {
+  display: block;
+  width: 20px;
+  height: 14px;
+}
+
+#lang-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 32;
+  min-width: 200px;
+  max-height: min(70vh, 24em);
+  overflow: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bar);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+#lang-menu[hidden] {
+  display: none;
+}
+
+#lang-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  padding: 7px 10px;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+
+#lang-menu button:hover,
+#lang-menu button:focus-visible,
+#lang-menu button.is-active {
+  background: var(--btn);
+}
+
+#lang-menu .lang-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[dir="rtl"] #lang-menu {
+  right: auto;
+  left: 0;
+}
+
+.settings-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+}
+
+.settings-row-label,
+#settings-menu .settings-row span,
+#settings-menu .field-tz span {
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+#settings-menu .field-tz {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+  color: var(--text);
+}
+
+#settings-menu .field-tz select {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+  min-height: 28px;
+}
+
+#settings-menu #layout-btns {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+#settings-menu #layout-btns button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  min-width: 36px;
+  padding: 6px 0;
+  text-align: center;
+  border: 1px solid var(--border);
+  background: var(--btn);
+  color: var(--text);
+}
+
+#settings-menu #layout-btns button:hover,
+#settings-menu #layout-btns button:focus-visible {
+  background: var(--btn-hover);
+}
+
+#settings-menu #layout-btns button.is-active,
+#settings-menu #layout-btns button.is-active:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+#settings-menu .settings-live {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+#settings-menu .compare-wrap {
+  width: 100%;
+}
+
+@media (min-width: 901px) {
+  #settings-menu #compare-pop {
+    top: 0;
+    right: calc(100% + 6px);
+    left: auto;
+    margin-top: 0;
+  }
+}
+
+/* Keep status off the first row so the header height stays stable. */
+.toolbar > #status {
+  position: absolute;
+  left: 12px;
+  top: calc(100% + 4px);
+  z-index: 8;
+  margin: 0;
+  max-width: min(28em, 50vw);
+  pointer-events: none;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bar) 92%, transparent);
+}
+.toolbar > #status:empty,
+.toolbar > #status[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
+  .toolbar-left,
+  .toolbar-right {
+    gap: 6px;
+  }
+
+  #settings-menu #layout-btns {
+    display: flex !important;
+  }
+
+  #settings-menu .settings-live {
+    display: flex !important;
+  }
+
+  #lang-menu button {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 500px) {
+  .toolbar-left,
+  .toolbar-right {
+    flex-wrap: nowrap;
+    gap: 3px;
+  }
+
+  .toolbar-left {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  #lang-btn.icon-btn {
+    width: 34px;
+    height: 40px;
+    min-width: 34px;
+    min-height: 40px;
+  }
+
+  #lang-menu:not([hidden]) {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 52px);
+    right: max(8px, env(safe-area-inset-right));
+    left: auto;
+    z-index: 50;
+    max-height: min(70vh, calc(100vh - 64px));
+  }
+
+  html[dir="rtl"] #lang-menu:not([hidden]) {
+    right: auto;
+    left: max(8px, env(safe-area-inset-left));
+  }
+
+  #more-body #ind-btn,
+  #more-body #ind-visibility-btn {
+    width: 100%;
+    min-height: 44px;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  #more-body #ind-btn .toolbar-label-full,
+  #more-body #ind-visibility-btn .toolbar-label-full {
+    display: inline;
+  }
+
+  #more-body #ind-btn .toolbar-label-short,
+  #more-body #ind-visibility-btn .toolbar-label-short {
+    display: none;
+  }
+
+  #settings-menu .field-tz,
+  #settings-menu .settings-layout {
+    flex-wrap: wrap;
+  }
+
+  #settings-menu .field-tz select,
+  #settings-menu #layout-btns {
+    width: 100%;
+    max-width: none;
+  }
+
+  #settings-menu #layout-btns button {
+    flex: 1;
+    width: auto;
+    min-height: 44px;
+  }
+}
+
+
+@media (max-width: 1200px) {
+  .brand-name {
     display: none;
   }
 }

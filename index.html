@@ -25,6 +25,7 @@
       <div id="alert-toast" class="alert-toast" hidden role="status"></div>
       <div id="workspace">
       <header class="toolbar">
+        <div class="toolbar-left">
         <div class="brand" title="Swapwick">
           <img class="brand-mark" src="./favicon.svg" width="28" height="28" alt="" />
           <span class="brand-name">Swapwick</span>
@@ -40,10 +41,14 @@
             <span data-i18n="toolbar.network">Network</span>
             <select id="dex-network" data-network tabindex="-1" aria-label="Network" data-i18n-aria="toolbar.network"></select>
           </label>
+          <label class="field field-lang">
+            <span data-i18n="toolbar.language">Language</span>
+            <select id="lang-select" tabindex="-1" aria-hidden="true"></select>
+          </label>
         </div>
 
         <label class="field field-pair">
-          <span data-i18n="toolbar.pair">Pair</span>
+          <span class="visually-hidden" data-i18n="toolbar.pair">Pair</span>
           <button type="button" id="pair-btn" title="Search symbol (start typing)" data-i18n-title="toolbar.searchSymbol">XRP/USD</button>
           <span id="pair-src" class="pair-src" aria-hidden="true"></span>
           <button type="button" id="xrp-toggle" title="Switch between XRP and XRPN" data-i18n-title="toolbar.xrpToggle">XRPN</button>
@@ -52,14 +57,6 @@
 
         <div class="group" role="group" aria-label="Interval" id="intervals" data-i18n-aria="toolbar.interval"></div>
         <span id="candle-eta" class="candle-eta" title="Time until this candle closes" data-i18n-title="toolbar.countdown"></span>
-        <label class="field field-tz" id="tz-field">
-          <span class="visually-hidden" data-i18n="toolbar.timezone">Time zone</span>
-          <select id="tz-select" aria-label="Time zone" data-i18n-aria="toolbar.timezone">
-            <option value="local" data-i18n="toolbar.tzLocal">Local</option>
-            <option value="America/New_York" data-i18n="toolbar.tzNy">New York</option>
-            <option value="UTC">UTC</option>
-          </select>
-        </label>
         <button type="button" id="prepost-btn" hidden aria-pressed="false" title="Include pre-market and after-hours" data-i18n="toolbar.prepost" data-i18n-title="toolbar.prepostTitle">Pre/post</button>
         <div class="chart-type-wrap" id="chart-type-wrap">
           <button type="button" id="chart-type-btn" title="Choose chart type" data-i18n-title="toolbar.chartTypeTitle" data-i18n-aria="toolbar.chartTypeTitle" aria-label="Choose chart type" aria-haspopup="menu" aria-expanded="false" aria-controls="chart-type-menu">
@@ -81,11 +78,6 @@
             <div id="chart-type-list"></div>
           </div>
         </div>
-        <div class="group" id="layout-btns" role="group" aria-label="Chart layout" data-i18n-aria="toolbar.layout">
-          <button type="button" data-panes="1" class="is-active" title="One chart" data-i18n-title="toolbar.oneChart">1</button>
-          <button type="button" data-panes="2" title="Two charts" data-i18n-title="toolbar.twoCharts">2</button>
-          <button type="button" data-panes="4" title="Four charts" data-i18n-title="toolbar.fourCharts">4</button>
-        </div>
         <button type="button" id="ind-btn" title="Indicators" data-i18n-title="toolbar.indicatorsTitle" data-i18n-aria="toolbar.indicatorsTitle" aria-label="Indicators">
           <span class="toolbar-label-full" data-i18n="toolbar.indicators">Indicators</span>
           <span class="toolbar-label-short" aria-hidden="true" data-i18n="toolbar.indicatorsShort">Ind</span>
@@ -97,35 +89,16 @@
             <svg class="eye-off" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10s3.2-5.5 8-5.5S18 10 18 10s-3.2 5.5-8 5.5S2 10 2 10z"/><circle cx="10" cy="10" r="2.5"/><path d="M3 17 17 3"/></svg>
           </span>
         </button>
-        <div class="compare-wrap">
-          <button type="button" id="compare-btn" title="Compare symbols in percent" data-i18n="toolbar.compare" data-i18n-title="toolbar.compareTitle" aria-expanded="false" aria-controls="compare-pop">Compare</button>
-          <div id="compare-pop" role="dialog" aria-modal="true" aria-labelledby="compare-btn" hidden>
-            <div class="sheet-head">
-              <h2 data-i18n="toolbar.compare">Compare</h2>
-              <button type="button" id="compare-close" class="sheet-close" aria-label="Close" data-i18n-aria="mobile.close">×</button>
-            </div>
-            <input type="text" id="compare-search" placeholder="Add symbol" aria-label="Add symbol to compare" data-i18n-placeholder="toolbar.addSymbol" data-i18n-aria="toolbar.addSymbolCompare" autocomplete="off" />
-            <div id="compare-results" class="compare-results"></div>
-            <div id="compare-list" class="compare-list"></div>
-          </div>
-        </div>
         <button type="button" id="sidebar-btn" aria-pressed="true" title="Watchlist and alerts panel" data-i18n="toolbar.panel" data-i18n-title="toolbar.panelTitle">Panel</button>
-        <button type="button" id="theme-btn" title="Switch light/dark theme" data-i18n-title="toolbar.themeTitle">Light theme</button>
-        <input type="file" id="backup-file" accept="application/json,.json" hidden />
-        <label class="field field-lang">
-          <span class="visually-hidden" data-i18n="toolbar.language">Language</span>
-          <select id="lang-select" aria-label="Language" data-i18n-aria="toolbar.language"></select>
-        </label>
-        <span id="live-status" class="live-status" data-live="off" title="Public Kraken WebSocket (OHLC and ticker)" data-i18n-title="toolbar.liveTitle">Offline</span>
+        </div>
+
+        <div class="toolbar-right">
         <button type="button" id="dex-btn" class="dex-btn" aria-pressed="false" title="XRPL and Xahau DEX mode" data-i18n-title="dex.modeTitle"><span class="dex-btn-dot" aria-hidden="true"></span><span data-i18n="dex.mode">DEX</span></button>
-        <div class="header-account" id="header-account">
-          <button type="button" id="header-account-btn" title="Sign in" data-i18n="toolbar.signIn" data-i18n-title="toolbar.signIn" data-i18n-aria="toolbar.signIn" aria-label="Sign in" aria-expanded="false" aria-controls="header-account-menu">
-            <span class="header-account-label" data-i18n="toolbar.signIn">Sign in</span>
+        <div class="lang-wrap" id="lang-wrap">
+          <button type="button" id="lang-btn" class="icon-btn" title="Language" aria-label="Language" data-i18n-title="toolbar.language" data-i18n-aria="toolbar.language" aria-haspopup="listbox" aria-expanded="false" aria-controls="lang-menu">
+            <span class="lang-flag" aria-hidden="true"></span>
           </button>
-          <div id="header-account-menu" hidden role="menu" aria-labelledby="header-account-btn">
-            <button type="button" role="menuitem" id="header-account-open" data-i18n="toolbar.account">Account</button>
-            <button type="button" role="menuitem" id="header-account-logout" data-i18n="account.signOut">Sign out</button>
-          </div>
+          <div id="lang-menu" hidden role="listbox" aria-labelledby="lang-btn"></div>
         </div>
         <div class="settings-wrap">
           <button type="button" id="settings-btn" class="icon-btn" title="Settings" aria-label="Settings" data-i18n-title="toolbar.settings" data-i18n-aria="toolbar.settings" aria-haspopup="menu" aria-expanded="false" aria-controls="settings-menu">
@@ -137,6 +110,38 @@
               <button type="button" id="settings-close" class="sheet-close" aria-label="Close" data-i18n-aria="mobile.close">×</button>
             </div>
             <button type="button" role="menuitem" id="settings-account" data-i18n="toolbar.account">Account</button>
+            <div class="settings-sep" role="separator"></div>
+            <button type="button" role="menuitem" id="theme-btn" title="Switch light/dark theme" data-i18n-title="toolbar.themeTitle">Light theme</button>
+            <label class="field field-tz settings-row" id="tz-field">
+              <span data-i18n="toolbar.timezone">Time zone</span>
+              <select id="tz-select" aria-label="Time zone" data-i18n-aria="toolbar.timezone">
+                <option value="local" data-i18n="toolbar.tzLocal">Local</option>
+                <option value="America/New_York" data-i18n="toolbar.tzNy">New York</option>
+                <option value="UTC">UTC</option>
+              </select>
+            </label>
+            <div class="settings-row settings-layout">
+              <span class="settings-row-label" data-i18n="toolbar.layout">Layout</span>
+              <div class="group" id="layout-btns" role="group" aria-label="Chart layout" data-i18n-aria="toolbar.layout">
+                <button type="button" data-panes="1" class="is-active" title="One chart" data-i18n-title="toolbar.oneChart">1</button>
+                <button type="button" data-panes="2" title="Two charts" data-i18n-title="toolbar.twoCharts">2</button>
+                <button type="button" data-panes="4" title="Four charts" data-i18n-title="toolbar.fourCharts">4</button>
+              </div>
+            </div>
+            <div class="compare-wrap">
+              <button type="button" id="compare-btn" title="Compare symbols in percent" data-i18n="toolbar.compare" data-i18n-title="toolbar.compareTitle" aria-expanded="false" aria-controls="compare-pop">Compare</button>
+              <div id="compare-pop" role="dialog" aria-modal="true" aria-labelledby="compare-btn" hidden>
+                <div class="sheet-head">
+                  <h2 data-i18n="toolbar.compare">Compare</h2>
+                  <button type="button" id="compare-close" class="sheet-close" aria-label="Close" data-i18n-aria="mobile.close">×</button>
+                </div>
+                <input type="text" id="compare-search" placeholder="Add symbol" aria-label="Add symbol to compare" data-i18n-placeholder="toolbar.addSymbol" data-i18n-aria="toolbar.addSymbolCompare" autocomplete="off" />
+                <div id="compare-results" class="compare-results"></div>
+                <div id="compare-list" class="compare-list"></div>
+              </div>
+            </div>
+            <span id="live-status" class="live-status settings-live" data-live="off" title="Public Kraken WebSocket (OHLC and ticker)" data-i18n-title="toolbar.liveTitle">Offline</span>
+            <div class="settings-sep" role="separator"></div>
             <button type="button" role="menuitem" id="settings-export" data-i18n="toolbar.exportData">Export data</button>
             <button type="button" role="menuitem" id="settings-import" data-i18n="toolbar.importData">Import data</button>
             <button type="button" role="menuitem" id="settings-save-template" data-i18n="toolbar.saveTemplate">Save template…</button>
@@ -145,9 +150,19 @@
             <div id="settings-templates" class="settings-templates" role="group" aria-label="Templates" data-i18n-aria="toolbar.templates"></div>
           </div>
         </div>
+        <div class="header-account" id="header-account">
+          <button type="button" id="header-account-btn" title="Sign in" data-i18n="toolbar.signIn" data-i18n-title="toolbar.signIn" data-i18n-aria="toolbar.signIn" aria-label="Sign in" aria-expanded="false" aria-controls="header-account-menu">
+            <span class="header-account-label" data-i18n="toolbar.signIn">Sign in</span>
+          </button>
+          <div id="header-account-menu" hidden role="menu" aria-labelledby="header-account-btn">
+            <button type="button" role="menuitem" id="header-account-open" data-i18n="toolbar.account">Account</button>
+            <button type="button" role="menuitem" id="header-account-logout" data-i18n="account.signOut">Sign out</button>
+          </div>
+        </div>
         <button type="button" id="more-btn" aria-expanded="false" aria-haspopup="dialog" aria-controls="more-pop" title="More" aria-label="More" data-i18n-title="toolbar.more" data-i18n-aria="toolbar.more">
           <svg viewBox="0 0 20 20" width="22" height="22" aria-hidden="true"><circle cx="4.5" cy="10" r="1.8" fill="currentColor"/><circle cx="10" cy="10" r="1.8" fill="currentColor"/><circle cx="15.5" cy="10" r="1.8" fill="currentColor"/></svg>
         </button>
+        </div>
         <div id="more-pop" role="dialog" aria-labelledby="more-title" hidden>
           <div class="sheet-head">
             <h2 id="more-title" data-i18n="toolbar.more">More</h2>
@@ -156,7 +171,8 @@
           <div id="more-body"></div>
         </div>
         <div id="interval-hint" class="interval-hint" hidden></div>
-        <div id="status" class="status" role="status" data-i18n="toolbar.loading">Loading…</div>
+        <div id="status" class="status" role="status" hidden></div>
+        <input type="file" id="backup-file" accept="application/json,.json" hidden />
       </header>
       <div id="xrp-strip" class="xrp-strip" aria-label="XRP last price by exchange" data-i18n-aria="toolbar.xrpStrip"></div>
 

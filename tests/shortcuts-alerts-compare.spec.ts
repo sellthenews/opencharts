@@ -120,6 +120,7 @@ test('alerts: add, edit, delete, note, and screenshot', async ({ page }) => {
 
 test('compare overlay persists percent legend', async ({ page }) => {
   await ready(page);
+  await page.locator('#settings-btn').click();
   await page.locator('#compare-btn').click();
   await expect(page.locator('#compare-pop')).toBeVisible();
   await page.locator('[data-compare-add="kraken:BTCUSD"]').click();

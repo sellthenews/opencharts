@@ -15,7 +15,9 @@ async function waitReady(page: import('@playwright/test').Page): Promise<void> {
 async function useLightTheme(page: import('@playwright/test').Page): Promise<void> {
   const theme = await page.locator('html').getAttribute('data-theme');
   if (theme !== 'light') {
+    await page.locator('#settings-btn').click();
     await page.locator('#theme-btn').click();
+    await page.keyboard.press('Escape');
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   }
 }

@@ -3,7 +3,7 @@
 
 import { expect, test } from '@playwright/test';
 
-test('symbol modal: exchange picker is gone, gear sits next to sign-in', async ({ page }) => {
+test('symbol modal: exchange picker is gone, language then gear then sign-in', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
 
@@ -12,13 +12,20 @@ test('symbol modal: exchange picker is gone, gear sits next to sign-in', async (
   await expect(page.locator('#exchange-field')).toHaveCount(1);
   await expect(page.locator('#pair-src')).toHaveText('Kraken');
 
+  const lang = page.locator('#lang-btn');
   const gear = page.locator('#settings-btn');
+  await expect(lang).toBeVisible();
   await expect(gear).toBeVisible();
   await expect(gear).toHaveAttribute('aria-label', /.+/);
   await expect(gear).toHaveAttribute('title', /.+/);
   expect(((await gear.textContent()) ?? '').trim()).toBe('');
-  const [g, a] = await Promise.all([gear.boundingBox(), page.locator('#header-account-btn').boundingBox()]);
-  expect(g && a && Math.abs(g.x - (a.x + a.width)) < 40).toBeTruthy();
+  const [l, g, a] = await Promise.all([
+    lang.boundingBox(),
+    gear.boundingBox(),
+    page.locator('#header-account-btn').boundingBox(),
+  ]);
+  expect(l && g && g.x > l.x && Math.abs(g.x - (l.x + l.width)) < 48).toBeTruthy();
+  expect(g && a && a.x > g.x && Math.abs(a.x - (g.x + g.width)) < 48).toBeTruthy();
 });
 
 test('symbol modal: typing opens it, tabs, keyboard, recents', async ({ page }) => {

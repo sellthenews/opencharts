@@ -112,7 +112,7 @@ test('mocked Yahoo proxy loads an XRPN chart', async ({ page }) => {
   await expect(page.locator('#sym-modal')).toBeHidden();
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
   await expect(page.locator('#status')).not.toHaveClass(/is-error/);
-  await expect(page.locator('#status')).toContainText(/Yahoo/i);
+  await expect(page.locator('#pair-btn')).toHaveText(/XRPN/i);
   await expect(page.locator('#source')).toHaveValue('yahoo');
   await expect(page.locator('#pair')).toHaveValue('XRPN');
 

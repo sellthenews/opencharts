@@ -65,10 +65,10 @@ import { initComparePanel } from './compare';
 import { loadAllSymbols } from './sources/catalog';
 import type { SymbolInfo } from './sources/catalog';
 import type { Tool } from './drawings-types';
-import { formatDate, formatNumber, initLang, localeOf, onLangChange, t } from './i18n';
+import { initLang, localeOf, onLangChange, t } from './i18n';
 import { initDialogA11y } from './dialog-a11y';
 import { chartPngBlob, copyBlob, downloadBlob } from './snapshot';
-import { chartTimeZone, initChartTimeZone, isChartTimeZone, resolvedTimeZone, setChartTimeZone } from './timezone';
+import { chartTimeZone, initChartTimeZone, isChartTimeZone, setChartTimeZone } from './timezone';
 import { startXrpStrip } from './xrp-strip';
 import { initDexPanel, type DexPanelApi } from './dex/panel';
 
@@ -394,11 +394,7 @@ function refreshLangChrome(): void {
   renderAlerts();
   const submit = alertForm?.querySelector<HTMLButtonElement>('[type="submit"]');
   if (submit) submit.textContent = editingAlertId ? t('alerts.save') : t('alerts.add');
-  if (lastCandles.length) {
-    const src = currentSource();
-    const aggregated = !src.nativeIntervals.includes(intervalId);
-    setStatus(describeCandles(src.name, formatPairLabel(sourceId, pairId), lastCandles, aggregated));
-  }
+  if (lastCandles.length) setStatus('');
   fillIntervals();
   try {
     syncIndVisibilityChrome();
@@ -462,26 +458,6 @@ indicators.setOnPaneResize((stretches) => {
   saveIndicatorSettings(indicatorItems, sourceId, pairId, paneStretches);
 });
 
-function isoDate(ts: number): string {
-  return formatDate(ts);
-}
-
-function stamp(ts: number): string {
-  try {
-    return new Intl.DateTimeFormat(localeOf(), {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hourCycle: 'h23',
-      timeZone: resolvedTimeZone(),
-    }).format(new Date(ts * 1000));
-  } catch {
-    return formatDate(ts);
-  }
-}
-
 function cacheVariant(): string {
   return sourceId === 'yahoo' && includePrePost ? 'pre' : '';
 }
@@ -498,6 +474,7 @@ function priceFormatFor(price: number): { type: 'price'; precision: number; minM
 
 function setStatus(text: string, error = false): void {
   statusEl.textContent = text;
+  statusEl.hidden = !text;
   statusEl.classList.toggle('is-error', error);
 }
 
@@ -547,7 +524,7 @@ async function switchDexNetwork(id: string): Promise<void> {
   syncNetworkField();
   let next = defaultPairFor(id);
   if (!next) {
-    setStatus(t('status.loadingChart', { source: 'DEX', pair: network.name, interval: intervalId }));
+    setStatus('');
     try {
       const hits = await searchDexSymbols(id, '');
       next = hits[0];
@@ -947,7 +924,7 @@ function resizeCharts(): void {
 
 const PHONE_MQ = window.matchMedia('(max-width: 900px), (max-height: 500px) and (orientation: landscape)');
 const PORTRAIT_MQ = window.matchMedia('(max-width: 500px)');
-const MORE_ITEM_SELECTORS = ['#xrp-toggle', '.compare-wrap', '#theme-btn', '.field-lang', '#layout-btns', '#chart-type-wrap', '#tz-field', '#live-status', '#candle-eta', '#status'] as const;
+const MORE_ITEM_SELECTORS = ['#xrp-toggle', '#chart-type-wrap', '#candle-eta', '#ind-btn', '#ind-visibility-btn'] as const;
 const moreHomes = new Map<string, Comment>();
 
 function isPhoneLayout(): boolean {
@@ -1186,8 +1163,7 @@ async function loadOlderHistory(announce = false): Promise<number> {
     const shift = merged.filter((c) => c.time < first).length - Math.max(0, prevCount + added.length - merged.length);
     setCachedCandles(sourceId, pairId, intervalId, merged, cacheVariant());
     applyPriceData(merged, false, Math.max(0, shift));
-    const aggregated = !src.nativeIntervals.includes(intervalId);
-    setStatus(describeCandles(src.name, formatPairLabel(sourceId, pairId), merged, aggregated));
+    setStatus('');
     queueMicrotask(() => maybeLoadOlderHistory());
     return Math.max(0, shift);
   } catch (err) {
@@ -1271,12 +1247,6 @@ function syncLiveChart(): void {
   else live.setChart(null, null);
 }
 
-function describeCandles(srcName: string, pairLabel: string, candles: Candle[], aggregated: boolean): string {
-  const first = isoDate(candles[0]!.time);
-  const last = stamp(candles[candles.length - 1]!.time);
-  return t('status.candles', { source: srcName, pair: pairLabel, interval: intervalId, extra: aggregated ? t('status.aggregated') : '', count: formatNumber(candles.length), first, last });
-}
-
 async function loadChart(): Promise<void> {
   const seq = ++loadSeq;
   resetHistoryPaging();
@@ -1284,8 +1254,6 @@ async function loadChart(): Promise<void> {
   indicators.setSession(sourceId === 'yahoo' ? 'us-rth' : 'utc-day');
   syncSymbolChrome();
   const src = currentSource();
-  const pairLabel = formatPairLabel(sourceId, pairId);
-  const aggregated = !src.nativeIntervals.includes(intervalId);
   const hadData = lastCandles.length > 0;
   const variant = cacheVariant();
   const cached = getCachedCandles(sourceId, pairId, intervalId, variant);
@@ -1293,13 +1261,13 @@ async function loadChart(): Promise<void> {
   if (cached?.length) {
     applyPriceData(cached, !hadData);
     drawings.setContext(src.id, pairId);
-    setStatus(describeCandles(src.name, pairLabel, cached, aggregated));
+    setStatus('');
     setReady(true);
     setChartLoading('refresh');
   } else {
     setChartLoading('full');
     if (!hadData) setReady(false);
-    setStatus(t('status.loadingChart', { source: src.name, pair: pairLabel, interval: intervalId }));
+    setStatus('');
   }
 
   try {
@@ -1313,7 +1281,7 @@ async function loadChart(): Promise<void> {
     syncLiveChart();
     feedError = false;
     setLiveStatus(wsStatus);
-    setStatus(describeCandles(src.name, pairLabel, candles, aggregated));
+    setStatus('');
     if (!historyExhausted && candles.length < MAX_HISTORY) await loadOlderHistory();
     if (seq !== loadSeq) return;
     setReady(true);
@@ -1369,7 +1337,7 @@ async function refreshOpenCandle(): Promise<void> {
     feedError = false;
     setLiveStatus(wsStatus);
     if (!statusEl.classList.contains('is-error')) {
-      setStatus(describeCandles(src.name, formatPairLabel(sourceId, pairId), merged, !src.nativeIntervals.includes(intervalId)));
+      setStatus('');
     }
   } catch (err) {
     if (seq !== loadSeq) return;
@@ -2447,10 +2415,7 @@ function initChartChrome(): void {
     if (!isChartTimeZone(value)) return;
     setChartTimeZone(value);
     chart.applyOptions({ timeScale: { tickMarkFormatter: formatTimeTick, timeVisible: true } });
-    if (lastCandles.length) {
-      const src = currentSource();
-      setStatus(describeCandles(src.name, formatPairLabel(sourceId, pairId), lastCandles, !src.nativeIntervals.includes(intervalId)));
-    }
+    if (lastCandles.length) setStatus('');
   });
   document.querySelector('#prepost-btn')?.addEventListener('click', () => {
     includePrePost = !includePrePost;
