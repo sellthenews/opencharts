@@ -32,6 +32,7 @@ import type { Candle, CandleQuery, DataSource, IntervalId, PairDef, PairId, Tick
 import {
   DEFAULT_PAIRS,
   curatedPairsFor,
+  decodeXrplCurrency,
   invertCandles,
   labelFromGtAddress,
   mergeDexPairs,
@@ -41,6 +42,7 @@ import {
   type DexPairRef,
 } from './ledger-tokens';
 
+import { loadXahauPairs } from '../dex/xahau-pairs';
 export type { DexPairRef } from './ledger-tokens';
 
 const known = new Map<string, DexPairRef>();
@@ -72,17 +74,18 @@ export function parseDexPairId(id: string): DexPairRef | undefined {
       account,
     };
   }
-  const book = /^book:([a-z0-9_]+):([A-Za-z0-9]+):([A-Za-z0-9]+)(?:\.([a-zA-Z0-9]+))?$/.exec(id);
+  const book = /^book:([a-z0-9_]+):([A-Za-z0-9]+)(?:\.(r[a-zA-Z0-9]+))?:([A-Za-z0-9]+)(?:\.([a-zA-Z0-9]+))?$/.exec(id);
   if (book) {
-    const [, networkId, base, quote, quoteIssuer] = book;
+    const [, networkId, base, baseIssuer, quote, quoteIssuer] = book;
     return {
       id,
       networkId: networkId!,
       kind: 'book',
-      label: `${base}/${quote}`,
+      label: `${decodeXrplCurrency(base!)}/${decodeXrplCurrency(quote!)}`,
       base: base!,
       quote: quote!,
       native: quoteIssuer ? `${quote}.${quoteIssuer}` : `${base}/${quote}`,
+      baseIssuer,
       quoteIssuer,
     };
   }
@@ -480,7 +483,12 @@ export async function searchDexSymbols(networkId: string, query: string): Promis
   }
 
   let remote: DexPairRef[] = [];
-  if (networkId === 'xrpl') {
+  if (networkId === 'xahau') {
+    const all = await loadXahauPairs();
+    const lower = q.toLowerCase();
+    remote = (lower ? all.filter((p) => matchesQuery(p, lower) || p.label.toLowerCase().includes(lower)) : all).slice(0, 200);
+    for (const pair of remote) rememberDexPair(pair);
+  } else if (networkId === 'xrpl') {
     try {
       remote = await refsFromGeckoPools('xrpl', q);
     } catch {

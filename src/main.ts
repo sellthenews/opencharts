@@ -70,6 +70,7 @@ import { initDialogA11y } from './dialog-a11y';
 import { chartPngBlob, copyBlob, downloadBlob } from './snapshot';
 import { chartTimeZone, initChartTimeZone, isChartTimeZone, resolvedTimeZone, setChartTimeZone } from './timezone';
 import { startXrpStrip } from './xrp-strip';
+import { initDexPanel, type DexPanelApi } from './dex/panel';
 
 initChartTimeZone();
 const PREPOST_KEY = 'opencharts:prepost';
@@ -273,6 +274,8 @@ let pendingAnchorId: string | null = null;
 let pendingVpfr: { id: string; step: 0 | 1 } | null = null;
 let watchlist: WatchlistPanel;
 let symbolSearch: ReturnType<typeof initSymbolSearch> | undefined;
+let dexPanel: DexPanelApi | undefined;
+let leavingDexMode: (() => void) | undefined;
 
 applyTheme(theme);
 
@@ -671,7 +674,15 @@ function applySelection(nextSource: string, nextPair: PairId, reload = true): vo
   syncNetworkField();
   persistLayout();
   watchlist?.highlight(sourceId, pairId);
+  if (document.documentElement.dataset.mode === 'dex' && !isDexLedgerPair(sourceId, pairId)) leavingDexMode?.();
+  dexPanel?.setPair(sourceId, pairId);
   if (reload) void loadChart();
+}
+
+function isDexLedgerPair(src: string, pair: string): boolean {
+  if (src !== 'dex') return false;
+  const ref = lookupDexPair(pair);
+  return ref?.networkId === 'xrpl' || ref?.networkId === 'xahau';
 }
 
 
@@ -1520,6 +1531,75 @@ watchlist = new WatchlistPanel(
   () => symbolSearch?.open('', 'add'),
 );
 watchlist.highlight(sourceId, pairId);
+
+/* ---------- DEX mode: XRPL and Xahau only, with the trading panel ---------- */
+const DEX_MODE_KEY = 'opencharts:mode';
+const PRE_DEX_KEY = 'opencharts:pre-dex';
+const dexBtn = document.querySelector<HTMLButtonElement>('#dex-btn');
+const dexPanelEl = document.querySelector<HTMLElement>('#dex-panel');
+
+function dexLedger(): 'xrpl' | 'xahau' {
+  return loadDexNetworkId() === 'xahau' ? 'xahau' : 'xrpl';
+}
+
+function readPreDex(): { sourceId?: string; pairId?: string } | null {
+  try {
+    return JSON.parse(localStorage.getItem(PRE_DEX_KEY) ?? 'null') as { sourceId?: string; pairId?: string } | null;
+  } catch {
+    return null;
+  }
+}
+
+function setDexMode(on: boolean, restore = true): void {
+  document.documentElement.dataset.mode = on ? 'dex' : 'charts';
+  localStorage.setItem(DEX_MODE_KEY, on ? 'dex' : 'charts');
+  dexBtn?.setAttribute('aria-pressed', on ? 'true' : 'false');
+  if (dexPanelEl) dexPanelEl.hidden = !on;
+  if (on) {
+    if (!isDexLedgerPair(sourceId, pairId)) {
+      localStorage.setItem(PRE_DEX_KEY, JSON.stringify({ sourceId, pairId }));
+      const net = dexLedger();
+      const ref = defaultPairFor(net);
+      saveDexNetworkId(net);
+      if (ref) applySelection('dex', ref.id, true);
+    }
+    if (!isPhoneLayout() && !sidebarIsOn()) setSidebar(true);
+  } else if (restore) {
+    const prev = readPreDex();
+    localStorage.removeItem(PRE_DEX_KEY);
+    if (prev?.sourceId && prev.pairId && getSource(prev.sourceId)) applySelection(prev.sourceId, prev.pairId, true);
+  }
+  dexPanel?.setPair(sourceId, pairId);
+  dexPanel?.setVisible(on);
+  resizeCharts();
+}
+
+if (dexPanelEl) {
+  dexPanel = initDexPanel(dexPanelEl, {
+    onNetwork: (id) => {
+      const ref = defaultPairFor(id);
+      saveDexNetworkId(id);
+      if (ref) applySelection('dex', ref.id, true);
+    },
+  });
+  leavingDexMode = () => {
+    localStorage.removeItem(PRE_DEX_KEY);
+    setDexMode(false, false);
+  };
+}
+dexBtn?.addEventListener('click', () => setDexMode(document.documentElement.dataset.mode !== 'dex'));
+{
+  const wanted = new URLSearchParams(location.search).get('dex');
+  if (wanted === 'xrpl' || wanted === 'xahau') {
+    if (!isDexLedgerPair(sourceId, pairId) || lookupDexPair(pairId)?.networkId !== wanted) {
+      localStorage.setItem(PRE_DEX_KEY, JSON.stringify({ sourceId, pairId }));
+      saveDexNetworkId(wanted);
+      const ref = defaultPairFor(wanted);
+      if (ref) applySelection('dex', ref.id, true);
+    }
+    setDexMode(true);
+  } else if (localStorage.getItem(DEX_MODE_KEY) === 'dex') setDexMode(true);
+}
 live.start();
 syncLiveChart();
 

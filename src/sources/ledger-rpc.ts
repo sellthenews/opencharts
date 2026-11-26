@@ -14,7 +14,7 @@ import {
 
 export const DEX_PROXY_MISSING = 'DEX data proxy not updated on the Worker yet';
 
-export const LEDGER_RPC_METHODS = ['amm_info', 'account_tx', 'book_offers', 'ledger', 'server_info', 'account_info'] as const;
+export const LEDGER_RPC_METHODS = ['amm_info', 'account_tx', 'book_offers', 'ledger', 'server_info', 'account_info', 'account_lines', 'account_offers', 'ripple_path_find'] as const;
 export type LedgerRpcMethod = (typeof LEDGER_RPC_METHODS)[number];
 
 export interface LedgerTrade {

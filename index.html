@@ -117,6 +117,7 @@
           <select id="lang-select" aria-label="Language" data-i18n-aria="toolbar.language"></select>
         </label>
         <span id="live-status" class="live-status" data-live="off" title="Public Kraken WebSocket (OHLC and ticker)" data-i18n-title="toolbar.liveTitle">Offline</span>
+        <button type="button" id="dex-btn" class="dex-btn" aria-pressed="false" title="XRPL and Xahau DEX mode" data-i18n-title="dex.modeTitle"><span class="dex-btn-dot" aria-hidden="true"></span><span data-i18n="dex.mode">DEX</span></button>
         <div class="header-account" id="header-account">
           <button type="button" id="header-account-btn" title="Sign in" data-i18n="toolbar.signIn" data-i18n-title="toolbar.signIn" data-i18n-aria="toolbar.signIn" aria-label="Sign in" aria-expanded="false" aria-controls="header-account-menu">
             <span class="header-account-label" data-i18n="toolbar.signIn">Sign in</span>
@@ -229,6 +230,7 @@
           <h2 data-i18n="toolbar.panel">Panel</h2>
           <button type="button" id="sidebar-close" class="sheet-close" aria-label="Close" data-i18n-aria="mobile.close">×</button>
         </div>
+        <aside id="dex-panel" class="dex-panel" aria-label="DEX" hidden></aside>
         <aside id="watchlist" aria-label="Watchlists" data-i18n-aria="watch.lists"></aside>
         <aside id="alerts-panel" aria-label="Price alerts" data-i18n-aria="alerts.title">
           <div class="alerts-head">

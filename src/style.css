@@ -3992,3 +3992,484 @@ html[data-theme="light"] .watch-del {
   opacity: 0;
   pointer-events: none;
 }
+
+/* ---------- DEX mode (XRPL and Xahau) ---------- */
+.dex-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--brand-gradient);
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 2px 10px rgba(38, 166, 154, 0.35);
+}
+
+.dex-btn:hover {
+  filter: brightness(1.08);
+  background: var(--brand-gradient);
+}
+
+.dex-btn[aria-pressed="true"] {
+  outline: 2px solid #ffffff;
+  outline-offset: -4px;
+}
+
+.dex-btn-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffffff;
+  opacity: 0.85;
+}
+
+.toolbar .dex-btn + .header-account {
+  margin-left: 0;
+}
+
+html[data-mode="dex"] #watchlist,
+html[data-mode="dex"] #alerts-panel {
+  display: none;
+}
+
+html[data-mode="dex"] #sidebar {
+  width: 348px;
+}
+
+html[data-mode="dex"] .sym-tabs [data-sym-cat="all"],
+html[data-mode="dex"] .sym-tabs [data-sym-cat="crypto"],
+html[data-mode="dex"] .sym-tabs [data-sym-cat="stocks"],
+html[data-mode="dex"] .sym-tabs [data-sym-cat="dex"],
+html[data-mode="dex"] .sym-source {
+  display: none;
+}
+
+.dex-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.dex-panel[hidden] {
+  display: none;
+}
+
+.dex-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 10px 6px;
+}
+
+.dex-net,
+.dex-seg {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--btn);
+}
+
+.dex-net button,
+.dex-seg button {
+  border: 0;
+  background: transparent;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.dex-net button.is-active,
+.dex-seg button.is-active {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.dex-seg {
+  display: flex;
+}
+
+.dex-seg button {
+  flex: 1;
+}
+
+.dex-seg button.is-active.buy {
+  background: var(--up);
+}
+
+.dex-seg button.is-active.sell {
+  background: var(--down);
+}
+
+.dex-seg.small button {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.xaman-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-weight: 600;
+  background: #0d1f3c;
+  color: #9cc3ff;
+  border: 1px solid #23406f;
+  white-space: nowrap;
+}
+
+.xaman-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.xaman-btn.is-connected {
+  color: #ffffff;
+  background: #1a3d75;
+}
+
+.dex-pair {
+  padding: 4px 10px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dex-pair strong {
+  font-size: 15px;
+}
+
+.dex-issuer {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.dex-badge {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.dex-badge.ok {
+  color: var(--up);
+  border-color: color-mix(in srgb, var(--up) 45%, transparent);
+}
+
+.dex-badge.warn {
+  color: #e0a63a;
+  border-color: color-mix(in srgb, #e0a63a 45%, transparent);
+}
+
+.dex-badge.bad {
+  color: var(--down);
+  border-color: color-mix(in srgb, var(--down) 45%, transparent);
+}
+
+.dex-warn {
+  margin: 6px 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, #e0a63a 14%, transparent);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.dex-muted {
+  color: var(--muted);
+}
+
+.dex-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.dex-tabs button {
+  flex: 1;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 6px 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.dex-tabs button[hidden] {
+  display: none;
+}
+
+.dex-tabs button.is-active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.dex-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 10px;
+}
+
+.dex-body h3 {
+  margin: 12px 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.dex-foot {
+  margin: 0;
+  padding: 6px 10px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.dex-book {
+  font-variant-numeric: tabular-nums;
+}
+
+.dex-lvl {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 4px;
+  width: 100%;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: right;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.dex-lvl span:first-child {
+  text-align: left;
+}
+
+.dex-lvl.head {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.dex-lvl.ask span:first-child {
+  color: var(--down);
+}
+
+.dex-lvl.bid span:first-child {
+  color: var(--up);
+}
+
+.dex-lvl.ask::before,
+.dex-lvl.bid::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: var(--w, 0%);
+  opacity: 0.14;
+  pointer-events: none;
+}
+
+.dex-lvl.ask::before {
+  background: var(--down);
+}
+
+.dex-lvl.bid::before {
+  background: var(--up);
+}
+
+.dex-lvl:hover {
+  background: var(--btn-hover);
+}
+
+.dex-spread {
+  margin: 4px 0;
+  padding: 4px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 11px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.dex-depth {
+  display: block;
+  width: 100%;
+  height: 140px;
+  margin-top: 10px;
+}
+
+.dex-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dex-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.dex-form input,
+.dex-form select {
+  padding: 7px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--btn);
+  color: var(--text);
+  font: inherit;
+}
+
+.dex-watch {
+  flex-direction: row;
+  align-items: flex-end;
+}
+
+.dex-watch label {
+  flex: 1;
+}
+
+.dex-est {
+  margin: 0;
+  min-height: 1em;
+  font-size: 12px;
+}
+
+.dex-go,
+.dex-sign {
+  padding: 9px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.dex-go.buy {
+  background: var(--up);
+}
+
+.dex-go.sell {
+  background: var(--down);
+}
+
+.dex-sign:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dex-preview {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.dex-preview h3 {
+  margin-top: 0;
+}
+
+.dex-preview ul {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+
+.dex-preview pre {
+  max-height: 200px;
+  overflow: auto;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.dex-preview .dex-sign {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.dex-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.dex-dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  margin: 6px 0;
+}
+
+.dex-dl dt {
+  color: var(--muted);
+}
+
+.dex-dl dd {
+  margin: 0;
+  text-align: right;
+}
+
+.dex-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.dex-table td {
+  padding: 4px 2px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.dex-table td:last-child {
+  text-align: right;
+}
+
+.dex-table td.ok a {
+  color: var(--up);
+}
+
+.dex-table td.bad a {
+  color: var(--down);
+}
+
+.dex-mini {
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 5px;
+}
+
+@media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
+  html[data-mode="dex"] #sidebar {
+    width: auto;
+  }
+}
+
+@media (max-width: 500px) {
+  .dex-btn {
+    padding: 6px 9px;
+    min-height: 40px;
+  }
+
+  .dex-btn-dot {
+    display: none;
+  }
+}

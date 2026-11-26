@@ -443,9 +443,14 @@ export function initSymbolSearch(opts: {
     const title = opts.modal.querySelector('#sym-modal-title');
     if (title) title.textContent = nextMode === 'add' ? t('sym.addToWatch') : t('sym.title');
     if (query !== undefined) opts.input.value = query;
-    // Start from a clean view each time, like a fresh search.
-    tab = 'all';
-    src = 'all';
+    // Start from a clean view each time, like a fresh search. DEX mode only knows XRPL and Xahau.
+    if (document.documentElement.dataset.mode === 'dex') {
+      tab = loadDexNetworkId() === 'xahau' ? 'xahau' : 'xrpl';
+      src = `dex:${tab}`;
+    } else {
+      tab = 'all';
+      src = 'all';
+    }
     paintControls();
     syncPlaceholder();
     active = 0;
