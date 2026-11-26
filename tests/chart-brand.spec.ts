@@ -4,7 +4,7 @@
 import { expect, test } from '@playwright/test';
 import fs from 'node:fs';
 
-test('the chart shows a Swapwick mark in the top-right that ignores clicks', async ({ page }) => {
+test('the chart shows a Swapwick mark in the library-logo corner that ignores clicks', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
   const mark = page.locator('#chart-brand');
@@ -18,10 +18,10 @@ test('the chart shows a Swapwick mark in the top-right that ignores clicks', asy
 
   const [m, c] = await Promise.all([mark.boundingBox(), page.locator('#chart').boundingBox()]);
   expect(m && c).toBeTruthy();
-  expect(m!.x).toBeGreaterThan(c!.x + c!.width / 2);
-  expect(m!.x + m!.width).toBeLessThanOrEqual(c!.x + c!.width);
-  expect(m!.y).toBeGreaterThanOrEqual(c!.y);
-  expect(m!.y + m!.height).toBeLessThan(c!.y + c!.height / 2);
+  expect(m!.x).toBeGreaterThanOrEqual(c!.x);
+  expect(m!.x).toBeLessThan(c!.x + c!.width / 2);
+  expect(m!.y).toBeGreaterThan(c!.y + c!.height / 2);
+  expect(m!.y + m!.height).toBeLessThanOrEqual(c!.y + c!.height);
   await expect(page.locator('#tv-attr-logo')).toHaveCount(0);
   await expect(page.locator('.site-foot a[href="https://www.npmjs.com/package/lightweight-charts"]')).toBeVisible();
 });
