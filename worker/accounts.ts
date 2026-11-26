@@ -23,6 +23,8 @@ export interface Env {
   APP_ORIGIN?: string;
   /** CoinGecko Demo API key, stored as a Worker secret. Never commit or log it. */
   COINGECKO_DEMO_KEY?: string;
+  /** Public Xaman (Xumm) API key, used as the OAuth2 client id in the browser. Never the API secret. */
+  XAMAN_API_KEY?: string;
 }
 
 export interface UserRow {

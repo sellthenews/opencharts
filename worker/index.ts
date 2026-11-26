@@ -14,6 +14,7 @@ import { tryHandleAccounts, type Env } from './accounts';
 import {
   CG_ONCHAIN_BASE,
   allowBurst,
+  buildXahauPairs,
   beyondDemoHistory,
   geckoPolicy,
   ledgerTtl,
@@ -273,7 +274,7 @@ const GT_PARAMS: Record<string, RegExp> = {
   duration: /^(5m|15m|1h|6h|24h)$/,
 };
 
-const LEDGER_METHODS = new Set(['amm_info', 'account_tx', 'book_offers', 'ledger', 'server_info', 'account_info']);
+const LEDGER_METHODS = new Set(['amm_info', 'account_tx', 'book_offers', 'ledger', 'server_info', 'account_info', 'account_lines', 'account_offers', 'ripple_path_find']);
 const LEDGER_UPSTREAM: Record<string, readonly string[]> = {
   xrpl: ['https://xrplcluster.com/', 'https://s2.ripple.com:51234/'],
   xahau: ['https://xahau.network/', 'https://xahau.org/'],
@@ -546,6 +547,44 @@ async function peekRoute(route: MarketRoute, runtime: WorkerRuntime): Promise<Re
   return cacheMatch(runtime, keyUrl);
 }
 
+const XAHAU_PAIRS_KEY = 'https://opencharts-proxy.cache/dex/xahau/pairs/v1';
+const XAHAU_PAIRS_TTL = 1800;
+
+async function fetchJson(url: string, runtime: WorkerRuntime): Promise<unknown> {
+  const f = runtime.fetch ?? fetch;
+  const res = await f(url, { headers: { Accept: 'application/json', 'User-Agent': UA } });
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${new URL(url).host}`);
+  return res.json();
+}
+
+async function cachedXahauPairs(runtime: WorkerRuntime): Promise<MarketResult> {
+  const hit = await cacheMatch(runtime, XAHAU_PAIRS_KEY);
+  if (hit) return { res: hit, hit: true };
+  const res = await dedupe(XAHAU_PAIRS_KEY, async () => {
+    const tokens: Array<Record<string, unknown>> = [];
+    for (let page = 1; page <= 4; page++) {
+      const body = (await fetchJson(`https://xahauindex.dev/v1/tokens?per_page=250&sort=trust_count&page=${page}`, runtime)) as { data?: Array<Record<string, unknown>>; meta?: { count?: number } };
+      tokens.push(...(body.data ?? []));
+      if (!body.data?.length || tokens.length >= (body.meta?.count ?? 0)) break;
+    }
+    let tickers: Array<Record<string, unknown>> = [];
+    try {
+      tickers = (await fetchJson('https://data.xahau.network/v1/iou/ticker_data/all?interval=30d', runtime)) as Array<Record<string, unknown>>;
+      if (!Array.isArray(tickers)) tickers = [];
+    } catch {
+      tickers = [];
+    }
+    const built = buildXahauPairs(tokens, tickers);
+    const out = new Response(JSON.stringify({ updated: Math.floor(Date.now() / 1000), ...built }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': `public, max-age=${XAHAU_PAIRS_TTL}` },
+    });
+    await cachePut(runtime, XAHAU_PAIRS_KEY, out.clone());
+    return out;
+  });
+  return { res: res.clone(), hit: false };
+}
+
 export async function handleRequest(request: Request, runtime: WorkerRuntime = {}, env?: Env): Promise<Response> {
   const origin = request.headers.get('Origin');
 
@@ -612,6 +651,23 @@ export async function handleRequest(request: Request, runtime: WorkerRuntime = {
 
   if (request.method !== 'GET') {
     return jsonError(405, 'Method not allowed', origin);
+  }
+
+  if (url.pathname === '/xaman/config') {
+    const key = (env?.XAMAN_API_KEY ?? '').trim();
+    const apiKey = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key) ? key : null;
+    const headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
+    applyCors(headers, origin);
+    return new Response(JSON.stringify({ apiKey }), { status: 200, headers });
+  }
+
+  if (url.pathname === '/dex/xahau/pairs') {
+    try {
+      return marketResponse(await cachedXahauPairs(runtime), origin, 600);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return jsonError(502, `Proxy error: ${message}`, origin);
+    }
   }
 
   const gtPath = parseGtPath(url.pathname);

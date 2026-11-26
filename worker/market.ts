@@ -114,6 +114,9 @@ export function ledgerTtl(method: string, params: unknown): number {
     case 'book_offers':
     case 'account_info':
       return 15;
+    case 'account_lines':
+    case 'account_offers':
+      return 8;
     case 'account_tx':
       return 60;
     default:
@@ -217,4 +220,94 @@ export async function reserveCredit(
   if (used >= Math.min(cap, MEMORY_DAILY)) return { ok: false, share: 1 };
   memory.set(day, used + 1);
   return { ok: true, share: (used + 1) / DAILY_CREDITS };
+}
+
+/* ---------- Xahau pair list (all tokens vs XAH, USD and XRP) ---------- */
+
+export interface XahauToken {
+  currency: string;
+  issuer: string;
+  name: string | null;
+  icon: string | null;
+  holders: number;
+  trustlines: number;
+  verified: boolean;
+  blackholed: boolean;
+}
+
+export interface XahauPairRow {
+  base: { currency: string; issuer: string | null };
+  quote: { currency: string; issuer: string | null };
+  volume30d: number;
+  last: number | null;
+}
+
+const XAH = { currency: 'XAH', issuer: null } as const;
+
+function parseSide(text: string): { currency: string; issuer: string | null } | null {
+  if (text === 'XAH') return { ...XAH };
+  const m = /^(r[1-9A-HJ-NP-Za-km-z]{24,34})_([A-Za-z0-9?!@#$%^&*<>(){}[\]|]{3}|[0-9A-Fa-f]{40})$/.exec(text);
+  return m ? { currency: m[2]!, issuer: m[1]! } : null;
+}
+
+function sideKey(s: { currency: string; issuer: string | null }): string {
+  return `${s.currency}.${s.issuer ?? ''}`;
+}
+
+/** Build every pair worth listing: all tokens vs XAH, vs the main USD IOU and vs the XRP IOU, plus all traded pairs. */
+export function buildXahauPairs(
+  tokensRaw: Array<Record<string, unknown>>,
+  tickers: Array<Record<string, unknown>>,
+): { tokens: XahauToken[]; pairs: XahauPairRow[] } {
+  const tokens: XahauToken[] = [];
+  for (const t of tokensRaw) {
+    const currency = String(t.currency_hex || t.currency || '');
+    const issuer = String(t.issuer || '');
+    if (!currency || !/^r/.test(issuer)) continue;
+    tokens.push({
+      currency,
+      issuer,
+      name: typeof t.name === 'string' && t.name ? t.name : null,
+      icon: typeof t.icon_url === 'string' && /^https:\/\//.test(t.icon_url) ? t.icon_url : null,
+      holders: Number(t.holder_count) || 0,
+      trustlines: Number(t.trust_count) || 0,
+      verified: t.domain_verified === true,
+      blackholed: t.blackholed === true,
+    });
+  }
+  const byTrust = [...tokens].sort((a, b) => b.trustlines - a.trustlines);
+  const usd = byTrust.find((t) => t.currency === 'USD');
+  const xrp = byTrust.find((t) => t.currency === 'XRP');
+  const pairs = new Map<string, XahauPairRow>();
+  const add = (base: { currency: string; issuer: string | null }, quote: { currency: string; issuer: string | null }, volume30d = 0, last: number | null = null) => {
+    if (sideKey(base) === sideKey(quote)) return;
+    const key = `${sideKey(base)}/${sideKey(quote)}`;
+    const rev = `${sideKey(quote)}/${sideKey(base)}`;
+    const existing = pairs.get(key) ?? pairs.get(rev);
+    if (existing) {
+      existing.volume30d = Math.max(existing.volume30d, volume30d);
+      if (existing.last == null && last != null && pairs.has(key)) existing.last = last;
+      return;
+    }
+    pairs.set(key, { base, quote, volume30d, last });
+  };
+  for (const row of tickers) {
+    const base = parseSide(String(row.base ?? ''));
+    const quote = parseSide(String(row.counter ?? ''));
+    if (!base || !quote) continue;
+    const vol = Number(row.counter_volume) || 0;
+    add(base, quote, vol, Number.isFinite(Number(row.last)) ? Number(row.last) : null);
+  }
+  for (const t of tokens) {
+    const side = { currency: t.currency, issuer: t.issuer };
+    if (t.currency === 'USD' || t.currency === 'XRP') add({ ...XAH }, side);
+    else add(side, { ...XAH });
+    if (usd && sideKey(usd) !== sideKey(side)) add(side, { currency: usd.currency, issuer: usd.issuer });
+    if (xrp && sideKey(xrp) !== sideKey(side) && t.currency !== 'USD') add(side, { currency: xrp.currency, issuer: xrp.issuer });
+  }
+  const list = [...pairs.values()];
+  const trust = new Map(tokens.map((t) => [sideKey({ currency: t.currency, issuer: t.issuer }), t.trustlines]));
+  const weight = (p: XahauPairRow) => Math.max(trust.get(sideKey(p.base)) ?? 0, trust.get(sideKey(p.quote)) ?? 0);
+  list.sort((a, b) => b.volume30d - a.volume30d || weight(b) - weight(a));
+  return { tokens, pairs: list };
 }

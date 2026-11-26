@@ -453,7 +453,7 @@ test('XRPL GeckoTerminal pool addresses with dots are allowed and list responses
 
 /* ---------- CoinGecko Demo key, shared cache, credit budget ---------- */
 
-import { beyondDemoHistory, geckoPolicy, ledgerTtl, reserveCredit, resetBudgetForTests, stretchTtl, yahooTtl, DAILY_CREDITS, type BudgetDb } from './market.ts';
+import { beyondDemoHistory, buildXahauPairs, geckoPolicy, ledgerTtl, reserveCredit, resetBudgetForTests, stretchTtl, yahooTtl, DAILY_CREDITS, type BudgetDb } from './market.ts';
 import { resetGeckoStateForTests } from './index.ts';
 
 const FAKE_KEY = 'CG-test-key-not-real';
@@ -750,4 +750,28 @@ test('Demo plan history limit: old pages skip CoinGecko, a plan-limit 401 does n
   // the key keeps working for the next request
   const next = await handleRequest(req('/dex/gt/networks/eth/pools/0xa3/ohlcv/day?aggregate=1&limit=1000'), runtime, env);
   assert.equal(next.headers.get('X-Swapwick-Upstream'), 'coingecko');
+});
+
+test('xahau pairs: every token vs XAH, USD and XRP, traded pairs first; xaman config hides junk', async () => {
+  const tokens = [
+    { currency: 'EVR', issuer: 'rEvernodee8dJLaFsujS6q1EiXvZYmHXr8', trust_count: 60000, holder_count: 30000, domain_verified: false, blackholed: true },
+    { currency: 'USD', issuer: 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq', trust_count: 5000 },
+    { currency: 'XRP', issuer: 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq', trust_count: 4000 },
+    { currency: 'ABC', issuer: 'rDCoqEkGfyjCZRi67cVYpUmgR5U2LdcztB', trust_count: 10, icon_url: 'http://insecure' },
+  ];
+  const tickers = [{ base: 'rEvernodee8dJLaFsujS6q1EiXvZYmHXr8_EVR', counter: 'XAH', counter_volume: 2000, last: 6.5 }];
+  const { pairs, tokens: list } = buildXahauPairs(tokens, tickers);
+  assert.equal(list.find((t) => t.currency === 'ABC')?.icon, null);
+  const names = pairs.map((p) => `${p.base.currency}/${p.quote.currency}`);
+  assert.equal(names[0], 'EVR/XAH');
+  for (const n of ['XAH/USD', 'XAH/XRP', 'EVR/USD', 'EVR/XRP', 'ABC/XAH', 'ABC/USD', 'ABC/XRP', 'XRP/USD']) assert.ok(names.includes(n), n);
+  assert.equal(new Set(names).size, names.length);
+
+  resetRateLimit();
+  const none = await handleRequest(req('/xaman/config'), {}, {} as Env);
+  assert.deepEqual(await none.json(), { apiKey: null });
+  const bad = await handleRequest(req('/xaman/config'), {}, { XAMAN_API_KEY: 'secret-looking' } as Env);
+  assert.deepEqual(await bad.json(), { apiKey: null });
+  const good = await handleRequest(req('/xaman/config'), {}, { XAMAN_API_KEY: '01234567-89ab-cdef-0123-456789abcdef' } as Env);
+  assert.deepEqual(await good.json(), { apiKey: '01234567-89ab-cdef-0123-456789abcdef' });
 });
