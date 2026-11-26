@@ -4,7 +4,7 @@
 import { expect, test } from '@playwright/test';
 import fs from 'node:fs';
 
-test('the chart shows a Swapwick mark in the library-logo corner that ignores clicks', async ({ page }) => {
+test('the chart shows a Swapwick mark in the bottom-right that ignores clicks', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
   const mark = page.locator('#chart-brand');
@@ -18,10 +18,15 @@ test('the chart shows a Swapwick mark in the library-logo corner that ignores cl
 
   const [m, c] = await Promise.all([mark.boundingBox(), page.locator('#chart').boundingBox()]);
   expect(m && c).toBeTruthy();
-  expect(m!.x).toBeGreaterThanOrEqual(c!.x);
-  expect(m!.x).toBeLessThan(c!.x + c!.width / 2);
+  expect(m!.x).toBeGreaterThan(c!.x + c!.width / 2);
+  expect(m!.x + m!.width).toBeLessThanOrEqual(c!.x + c!.width - 40);
   expect(m!.y).toBeGreaterThan(c!.y + c!.height / 2);
-  expect(m!.y + m!.height).toBeLessThanOrEqual(c!.y + c!.height);
+  expect(m!.y + m!.height).toBeLessThanOrEqual(c!.y + c!.height - 20);
+  const btns = await page.locator('#scale-btns').boundingBox();
+  if (btns) {
+    const overlap = m!.x < btns.x + btns.width && m!.x + m!.width > btns.x && m!.y < btns.y + btns.height && m!.y + m!.height > btns.y;
+    expect(overlap).toBe(false);
+  }
   await expect(page.locator('#tv-attr-logo')).toHaveCount(0);
   await expect(page.locator('.site-foot a[href="https://www.npmjs.com/package/lightweight-charts"]')).toBeVisible();
 });
@@ -35,8 +40,10 @@ test('the chart mark is on screen and a bit smaller on a phone', async ({ browse
   await expect(mark).toBeVisible();
   const box = await mark.boundingBox();
   expect(box).toBeTruthy();
+  const chart = await page.locator('#chart').boundingBox();
   expect(box!.x).toBeGreaterThanOrEqual(0);
-  expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+  expect(box!.x).toBeGreaterThan(chart!.x + chart!.width / 2);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(Math.min(390, chart!.x + chart!.width - 40));
   expect(box!.y + box!.height).toBeLessThanOrEqual(844);
   expect(box!.height).toBeLessThanOrEqual(22);
   expect(box!.height).toBeGreaterThanOrEqual(14);
