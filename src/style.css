@@ -4805,8 +4805,13 @@ html[dir="rtl"] #lang-menu {
 
 
 @media (max-width: 1200px) {
-  .brand-name {
+  .brand-name,
+  .interval-favs {
     display: none;
+  }
+
+  .toolbar-left .field-pair {
+    min-width: 7em;
   }
 }
 
@@ -4926,5 +4931,28 @@ select#pair[aria-hidden="true"] {
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
+  }
+}
+
+
+/* short labels from 900px */
+@media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
+  .toolbar-label-full {
+    display: none;
+  }
+
+  .toolbar-label-short {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #ind-visibility-btn {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 }
