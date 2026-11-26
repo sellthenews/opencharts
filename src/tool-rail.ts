@@ -55,6 +55,8 @@ export const TOOL_ICONS: Record<string, string> = {
   "magnet": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M4.2 2.5v5.2a3.8 3.8 0 0 0 7.6 0V2.5\"/><path fill=\"currentColor\" d=\"M3.3 2.5h2.6v2.2H3.3zm6.8 0h2.6v2.2H10.1z\"/></svg>",
   "lock": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><rect x=\"3.5\" y=\"7.5\" width=\"9\" height=\"6.5\" rx=\"1.2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\"/><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" d=\"M5.5 7.5V5.2a2.5 2.5 0 0 1 5 0v2.3\"/></svg>",
   "hide": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M2 8s2.5-4.5 6-4.5S14 8 14 8s-2.5 4.5-6 4.5S2 8 2 8z\"/><circle cx=\"8\" cy=\"8\" r=\"1.8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\"/></svg>",
+  "undo": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M5.5 3.5 2.5 6.5l3 3M2.8 6.5h6.7a3.5 3.5 0 0 1 0 7H7\"/></svg>",
+  "redo": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M10.5 3.5l3 3-3 3M13.2 6.5H6.5a3.5 3.5 0 0 0 0 7H9\"/></svg>",
   "trash": "<svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M3 5h10M5.5 5V3.5h5V5M6 7v5M8 7v5M10 7v5M4.5 5l.6 8h6l.6-8\"/></svg>",
 };
 
@@ -276,6 +278,10 @@ export interface ToolRailOptions {
   onFit: () => void;
   isLockedAll: () => boolean;
   isHidden: () => boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
 }
 
 function isToolId(id: unknown): id is Tool {
@@ -372,7 +378,7 @@ function icon(id: string): string {
 
 const STAR = '<svg class="star-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2 9.7 6l4.1.3-3.1 2.6 1 4-3.7-2.2L4.3 12.9l1-4L2.2 6.3 6.3 6z"/></svg>';
 
-export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) => void; refreshActions: () => void; closeFlyout: () => void } {
+export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) => void; refreshActions: () => void; refreshHistory: () => void; closeFlyout: () => void } {
   const last = { ...Object.fromEntries(RAIL_GROUPS.map((g) => [g.id, g.defaultTool])), ...loadLast() };
   const loadedFav = loadFav();
   let fav = loadedFav.state;
@@ -416,6 +422,10 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
     opts.rail.innerHTML = `
       <div class="rail-top">${groups}</div>
       <div class="rail-spacer"></div>
+      <div class="rail-history">
+        <button type="button" class="rail-btn" id="rail-undo" data-rail-action="undo" title="${t('status.undo')} (Ctrl+Z)" aria-label="${t('status.undo')}"${opts.canUndo() ? '' : ' disabled'}><span class="rail-icon">${icon('undo')}</span></button>
+        <button type="button" class="rail-btn" id="rail-redo" data-rail-action="redo" title="${t('status.redo')} (Ctrl+Y)" aria-label="${t('status.redo')}"${opts.canRedo() ? '' : ' disabled'}><span class="rail-icon">${icon('redo')}</span></button>
+      </div>
       <div class="rail-bottom">
         <div class="rail-slot">
           <button type="button" class="rail-btn${measureActive}" data-rail-action="measure" data-tool="datepricerange" title="${t('rail.measureTitle')}" aria-label="${t('rail.measure')}"><span class="rail-icon">${icon('measure')}</span></button>
@@ -612,6 +622,8 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
         opts.onHideAll();
         renderRail();
       } else if (act === 'trash') opts.onClearAll();
+      else if (act === 'undo') opts.onUndo();
+      else if (act === 'redo') opts.onRedo();
       return;
     }
     const groupBtn = (ev.target as HTMLElement).closest<HTMLElement>('[data-rail-group]');
@@ -739,6 +751,12 @@ export function initToolRail(opts: ToolRailOptions): { setActive: (tool: Tool) =
   return {
     setActive,
     refreshActions: () => renderRail(),
+    refreshHistory: () => {
+      const u = opts.rail.querySelector<HTMLButtonElement>('#rail-undo');
+      const r = opts.rail.querySelector<HTMLButtonElement>('#rail-redo');
+      if (u) u.disabled = !opts.canUndo();
+      if (r) r.disabled = !opts.canRedo();
+    },
     closeFlyout,
   };
 }

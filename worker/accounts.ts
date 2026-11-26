@@ -397,6 +397,11 @@ async function oauthCallback(request: Request, env: Env & { DB: D1Database; ACCO
     if (!profile.id) return redirectApp(helpers, dest, 'oauth_failed');
     const column = provider === 'github' ? 'github_id' : 'google_id';
     let row = await getUserBy(env.DB, column, profile.id);
+    // Already signed in on this browser: attach this provider to the same Swapwick account.
+    if (!row) {
+      const session = await readSession(env, request);
+      if (session) row = await getUserBy(env.DB, 'id', session.userId);
+    }
     if (!row && profile.email) row = await getUserBy(env.DB, 'email', profile.email);
     if (row) {
       const sql = provider === 'github'
@@ -488,6 +493,8 @@ async function fetchOAuthProfile(request: Request, env: Env, provider: 'github' 
   const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
     headers: { Authorization: `Bearer ${tokenJson.access_token}` },
   });
-  const user = (await userRes.json()) as { sub?: string; email?: string; name?: string };
-  return { id: String(user.sub ?? ''), email: user.email ? normalizeEmail(user.email) : null, name: user.name ?? null };
+  const user = (await userRes.json()) as { sub?: string; email?: string; email_verified?: boolean; name?: string };
+  // Only a verified address may join an existing account by email.
+  const email = user.email && user.email_verified !== false ? normalizeEmail(user.email) : null;
+  return { id: String(user.sub ?? ''), email, name: user.name ?? null };
 }

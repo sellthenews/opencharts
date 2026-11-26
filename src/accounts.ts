@@ -3,7 +3,7 @@
 
 import { onLangChange, t } from './i18n';
 import { getStocksProxyUrl } from './config';
-import { applyBackup, collectBackupData } from './backup';
+import { resetFirstSync, startAutoSync, syncNow as runSync } from './sync';
 
 export const ACCOUNTS_UNAVAILABLE = 'Accounts are not available yet';
 
@@ -14,14 +14,7 @@ interface PublicUser {
   providers: string[];
 }
 
-interface SyncPayload {
-  updatedAt: number | null;
-  data: Record<string, string>;
-  error?: string;
-}
-
 let user: PublicUser | null = null;
-let lastUpdatedAt: number | null = null;
 let onStatus: ((message: string, error?: boolean) => void) | null = null;
 
 function apiBase(): string {
@@ -131,44 +124,26 @@ async function refreshMe(): Promise<void> {
   }
 }
 
-async function pullAndApply(): Promise<boolean> {
-  const res = await api('/sync');
-  if (!res.ok) throw new Error(await readError(res));
-  const body = (await res.json()) as SyncPayload;
-  lastUpdatedAt = body.updatedAt;
-  const keys = Object.keys(body.data ?? {});
-  if (!keys.length) return false;
-  applyBackup(body.data, 'merge');
-  return true;
-}
-
-async function pushLocal(force = false): Promise<void> {
-  const data = collectBackupData();
-  const res = await api('/sync', {
-    method: 'PUT',
-    body: JSON.stringify({ data, updatedAt: lastUpdatedAt, force }),
-  });
-  if (res.status === 409) {
-    const body = (await res.json()) as SyncPayload;
-    lastUpdatedAt = body.updatedAt ?? lastUpdatedAt;
-    if (body.data) applyBackup(body.data, 'merge');
-    throw new Error(body.error || 'Newer data is on the server');
-  }
-  if (!res.ok) throw new Error(await readError(res));
-  const body = (await res.json()) as SyncPayload;
-  lastUpdatedAt = body.updatedAt ?? lastUpdatedAt;
-}
-
 async function syncAfterLogin(): Promise<void> {
-  const hadRemote = await pullAndApply();
-  if (!hadRemote) await pushLocal(true);
-  else await pushLocal(true);
+  resetFirstSync();
+  await syncNow();
   onStatus?.(t('account.synced'));
-  if (hadRemote) window.location.reload();
 }
 
-export function initAccounts(opts: { onStatus: (message: string, error?: boolean) => void }): void {
+export function isSignedIn(): boolean {
+  return Boolean(user);
+}
+
+export function initAccounts(opts: {
+  onStatus: (message: string, error?: boolean) => void;
+  onRemoteChange: (keys: string[], first: boolean) => void;
+}): void {
   onStatus = opts.onStatus;
+  startAutoSync({
+    api: (path, init) => api(path, init),
+    signedIn: () => Boolean(user),
+    onRemoteChange: opts.onRemoteChange,
+  });
   const modal = document.querySelector<HTMLElement>('#account-modal');
   const openBtn = document.querySelector<HTMLButtonElement>('#settings-account');
   const closeBtn = document.querySelector<HTMLButtonElement>('#account-close');
@@ -238,6 +213,7 @@ export function initAccounts(opts: { onStatus: (message: string, error?: boolean
 
   void refreshMe().then(() => {
     const flag = new URL(window.location.href).hash;
+    if (user && !flag.includes('account=ok')) void runSync();
     if (flag.includes('account=ok')) {
       history.replaceState(null, '', window.location.pathname + window.location.search);
       open();
@@ -292,7 +268,6 @@ async function signOut(): Promise<void> {
     /* still clear locally */
   }
   user = null;
-  lastUpdatedAt = null;
   paint();
   setMsg(t('account.logoutDone'));
   onStatus?.(t('account.logoutDone'));
@@ -301,11 +276,9 @@ async function signOut(): Promise<void> {
 async function syncNow(): Promise<void> {
   if (!user) return;
   try {
-    const hadRemote = await pullAndApply();
-    await pushLocal(true);
+    await runSync();
     setMsg(t('account.synced'));
     onStatus?.(t('account.synced'));
-    if (hadRemote) window.location.reload();
   } catch (err) {
     const message = String(err instanceof Error ? err.message : err);
     setMsg(t('account.syncFailed', { message }), true);

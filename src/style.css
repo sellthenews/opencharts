@@ -5082,3 +5082,36 @@ select#pair[aria-hidden="true"] {
     display: none;
   }
 }
+
+/* Undo / redo for drawings */
+#tool-rail .rail-history {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 0;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+#tool-rail .rail-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  background: transparent;
+}
+
+@media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
+  #tool-rail .rail-history {
+    order: -1;
+    flex-direction: row;
+    flex-shrink: 0;
+    position: sticky;
+    left: -10px;
+    z-index: 2;
+    margin: 0;
+    padding: 0 4px 0 0;
+    border-bottom: 0;
+    border-right: 1px solid var(--border);
+    background: var(--bar);
+  }
+}

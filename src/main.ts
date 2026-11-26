@@ -72,6 +72,9 @@ import { chartPngBlob, copyBlob, downloadBlob } from './snapshot';
 import { chartTimeZone, initChartTimeZone, isChartTimeZone, setChartTimeZone } from './timezone';
 import { startXrpStrip } from './xrp-strip';
 import { initDexPanel, type DexPanelApi } from './dex/panel';
+import { installChangeTracking } from './sync';
+
+installChangeTracking();
 
 initChartTimeZone();
 const PREPOST_KEY = 'opencharts:prepost';
@@ -347,17 +350,20 @@ function applySnap(snap: EditorSnap): void {
 function recordHistory(): void {
   if (applyingHistory || !historyReady) return;
   editorHistory.record(currentSnap());
+  toolRail?.refreshHistory();
 }
 
 function resetHistory(): void {
   editorHistory.reset(currentSnap());
   historyReady = true;
+  toolRail?.refreshHistory();
 }
 
 function undoEditor(): boolean {
   const snap = editorHistory.undo();
   if (!snap) return false;
   applySnap(snap);
+  toolRail?.refreshHistory();
   setStatus(t('status.undo'));
   return true;
 }
@@ -366,6 +372,7 @@ function redoEditor(): boolean {
   const snap = editorHistory.redo();
   if (!snap) return false;
   applySnap(snap);
+  toolRail?.refreshHistory();
   setStatus(t('status.redo'));
   return true;
 }
@@ -481,7 +488,33 @@ function setStatus(text: string, error = false): void {
 
 initBackupUi({ setStatus });
 initSupport();
-initAccounts({ onStatus: (message, error) => setStatus(message, error) });
+initAccounts({
+  onStatus: (message, error) => setStatus(message, error),
+  onRemoteChange: (keys, first) => applyRemoteChange(keys, first),
+});
+
+/** Newer data arrived from the account (another device). */
+function applyRemoteChange(keys: string[], first: boolean): void {
+  const hot = (k: string): boolean => k === 'opencharts:watchlists' || k.startsWith('opencharts:drawings:');
+  if (first && keys.some((k) => !hot(k))) {
+    let last = 0;
+    try {
+      last = Number(sessionStorage.getItem('opencharts:sync-reload') || 0);
+      sessionStorage.setItem('opencharts:sync-reload', String(Date.now()));
+    } catch {
+      /* ignore */
+    }
+    if (Date.now() - last > 30_000) {
+      location.reload();
+      return;
+    }
+  }
+  if (keys.includes('opencharts:watchlists')) watchlist?.reloadFromStorage();
+  if (keys.includes(`opencharts:drawings:${sourceId}:${pairId}`)) {
+    drawings.setContext(sourceId, pairId);
+    resetHistory();
+  }
+}
 
 function currentSource() {
   const src = getSource(sourceId) ?? sources[0];
@@ -2156,6 +2189,14 @@ toolRail = initToolRail({
     drawings.setHidden(!drawings.isHidden());
     toolRail?.refreshActions();
   },
+  onUndo: () => {
+    undoEditor();
+  },
+  onRedo: () => {
+    redoEditor();
+  },
+  canUndo: () => editorHistory.canUndo(),
+  canRedo: () => editorHistory.canRedo(),
   onClearAll: () => {
     void askConfirm(t('menu.confirmRemoveAll'), t('menu.remove')).then((ok) => {
       if (!ok) return;

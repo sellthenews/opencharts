@@ -213,6 +213,13 @@ export class WatchlistPanel {
   }
 
   /** With sectionId ('' = loose) only that row goes; without it every copy in the list is removed. */
+  /** Re-read the lists after another device changed them. */
+  reloadFromStorage(): void {
+    this.state = loadWatchState();
+    this.render();
+    void this.refreshQuotes();
+  }
+
   removeItem(sourceId: string, pairId: PairId, sectionId?: string): boolean {
     const list = this.activeList();
     const key = `${sourceId}:${pairId}`;
