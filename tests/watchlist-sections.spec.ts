@@ -48,7 +48,7 @@ test('watchlist sections and row order persist after reload', async ({ page }) =
   const after = await page.locator('.watch-body > .watch-row').evaluateAll((els) =>
     els.map((el) => el.getAttribute('data-watch-key')),
   );
-  expect(after).toEqual(['kraken:BTCUSD', 'kraken:XRPUSD']);
+  expect(after).toEqual(['kraken:BTCUSD', 'kraken:XRPUSD', 'yahoo:XRPN']);
 
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('opencharts:watchlists') ?? 'null'));
   expect(stored?.lists?.[0]?.sections?.[0]?.name).toBe('Majors');
