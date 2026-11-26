@@ -15,6 +15,7 @@ test('symbol search: type sol, pick a result, chart loads', async ({ page }) => 
 
   const row = page.locator('#sym-results .sym-row').first();
   await expect(row).toBeVisible({ timeout: 45_000 });
+  await expect(row.locator('.asset-icon')).toBeVisible();
   const label = (await row.locator('.sym-label').textContent()) ?? '';
   expect(label.toLowerCase()).toContain('sol');
   await row.click();

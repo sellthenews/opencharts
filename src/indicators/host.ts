@@ -34,7 +34,7 @@ import {
   approximateFootprint,
 } from './math';
 import { fibRetracementPrice } from '../drawings-math';
-import { CATALOG_BY_KIND, type IndicatorInstance, type LinePoint } from './types';
+import { indicatorPane, type IndicatorInstance, type LinePoint } from './types';
 import { canPatchCandles, indicatorPlots, plotsFromTail, type PlotContext, type PlotPoint } from './plot';
 
 function lineBase(color: string, width: 1 | 2 | 3 | 4 = 1) {
@@ -251,11 +251,11 @@ export class IndicatorHost {
   }
 
   private itemPane(item: IndicatorInstance): 'price' | 'osc' {
-    if (item.kind === 'maOf') {
-      const src = item.params.source ?? 'rsi';
-      return src === 'close' || src === 'vwap' || src === 'volume' ? 'price' : 'osc';
-    }
-    return CATALOG_BY_KIND[item.kind].pane;
+    return indicatorPane(item);
+  }
+
+  private isHiddenByToggle(item: IndicatorInstance): boolean {
+    return this.globalHidden && this.itemPane(item) === 'osc';
   }
 
   private requestMissingTf(items: IndicatorInstance[]): void {
@@ -314,7 +314,7 @@ export class IndicatorHost {
     this.lastData = data;
     this.lastItems = items;
     const map: PaneMap = {};
-    const visible = this.globalHidden ? [] : items.filter((i) => i.visible);
+    const visible = items.filter((i) => i.visible && !this.isHiddenByToggle(i));
     const kindCount: Record<string, number> = {};
     let hasVolume = false;
 
@@ -368,12 +368,7 @@ export class IndicatorHost {
   private tryPatch(data: Candle[], items: IndicatorInstance[]): boolean {
     if (!this.lastData.length || itemsSignature(this.lastItems) !== itemsSignature(items)) return false;
     if (!canPatchCandles(this.lastData, data)) return false;
-    if (this.globalHidden) {
-      this.lastData = data;
-      this.lastItems = items;
-      return true;
-    }
-    const visible = items.filter((i) => i.visible);
+    const visible = items.filter((i) => i.visible && !this.isHiddenByToggle(i));
     for (const item of visible) {
       if (item.kind === 'vpvr' || item.kind === 'vpfr' || item.kind === 'autoFib' || item.kind === 'autoTrend' || item.kind === 'footprint') continue;
       if (item.kind === 'pivots') {

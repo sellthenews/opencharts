@@ -6,7 +6,7 @@ aplikacji OAuth, nie logowano się do Cloudflare (`wrangler login`) i nie
 wdrożono Workera. Sekrety nigdy nie trafiają do Gita.
 
 Bez tego wdrożenia aplikacja działa jak dotychczas: rysunki zostają w
-`localStorage` tej przeglądarki. Przycisk **Account** w Ustawieniach pokazuje
+`localStorage` tej przeglądarki. Przycisk **Zaloguj** w prawym górnym rogu (oraz **Account** w Ustawieniach) pokazuje
 formularz, a próba logowania kończy się komunikatem, że konta nie są jeszcze
 dostępne (Worker bez D1/KV albo stary Worker bez ścieżek `/auth` i `/sync`).
 

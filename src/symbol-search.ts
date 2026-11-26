@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Swapwick contributors
 
+import { assetIconHtml, hydrateAssetIcons } from './asset-icon';
 import { onLangChange, t } from './i18n';
 
 import { STOCKS_PROXY_UNCONFIGURED, getStocksProxyUrl } from './config';
@@ -258,11 +259,13 @@ export function initSymbolSearch(opts: {
                 : (SOURCE_NAME[item.sourceId] ?? item.sourceId);
           const name = item.name ? `<span class="sym-name">${escapeHtml(item.name)}</span>` : '';
           return `<button type="button" class="sym-row${currentCls}${activeCls}" data-sym-index="${i}">
+          ${assetIconHtml(item.sourceId, item.id, item.label)}
           <span class="sym-label">${escapeHtml(item.label)}${name}</span>
           <span class="sym-ex">${escapeHtml(sourceLabel)}</span>
         </button>`;
         })
         .join('');
+    hydrateAssetIcons(opts.results);
   }
 
   function show(query?: string, nextMode: 'chart' | 'add' = 'chart'): void {

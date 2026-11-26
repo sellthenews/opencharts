@@ -31,7 +31,7 @@ import { IndicatorHost } from './indicators/host';
 import type { PaneMap } from './indicators/host';
 import { createInstance, indicatorStorageKey, loadIndicatorSettings, saveIndicatorSettings } from './indicators/settings';
 import { IndicatorHud, initIndicatorModal } from './indicators/ui';
-import type { IndicatorInstance, IndicatorKind } from './indicators/types';
+import { indicatorPane, type IndicatorInstance, type IndicatorKind } from './indicators/types';
 import { macd, rsi } from './indicators/math';
 import { describeLoadError } from './load-error';
 import { BUILTIN_INTERVALS, HISTORY_PAGE, MAX_HISTORY, formatPairLabel, getSource, intervalLabel, intervalSeconds, isIntervalId, loadIntervalFavorites, parseIntervalId, saveIntervalFavorites, sources } from './sources';
@@ -68,12 +68,11 @@ import type { Tool } from './drawings-types';
 import { formatDate, formatNumber, initLang, localeOf, onLangChange, t } from './i18n';
 import { initDialogA11y } from './dialog-a11y';
 import { chartPngBlob, copyBlob, downloadBlob } from './snapshot';
-import { chartTimeZone, initChartTimeZone, isChartTimeZone, resolvedTimeZone, setChartTimeZone, zonedDay } from './timezone';
+import { chartTimeZone, initChartTimeZone, isChartTimeZone, resolvedTimeZone, setChartTimeZone } from './timezone';
 import { startXrpStrip } from './xrp-strip';
 
 initChartTimeZone();
 const PREPOST_KEY = 'opencharts:prepost';
-const BACKUP_HINT_KEY = 'opencharts:backup-hint';
 const POLL_MS = 15_000;
 let includePrePost = localStorage.getItem(PREPOST_KEY) === 'on';
 let feedError = false;
@@ -833,7 +832,9 @@ function applyIndicators(): void {
   appEl.dataset.rsi = kinds.has('rsi') ? 'on' : 'off';
   appEl.dataset.macd = kinds.has('macd') ? 'on' : 'off';
   indicatorHud?.setPaneMap(paneMap);
-  indicatorHud?.setItems(indicatorItems);
+  indicatorHud?.setItems(
+    indicators.isGlobalHidden() ? indicatorItems.filter((i) => indicatorPane(i) !== 'osc') : indicatorItems,
+  );
   updateLegendValues();
   requestAnimationFrame(() => {
     drawings.syncSize();
@@ -937,7 +938,7 @@ function resizeCharts(): void {
 
 const PHONE_MQ = window.matchMedia('(max-width: 900px), (max-height: 500px) and (orientation: landscape)');
 const PORTRAIT_MQ = window.matchMedia('(max-width: 500px)');
-const MORE_ITEM_SELECTORS = ['#exchange-field', '#network-field', '#xrp-toggle', '.compare-wrap', '#theme-btn', '.settings-wrap', '.field-lang', '#layout-btns', '#chart-type-wrap', '#tz-field', '#goto-field', '#live-status', '#candle-eta', '#status'] as const;
+const MORE_ITEM_SELECTORS = ['#exchange-field', '#network-field', '#xrp-toggle', '.compare-wrap', '#theme-btn', '.settings-wrap', '.field-lang', '#layout-btns', '#chart-type-wrap', '#tz-field', '#live-status', '#candle-eta', '#status'] as const;
 const moreHomes = new Map<string, Comment>();
 
 function isPhoneLayout(): boolean {
@@ -2340,19 +2341,6 @@ function paintCountdown(): void {
   el.textContent = h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
 }
 
-function goToChartDate(iso: string): void {
-  const idx = lastCandles.findIndex((c) => zonedDay(c.time) >= iso);
-  if (idx < 0) {
-    setStatus(t('status.dateNotOnChart'), true);
-    return;
-  }
-  const pad = 40;
-  chart.timeScale().setVisibleLogicalRange({
-    from: Math.max(0, idx - pad),
-    to: Math.min(lastCandles.length + 6, idx + pad),
-  });
-}
-
 async function exportChartPng(mode: 'file' | 'copy'): Promise<void> {
   try {
     const vp = document.querySelector<HTMLCanvasElement>('#vp-overlay');
@@ -2394,10 +2382,6 @@ function initChartChrome(): void {
     if (onXrpn) applySelection('kraken', 'XRPUSD');
     else applySelection('yahoo', 'XRPN');
   });
-  document.querySelector<HTMLInputElement>('#goto-date')?.addEventListener('change', (ev) => {
-    const value = (ev.target as HTMLInputElement).value;
-    if (value) goToChartDate(value);
-  });
   document.querySelector('#settings-png')?.addEventListener('click', () => void exportChartPng('file'));
   document.querySelector('#settings-png-copy')?.addEventListener('click', () => void exportChartPng('copy'));
   document.querySelector<HTMLInputElement>('#draw-label')?.addEventListener('change', (ev) => {
@@ -2405,18 +2389,6 @@ function initChartChrome(): void {
   });
   drawings.setOnStorageIssue((kind) => {
     setStatus(kind === 'cap' ? t('status.drawingsTooLarge') : t('status.drawingsQuota'), true);
-    const note = document.querySelector<HTMLElement>('#backup-hint');
-    if (note) note.hidden = false;
-  });
-  const hint = document.querySelector<HTMLElement>('#backup-hint');
-  if (hint && localStorage.getItem(BACKUP_HINT_KEY) !== 'off') hint.hidden = false;
-  document.querySelector('#backup-hint-dismiss')?.addEventListener('click', () => {
-    if (hint) hint.hidden = true;
-    try {
-      localStorage.setItem(BACKUP_HINT_KEY, 'off');
-    } catch {
-      /* ignore */
-    }
   });
   const strip = document.querySelector<HTMLElement>('#xrp-strip');
   if (strip) startXrpStrip(strip);

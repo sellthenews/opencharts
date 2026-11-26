@@ -11,6 +11,14 @@ test('Account in Settings opens GitHub, Google and email sign-in', async ({ page
   await page.goto('/');
   await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true', { timeout: 45_000 });
 
+  await expect(page.locator('#header-account-btn')).toBeVisible();
+  await expect(page.locator('#backup-hint')).toHaveCount(0);
+  await expect(page.locator('#goto-date')).toHaveCount(0);
+  await page.locator('#header-account-btn').click();
+  await expect(page.locator('#account-modal')).toBeVisible();
+  await page.locator('#account-close').click();
+  await expect(page.locator('#account-modal')).toBeHidden();
+
   await page.locator('#settings-btn').click();
   await expect(page.locator('#settings-menu')).toBeVisible();
   await page.locator('#settings-account').click();

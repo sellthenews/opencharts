@@ -19,6 +19,8 @@ test('watchlist: default Kraken pairs and opening a chart', async ({ page }) => 
   expect(state.lists.some((l) => l.name === 'Crypto' || l.id === 'krypto')).toBeTruthy();
 
   await expect(page.locator('.watch-row')).toHaveCount(4);
+  await expect(page.locator('.watch-row .asset-icon')).toHaveCount(4);
+  await expect(page.locator('.watch-row[data-pair="XRPUSD"] .asset-icon-letter')).toHaveText('X');
   await page.locator('.watch-row[data-pair="BTCUSD"]').click();
   await expect(page.locator('#pair')).toHaveValue('BTCUSD');
   await expect(page.locator('#source')).toHaveValue('kraken');

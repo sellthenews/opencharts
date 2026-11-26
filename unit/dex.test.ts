@@ -14,6 +14,9 @@ test('getDexNetwork lists XRPL AMM, Xahau books, and GeckoTerminal chains', () =
   assert.equal(getDexNetwork('xahau')?.kind, 'book');
   assert.equal(getDexNetwork('xahau')?.native, 'XAH');
   assert.equal(getDexNetwork('eth')?.kind, 'geckoterminal');
+  assert.equal(getDexNetwork('sui-network')?.name, 'Sui');
+  assert.equal(getDexNetwork('ton')?.name, 'TON');
+  assert.equal(getDexNetwork('sui'), undefined);
   assert.equal(getDexNetwork('nope'), undefined);
 });
 

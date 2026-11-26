@@ -26,17 +26,26 @@ test('a click on an empty chart area does not hide indicators; the toolbar butto
   await expect(page.locator('.ind-label[data-kind="volume"]')).toBeVisible();
   await expect(page.locator('#ind-visibility-btn')).toHaveAttribute('aria-pressed', 'false');
 
+  await page.locator('#ind-btn').click();
+  await page.locator('#ind-search').fill('RSI');
+  await page.locator('[data-ind-add="rsi"]').click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.ind-label[data-kind="rsi"]')).toBeVisible();
+
   await clickEmptyPlot(page);
   await expect.poll(async () => page.evaluate(() => window.__opencharts.isIndicatorsHidden())).toBe(false);
   await expect(page.locator('#ind-hidden-cue')).toBeHidden();
   await expect(page.locator('#ind-visibility-btn')).toHaveAttribute('aria-pressed', 'false');
   await expect(page.locator('.ind-label[data-kind="volume"]')).toBeVisible();
+  await expect(page.locator('.ind-label[data-kind="rsi"]')).toBeVisible();
 
   await page.locator('#ind-visibility-btn').click();
   await expect(page.locator('#app')).toHaveAttribute('data-indicators', 'off');
   await expect.poll(async () => page.evaluate(() => window.__opencharts.isIndicatorsHidden())).toBe(true);
   await expect(page.locator('#ind-hidden-cue')).toBeVisible();
   await expect(page.locator('#ind-visibility-btn')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.ind-label[data-kind="volume"]')).toBeVisible();
+  await expect(page.locator('.ind-label[data-kind="rsi"]')).toHaveCount(0);
 
   fs.mkdirSync(path.dirname(SHOT_HIDDEN), { recursive: true });
   await page.screenshot({ path: SHOT_HIDDEN, fullPage: true });
@@ -49,6 +58,8 @@ test('a click on an empty chart area does not hide indicators; the toolbar butto
   await expect.poll(async () => page.evaluate(() => window.__opencharts.isIndicatorsHidden())).toBe(false);
   await expect(page.locator('#ind-hidden-cue')).toBeHidden();
   await expect(page.locator('#ind-visibility-btn')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('.ind-label[data-kind="volume"]')).toBeVisible();
+  await expect(page.locator('.ind-label[data-kind="rsi"]')).toBeVisible();
 
   const box = await page.locator('#chart-wrap').boundingBox();
   const b = box!;

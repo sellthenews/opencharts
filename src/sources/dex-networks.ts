@@ -42,8 +42,25 @@ export const DEX_NETWORKS: readonly DexNetwork[] = [
   { id: 'arbitrum', name: 'Arbitrum', kind: 'geckoterminal', native: 'ETH', nativeLabel: 'ETH' },
   { id: 'avax', name: 'Avalanche', kind: 'geckoterminal', native: 'AVAX', nativeLabel: 'AVAX' },
   { id: 'optimism', name: 'Optimism', kind: 'geckoterminal', native: 'ETH', nativeLabel: 'ETH' },
-  { id: 'sui', name: 'Sui', kind: 'geckoterminal', native: 'SUI', nativeLabel: 'SUI' },
+  { id: 'sui-network', name: 'Sui', kind: 'geckoterminal', native: 'SUI', nativeLabel: 'SUI' },
   { id: 'tron', name: 'Tron', kind: 'geckoterminal', native: 'TRX', nativeLabel: 'TRX' },
+  { id: 'ton', name: 'TON', kind: 'geckoterminal', native: 'TON', nativeLabel: 'TON' },
+  { id: 'aptos', name: 'Aptos', kind: 'geckoterminal', native: 'APT', nativeLabel: 'APT' },
+  { id: 'near', name: 'Near', kind: 'geckoterminal', native: 'NEAR', nativeLabel: 'NEAR' },
+  { id: 'sei-evm', name: 'Sei', kind: 'geckoterminal', native: 'SEI', nativeLabel: 'SEI' },
+  { id: 'hyperevm', name: 'HyperEVM', kind: 'geckoterminal', native: 'HYPE', nativeLabel: 'HYPE' },
+  { id: 'hyperliquid', name: 'Hyperliquid', kind: 'geckoterminal', native: 'HYPE', nativeLabel: 'HYPE' },
+  { id: 'berachain', name: 'Berachain', kind: 'geckoterminal', native: 'BERA', nativeLabel: 'BERA' },
+  { id: 'sonic', name: 'Sonic', kind: 'geckoterminal', native: 'S', nativeLabel: 'S' },
+  { id: 'injective', name: 'Injective', kind: 'geckoterminal', native: 'INJ', nativeLabel: 'INJ' },
+  { id: 'linea', name: 'Linea', kind: 'geckoterminal', native: 'ETH', nativeLabel: 'ETH' },
+  { id: 'zksync', name: 'zkSync', kind: 'geckoterminal', native: 'ETH', nativeLabel: 'ETH' },
+  { id: 'mantle', name: 'Mantle', kind: 'geckoterminal', native: 'MNT', nativeLabel: 'MNT' },
+  { id: 'scroll', name: 'Scroll', kind: 'geckoterminal', native: 'ETH', nativeLabel: 'ETH' },
+  { id: 'unichain', name: 'Unichain', kind: 'geckoterminal', native: 'ETH', nativeLabel: 'ETH' },
+  { id: 'world-chain', name: 'World Chain', kind: 'geckoterminal', native: 'ETH', nativeLabel: 'ETH' },
+  { id: 'ink', name: 'Ink', kind: 'geckoterminal', native: 'ETH', nativeLabel: 'ETH' },
+  { id: 'cro', name: 'Cronos', kind: 'geckoterminal', native: 'CRO', nativeLabel: 'CRO' },
 ] as const;
 
 const BY_ID = new Map(DEX_NETWORKS.map((n) => [n.id, n]));
@@ -52,9 +69,30 @@ export function getDexNetwork(id: string): DexNetwork | undefined {
   return BY_ID.get(id);
 }
 
+/** GeckoTerminal's id for Sui is `sui-network`; older builds stored `sui`. */
+function migrateDexNetworkId(raw: string | null): string | null {
+  if (raw === 'sui') return 'sui-network';
+  return raw;
+}
+
+function migrateSuiPairStorage(): void {
+  try {
+    if (localStorage.getItem(DEX_NETWORK_KEY) === 'sui') {
+      localStorage.setItem(DEX_NETWORK_KEY, 'sui-network');
+    }
+    const oldPair = localStorage.getItem(`${DEX_PAIR_KEY}:sui`);
+    if (oldPair && !localStorage.getItem(`${DEX_PAIR_KEY}:sui-network`)) {
+      localStorage.setItem(`${DEX_PAIR_KEY}:sui-network`, oldPair.replace(/^gt:sui:/, 'gt:sui-network:'));
+    }
+  } catch {
+    /* private mode */
+  }
+}
+
 export function loadDexNetworkId(): string {
   try {
-    const raw = localStorage.getItem(DEX_NETWORK_KEY);
+    migrateSuiPairStorage();
+    const raw = migrateDexNetworkId(localStorage.getItem(DEX_NETWORK_KEY));
     if (raw && BY_ID.has(raw)) return raw;
   } catch {
     /* private mode */

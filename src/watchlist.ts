@@ -6,6 +6,7 @@ import { formatNumber, onLangChange, t } from './i18n';
 import './storage';
 import { getSource } from './sources';
 import type { PairId, Ticker } from './sources';
+import { assetIconHtml, hydrateAssetIcons } from './asset-icon';
 import { formatPairLabel } from './sources';
 
 export const WATCH_STORAGE_KEY = 'opencharts:watchlists';
@@ -574,6 +575,7 @@ export class WatchlistPanel {
     const key = itemKey(item);
     return `<button type="button" class="watch-row" draggable="true" data-watch-key="${key}" data-section="${sectionId}" data-source="${item.sourceId}" data-pair="${item.pairId}">
       <span class="watch-handle" aria-hidden="true"></span>
+      ${assetIconHtml(item.sourceId, item.pairId, label)}
       <span class="watch-sym">${escapeHtml(label)}</span>
       <span class="watch-ex">${escapeHtml(exch)}</span>
       <span class="watch-last">${last}</span>
@@ -619,6 +621,7 @@ export class WatchlistPanel {
       </div>
       <div class="watch-body">${body}</div>
     `;
+    hydrateAssetIcons(this.root);
   }
 }
 

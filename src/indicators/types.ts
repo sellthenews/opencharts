@@ -400,6 +400,15 @@ export const CATALOG_BY_KIND: Record<IndicatorKind, IndicatorMeta> = Object.from
   INDICATOR_CATALOG.map((m) => [m.kind, m]),
 ) as Record<IndicatorKind, IndicatorMeta>;
 
+/** Price-pane overlays (and Volume) stay on the main chart; oscillators use a pane below it. */
+export function indicatorPane(item: Pick<IndicatorInstance, 'kind' | 'params'>): 'price' | 'osc' {
+  if (item.kind === 'maOf') {
+    const src = item.params.source ?? 'rsi';
+    return src === 'close' || src === 'vwap' || src === 'volume' ? 'price' : 'osc';
+  }
+  return CATALOG_BY_KIND[item.kind].pane;
+}
+
 function fmtNum(value: number | undefined, fallback: number): string {
   const x = value ?? fallback;
   return Number.isInteger(x) ? String(x) : String(Number(x.toFixed(2)));

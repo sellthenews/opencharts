@@ -58,10 +58,6 @@
           </select>
         </label>
         <button type="button" id="prepost-btn" hidden aria-pressed="false" title="Include pre-market and after-hours" data-i18n="toolbar.prepost" data-i18n-title="toolbar.prepostTitle">Pre/post</button>
-        <label class="field field-goto" id="goto-field">
-          <span class="visually-hidden" data-i18n="toolbar.goTo">Go to date</span>
-          <input type="date" id="goto-date" aria-label="Go to date" data-i18n-aria="toolbar.goTo" />
-        </label>
         <div class="chart-type-wrap" id="chart-type-wrap">
           <button type="button" id="chart-type-btn" title="Choose chart type" data-i18n-title="toolbar.chartTypeTitle" data-i18n-aria="toolbar.chartTypeTitle" aria-label="Choose chart type" aria-haspopup="menu" aria-expanded="false" aria-controls="chart-type-menu">
             <svg class="chart-type-icon" viewBox="0 0 18 18" width="20" height="20" aria-hidden="true">
@@ -137,6 +133,15 @@
           <select id="lang-select" aria-label="Language" data-i18n-aria="toolbar.language"></select>
         </label>
         <span id="live-status" class="live-status" data-live="off" title="Public Kraken WebSocket (OHLC and ticker)" data-i18n-title="toolbar.liveTitle">Offline</span>
+        <div class="header-account" id="header-account">
+          <button type="button" id="header-account-btn" title="Sign in" data-i18n="toolbar.signIn" data-i18n-title="toolbar.signIn" data-i18n-aria="toolbar.signIn" aria-label="Sign in" aria-expanded="false" aria-controls="header-account-menu">
+            <span class="header-account-label" data-i18n="toolbar.signIn">Sign in</span>
+          </button>
+          <div id="header-account-menu" hidden role="menu" aria-labelledby="header-account-btn">
+            <button type="button" role="menuitem" id="header-account-open" data-i18n="toolbar.account">Account</button>
+            <button type="button" role="menuitem" id="header-account-logout" data-i18n="account.signOut">Sign out</button>
+          </div>
+        </div>
         <button type="button" id="more-btn" aria-expanded="false" aria-haspopup="dialog" aria-controls="more-pop" title="More" aria-label="More" data-i18n-title="toolbar.more" data-i18n-aria="toolbar.more">
           <svg viewBox="0 0 20 20" width="22" height="22" aria-hidden="true"><circle cx="4.5" cy="10" r="1.8" fill="currentColor"/><circle cx="10" cy="10" r="1.8" fill="currentColor"/><circle cx="15.5" cy="10" r="1.8" fill="currentColor"/></svg>
         </button>
@@ -151,10 +156,6 @@
         <div id="status" class="status" role="status" data-i18n="toolbar.loading">Loading…</div>
       </header>
       <div id="xrp-strip" class="xrp-strip" aria-label="XRP last price by exchange" data-i18n-aria="toolbar.xrpStrip"></div>
-      <p id="backup-hint" class="backup-hint" hidden>
-        <span data-i18n="status.backupReminder">Drawings stay in this browser. Export a backup from Settings.</span>
-        <button type="button" id="backup-hint-dismiss" aria-label="Dismiss" data-i18n-aria="mobile.close">×</button>
-      </p>
 
         <div class="workspace-body">
         <nav id="tool-rail" aria-label="Drawing tools"></nav>

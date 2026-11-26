@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Swapwick contributors
 
-import { t } from './i18n';
+import { onLangChange, t } from './i18n';
 import { getStocksProxyUrl } from './config';
 import { applyBackup, collectBackupData } from './backup';
 
@@ -51,6 +51,45 @@ function displayName(u: PublicUser): string {
   return u.displayName || u.email || u.id;
 }
 
+function closeHeaderMenu(): void {
+  const menu = document.querySelector<HTMLElement>('#header-account-menu');
+  const btn = document.querySelector<HTMLButtonElement>('#header-account-btn');
+  if (menu) menu.hidden = true;
+  btn?.setAttribute('aria-expanded', 'false');
+}
+
+function toggleHeaderMenu(): void {
+  const menu = document.querySelector<HTMLElement>('#header-account-menu');
+  const btn = document.querySelector<HTMLButtonElement>('#header-account-btn');
+  if (!menu || !btn) return;
+  const open = menu.hidden;
+  menu.hidden = !open;
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function paintHeader(): void {
+  const btn = document.querySelector<HTMLButtonElement>('#header-account-btn');
+  const label = btn?.querySelector<HTMLElement>('.header-account-label');
+  const wrap = document.querySelector<HTMLElement>('#header-account');
+  if (!btn || !label) return;
+  wrap?.classList.toggle('is-signed', Boolean(user));
+  if (user) {
+    const name = displayName(user);
+    label.removeAttribute('data-i18n');
+    label.textContent = name;
+    btn.title = t('account.signedInAs', { name });
+    btn.setAttribute('aria-label', t('toolbar.account'));
+    btn.setAttribute('aria-haspopup', 'menu');
+  } else {
+    label.setAttribute('data-i18n', 'toolbar.signIn');
+    label.textContent = t('toolbar.signIn');
+    btn.title = t('toolbar.signIn');
+    btn.setAttribute('aria-label', t('toolbar.signIn'));
+    btn.removeAttribute('aria-haspopup');
+    closeHeaderMenu();
+  }
+}
+
 function paint(): void {
   const signed = document.querySelector<HTMLElement>('#account-signed');
   const guest = document.querySelector<HTMLElement>('#account-guest');
@@ -58,6 +97,7 @@ function paint(): void {
   if (signed) signed.hidden = !user;
   if (guest) guest.hidden = Boolean(user);
   if (who && user) who.textContent = t('account.signedInAs', { name: displayName(user) });
+  paintHeader();
 }
 
 function setMsg(text: string, error = false): void {
@@ -132,9 +172,15 @@ export function initAccounts(opts: { onStatus: (message: string, error?: boolean
   const modal = document.querySelector<HTMLElement>('#account-modal');
   const openBtn = document.querySelector<HTMLButtonElement>('#settings-account');
   const closeBtn = document.querySelector<HTMLButtonElement>('#account-close');
-  if (!modal || !openBtn) return;
+  const headerBtn = document.querySelector<HTMLButtonElement>('#header-account-btn');
+  if (!modal) return;
 
   function open(): void {
+    closeHeaderMenu();
+    document.querySelector<HTMLElement>('#settings-menu')?.setAttribute('hidden', '');
+    const settingsMenu = document.querySelector<HTMLElement>('#settings-menu');
+    if (settingsMenu) settingsMenu.hidden = true;
+    document.querySelector('#settings-btn')?.setAttribute('aria-expanded', 'false');
     modal!.hidden = false;
     setMsg('');
     void refreshMe();
@@ -143,11 +189,29 @@ export function initAccounts(opts: { onStatus: (message: string, error?: boolean
     modal!.hidden = true;
   }
 
-  openBtn.addEventListener('click', () => {
-    document.querySelector<HTMLElement>('#settings-menu')!.hidden = true;
-    document.querySelector('#settings-btn')?.setAttribute('aria-expanded', 'false');
+  openBtn?.addEventListener('click', () => open());
+  headerBtn?.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    if (user) toggleHeaderMenu();
+    else open();
+  });
+  document.querySelector('#header-account-open')?.addEventListener('click', (ev) => {
+    ev.stopPropagation();
     open();
   });
+  document.querySelector('#header-account-logout')?.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    closeHeaderMenu();
+    void signOut();
+  });
+  document.addEventListener('click', (ev) => {
+    const wrap = document.querySelector('#header-account');
+    if (wrap && !wrap.contains(ev.target as Node)) closeHeaderMenu();
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') closeHeaderMenu();
+  });
+  onLangChange(() => paintHeader());
   closeBtn?.addEventListener('click', () => close());
   modal.querySelector('.fib-modal-backdrop')?.addEventListener('click', () => close());
 
