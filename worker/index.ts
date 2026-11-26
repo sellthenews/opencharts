@@ -14,6 +14,7 @@ import { tryHandleAccounts, type Env } from './accounts';
 import {
   CG_ONCHAIN_BASE,
   allowBurst,
+  beyondDemoHistory,
   geckoPolicy,
   ledgerTtl,
   reserveCredit,
@@ -348,8 +349,12 @@ async function fetchCoinGecko(pathAndQuery: string, apiKey: string, runtime: Wor
         const wait = Number(res.headers.get('Retry-After'));
         const seconds = Number.isFinite(wait) && wait > 0 ? Math.min(Math.max(wait, 15), 300) : 60;
         cgBlockedUntil = now + seconds * 1000;
-      } else if (res.status === 401 || res.status === 403) cgBlockedUntil = now + 60 * 60_000;
-      else if (res.status >= 500) cgBlockedUntil = now + 60_000;
+      } else if (res.status === 401 || res.status === 403) {
+        // The Demo plan only serves the last 180 days of OHLCV; that 401 is about this request, not the key.
+        const text = await res.text().catch(() => '');
+        if (/past \d+ days|upgrade to the/i.test(text)) return { res: null, reason: 'cg-plan-limit' };
+        cgBlockedUntil = now + 15 * 60_000;
+      } else if (res.status >= 500) cgBlockedUntil = now + 60_000;
       return { res: null, reason: `cg-${res.status}` };
     } catch {
       cgBlockedUntil = now + 60_000;
@@ -367,6 +372,7 @@ async function loadGecko(pathAndQuery: string, cacheKeyUrl: string, runtime: Wor
   let reason = apiKey ? '' : 'no-key';
   if (apiKey) {
     if (Date.now() < cgBlockedUntil) reason = 'cooldown';
+    else if (beyondDemoHistory(pathAndQuery)) reason = 'history'; // older than the Demo plan's 180 days
     else if (!allowBurst()) reason = 'burst';
     else {
       const priority = policy.kind === 'ohlcv' || policy.kind === 'detail' ? 'high' : 'low';

@@ -55,6 +55,16 @@ export function geckoPolicy(pathAndQuery: string): GeckoPolicy {
   return { kind: 'list', ttl: 300 };
 }
 
+/** CoinGecko Demo only serves the last 180 days of OHLCV; older pages must come from keyless GeckoTerminal. */
+export const DEMO_HISTORY_DAYS = 175;
+
+export function beyondDemoHistory(pathAndQuery: string, nowSec = Math.floor(Date.now() / 1000)): boolean {
+  const url = new URL(pathAndQuery, 'https://example.invalid');
+  if (!/\/ohlcv\//.test(url.pathname)) return false;
+  const before = Number(url.searchParams.get('before_timestamp'));
+  return Number.isFinite(before) && before > 0 && before < nowSec - DEMO_HISTORY_DAYS * 86400;
+}
+
 /** Longer TTL when credits run low or when CoinGecko is not serving (keyless GeckoTerminal is tighter). */
 export function stretchTtl(ttl: number, share: number, viaCoinGecko: boolean, keyConfigured: boolean): number {
   if (!keyConfigured) return ttl;

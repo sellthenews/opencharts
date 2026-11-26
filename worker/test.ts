@@ -453,7 +453,7 @@ test('XRPL GeckoTerminal pool addresses with dots are allowed and list responses
 
 /* ---------- CoinGecko Demo key, shared cache, credit budget ---------- */
 
-import { geckoPolicy, ledgerTtl, reserveCredit, resetBudgetForTests, stretchTtl, yahooTtl, DAILY_CREDITS, type BudgetDb } from './market.ts';
+import { beyondDemoHistory, geckoPolicy, ledgerTtl, reserveCredit, resetBudgetForTests, stretchTtl, yahooTtl, DAILY_CREDITS, type BudgetDb } from './market.ts';
 import { resetGeckoStateForTests } from './index.ts';
 
 const FAKE_KEY = 'CG-test-key-not-real';
@@ -717,4 +717,37 @@ test('read-only ledger RPC reads are cached briefly, failures and unsafe methods
   assert.equal(upstream, 4);
   // unsafe methods are still refused
   assert.equal((await handleRequest(post('submit', [{ tx_blob: '00' }]), runtime)).status, 403);
+});
+
+test('Demo plan history limit: old pages skip CoinGecko, a plan-limit 401 does not block the key', async () => {
+  resetRateLimit();
+  resetBudgetForTests();
+  resetGeckoStateForTests();
+  const now = Math.floor(Date.now() / 1000);
+  assert.equal(beyondDemoHistory(`/networks/eth/pools/0xa/ohlcv/day?before_timestamp=${now - 200 * 86400}`), true);
+  assert.equal(beyondDemoHistory(`/networks/eth/pools/0xa/ohlcv/day?before_timestamp=${now - 30 * 86400}`), false);
+  assert.equal(beyondDemoHistory('/networks/eth/pools/0xa/ohlcv/day?limit=1000'), false);
+
+  const urls: string[] = [];
+  const runtime = {
+    cache: memoryCache(),
+    fetch: async (input: RequestInfo | URL) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.startsWith('https://api.coingecko.com/') && url.includes('limit=7')) {
+        return new Response('{"status":{"error_code":401,"error_message":"You can only access data from the past 180 days. To access data beyond 180 days, please upgrade to the Analyst plan"}}', { status: 401, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response('{"data":[]}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    },
+  };
+  const env = { COINGECKO_DEMO_KEY: FAKE_KEY } as Env;
+  const old = await handleRequest(req(`/dex/gt/networks/eth/pools/0xa1/ohlcv/day?aggregate=1&limit=1000&before_timestamp=${now - 300 * 86400}`), runtime, env);
+  assert.equal(old.headers.get('X-Swapwick-Upstream'), 'geckoterminal');
+  assert.equal(old.headers.get('X-Swapwick-Fallback'), 'history');
+  assert.equal(urls.filter((u) => u.includes('coingecko.com')).length, 0);
+  const limited = await handleRequest(req('/dex/gt/networks/eth/pools/0xa2/ohlcv/day?aggregate=1&limit=7'), runtime, env);
+  assert.equal(limited.headers.get('X-Swapwick-Fallback'), 'cg-plan-limit');
+  // the key keeps working for the next request
+  const next = await handleRequest(req('/dex/gt/networks/eth/pools/0xa3/ohlcv/day?aggregate=1&limit=1000'), runtime, env);
+  assert.equal(next.headers.get('X-Swapwick-Upstream'), 'coingecko');
 });
