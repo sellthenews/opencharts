@@ -88,7 +88,7 @@ export function themeChartOptions(_theme?: boolean): DeepPartial<ChartOptions> {
   const line = light ? 'rgba(19, 23, 34, 0.35)' : 'rgba(209, 212, 220, 0.35)';
   const labelBg = cssVar('--btn', light ? '#4c525e' : '#2a2e39');
   return {
-    layout: { background: { type: ColorType.Solid, color: bg }, textColor: text, fontFamily: CHART_FONT },
+    layout: { background: { type: ColorType.Solid, color: bg }, textColor: text, fontFamily: CHART_FONT, attributionLogo: false },
     grid: { vertLines: { color: grid, visible: true }, horzLines: { color: grid, visible: true } },
     rightPriceScale: { borderColor: border, borderVisible: false, ticksVisible: false },
     timeScale: timeScaleInteraction(border),
