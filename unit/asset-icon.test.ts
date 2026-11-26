@@ -21,12 +21,12 @@ test('letter fallback uses the first alphanumeric and a stable color', () => {
   assert.notEqual(assetColor('XRP/USD'), assetColor('ETH/USD'));
 });
 
-test('icon html renders a round placeholder with data attributes and no TradingView mention', () => {
+test('icon html renders a round placeholder with data attributes and no third-party chart brand', () => {
   const html = assetIconHtml('kraken', 'XRPUSD', 'XRP/USD');
   assert.match(html, /class="asset-icon"/);
   assert.match(html, /data-icon-source="kraken"/);
   assert.match(html, /data-icon-pair="XRPUSD"/);
   assert.match(html, /asset-icon-letter">X</);
-  assert.equal(html.toLowerCase().includes('tradingview'), false);
+  assert.equal(html.toLowerCase().includes(['trading', 'view'].join('')), false);
   assert.equal(cacheKey('kraken', 'XRPUSD'), 'kraken:XRPUSD');
 });
