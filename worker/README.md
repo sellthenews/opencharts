@@ -32,7 +32,7 @@ A 404 from an older Worker is turned into a clear “proxy not updated yet” st
   `/dex/gt/…` is fetched from `https://api.coingecko.com/api/v3/onchain/…` with the
   `x-cg-demo-api-key` header. Without it, or on any CoinGecko error (401, 403, 429,
   5xx, budget exhausted), the Worker uses keyless GeckoTerminal. After a CoinGecko
-  error it skips CoinGecko for 1 to 60 minutes (per isolate).
+  error it skips CoinGecko for 15 s to 60 min (per isolate), at most 4 CoinGecko calls run at once and 40 per minute, and fallbacks are marked with `X-Swapwick-Fallback`.
 - Credit guard: `worker/market.ts` counts every CoinGecko call per UTC day in D1
   (`api_budget`, created on first use; `migrations/0002_api_budget.sql` is optional).
   Hard stops: 300 per day and 9,000 per month (Demo plan is 10,000). Lists and search

@@ -93,7 +93,7 @@ function corsHeaders(origin: string | null): Headers {
     headers.set('Access-Control-Allow-Credentials', 'true');
     headers.set('Access-Control-Allow-Headers', 'Content-Type');
     headers.set('Access-Control-Max-Age', '86400');
-    headers.set('Access-Control-Expose-Headers', 'X-Swapwick-Cache, X-Swapwick-Upstream');
+    headers.set('Access-Control-Expose-Headers', 'X-Swapwick-Cache, X-Swapwick-Upstream, X-Swapwick-Fallback');
     headers.set('Vary', 'Origin');
   }
   return headers;
@@ -231,6 +231,8 @@ function marketResponse(result: MarketResult, origin: string | null, clientCap?:
   headers.set('Cache-Control', clientCap ? capMaxAge(stored, clientCap) : stored);
   const upstream = res.headers.get('X-Swapwick-Upstream');
   if (upstream) headers.set('X-Swapwick-Upstream', upstream);
+  const fallback = res.headers.get('X-Swapwick-Fallback');
+  if (fallback) headers.set('X-Swapwick-Fallback', fallback);
   headers.set('X-Swapwick-Cache', hit ? 'HIT' : 'MISS');
   applyCors(headers, origin);
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
@@ -305,26 +307,55 @@ let cgBlockedUntil = 0;
 
 export function resetGeckoStateForTests(): void {
   cgBlockedUntil = 0;
+  cgActive = 0;
+  cgWaiters.length = 0;
   inflight.clear();
 }
 
-async function fetchCoinGecko(pathAndQuery: string, apiKey: string, runtime: WorkerRuntime): Promise<Response | null> {
-  const doFetch = runtime.fetch ?? fetch;
-  const now = Date.now();
+/** At most a few CoinGecko calls in flight per isolate, so a page full of icons cannot trip its burst limits. */
+const CG_CONCURRENCY = 4;
+let cgActive = 0;
+const cgWaiters: Array<() => void> = [];
+
+async function withCgSlot<T>(task: () => Promise<T>): Promise<T> {
+  if (cgActive >= CG_CONCURRENCY) await new Promise<void>((resolve) => cgWaiters.push(resolve));
+  cgActive += 1;
   try {
-    const res = await doFetch(`${CG_ONCHAIN_BASE}${pathAndQuery}`, {
-      method: 'GET',
-      headers: { Accept: 'application/json', 'User-Agent': UA, 'x-cg-demo-api-key': apiKey },
-    });
-    if (res.ok) return res;
-    if (res.status === 429) cgBlockedUntil = now + 5 * 60_000;
-    else if (res.status === 401 || res.status === 403) cgBlockedUntil = now + 60 * 60_000;
-    else if (res.status >= 500) cgBlockedUntil = now + 60_000;
-    return null;
-  } catch {
-    cgBlockedUntil = now + 60_000;
-    return null;
+    return await task();
+  } finally {
+    cgActive -= 1;
+    cgWaiters.shift()?.();
   }
+}
+
+interface CgResult {
+  res: Response | null;
+  /** Why CoinGecko was not used (for the X-Swapwick-Fallback header). */
+  reason?: string;
+}
+
+async function fetchCoinGecko(pathAndQuery: string, apiKey: string, runtime: WorkerRuntime): Promise<CgResult> {
+  const doFetch = runtime.fetch ?? fetch;
+  return withCgSlot(async () => {
+    const now = Date.now();
+    try {
+      const res = await doFetch(`${CG_ONCHAIN_BASE}${pathAndQuery}`, {
+        method: 'GET',
+        headers: { Accept: 'application/json', 'User-Agent': UA, 'x-cg-demo-api-key': apiKey },
+      });
+      if (res.ok) return { res };
+      if (res.status === 429) {
+        const wait = Number(res.headers.get('Retry-After'));
+        const seconds = Number.isFinite(wait) && wait > 0 ? Math.min(Math.max(wait, 15), 300) : 60;
+        cgBlockedUntil = now + seconds * 1000;
+      } else if (res.status === 401 || res.status === 403) cgBlockedUntil = now + 60 * 60_000;
+      else if (res.status >= 500) cgBlockedUntil = now + 60_000;
+      return { res: null, reason: `cg-${res.status}` };
+    } catch {
+      cgBlockedUntil = now + 60_000;
+      return { res: null, reason: 'cg-network' };
+    }
+  });
 }
 
 async function loadGecko(pathAndQuery: string, cacheKeyUrl: string, runtime: WorkerRuntime, env?: Env): Promise<Response> {
@@ -333,13 +364,21 @@ async function loadGecko(pathAndQuery: string, cacheKeyUrl: string, runtime: Wor
   let upstream: Response | null = null;
   let source: 'coingecko' | 'geckoterminal' = 'geckoterminal';
   let share = 0;
-  if (apiKey && Date.now() >= cgBlockedUntil && allowBurst()) {
-    const priority = policy.kind === 'ohlcv' || policy.kind === 'detail' ? 'high' : 'low';
-    const reservation = await reserveCredit(env?.DB, priority, new Date(), runtime.waitUntil);
-    share = reservation.share;
-    if (reservation.ok) {
-      upstream = await fetchCoinGecko(pathAndQuery, apiKey, runtime);
-      if (upstream) source = 'coingecko';
+  let reason = apiKey ? '' : 'no-key';
+  if (apiKey) {
+    if (Date.now() < cgBlockedUntil) reason = 'cooldown';
+    else if (!allowBurst()) reason = 'burst';
+    else {
+      const priority = policy.kind === 'ohlcv' || policy.kind === 'detail' ? 'high' : 'low';
+      const reservation = await reserveCredit(env?.DB, priority, new Date(), runtime.waitUntil);
+      share = reservation.share;
+      if (!reservation.ok) reason = 'budget';
+      else {
+        const result = await fetchCoinGecko(pathAndQuery, apiKey, runtime);
+        upstream = result.res;
+        if (upstream) source = 'coingecko';
+        else reason = result.reason ?? 'cg-error';
+      }
     }
   }
   if (!upstream) {
@@ -361,6 +400,7 @@ async function loadGecko(pathAndQuery: string, cacheKeyUrl: string, runtime: Wor
       'Content-Type': contentType,
       'Cache-Control': ttl > 0 ? `public, max-age=${ttl}` : 'no-store',
       'X-Swapwick-Upstream': source,
+      ...(source === 'geckoterminal' && reason ? { 'X-Swapwick-Fallback': reason } : {}),
     },
   });
   if (ttl > 0) await cachePut(runtime, cacheKeyUrl, stored.clone());
