@@ -436,6 +436,19 @@ export function cachedCounts(): Record<string, number> {
 
 export type CategoryFilter = 'all' | 'crypto' | 'stocks';
 
+/** Dollar quotes first, then dollar stablecoins, then other fiat, then the rest. */
+const STABLE_QUOTES = new Set(['USDT', 'USDC', 'RLUSD']);
+const FIAT_QUOTES = new Set(['EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'BRL', 'TRY', 'PLN', 'KRW', 'MXN', 'ZAR', 'SGD', 'HKD', 'NZD', 'INR', 'IDR', 'ARS', 'UAH', 'RUB', 'COP', 'CZK', 'SEK', 'NOK', 'DKK', 'AED']);
+const VENUE_RANK: Record<string, number> = { kraken: 0, coinbase: 1, binance: 2, bitstamp: 3, yahoo: 4, dex: 5 };
+
+function quoteRank(quote: string): number {
+  const q = quote.toUpperCase().replace(/^Z(?=[A-Z]{3}$)/, '');
+  if (q === 'USD' || q === '') return 0;
+  if (STABLE_QUOTES.has(q)) return 1;
+  if (FIAT_QUOTES.has(q)) return 2;
+  return 3;
+}
+
 export function searchSymbols(
   query: string,
   filter: SourceFilter,
@@ -455,21 +468,23 @@ export function searchSymbols(
     }
     return pool.slice(0, limit);
   }
-  const ranked: { item: SymbolInfo; rank: number; baseHits: boolean }[] = [];
+  const ranked: { item: SymbolInfo; rank: number; quote: number; venue: number }[] = [];
   for (const item of pool) {
     const base = item.base.toLowerCase();
     const id = item.id.toLowerCase();
     const compact = `${item.base}${item.quote}`.toLowerCase();
     const label = item.label.toLowerCase().replace('/', '');
     let rank: number | null = null;
-    if (base.startsWith(q) || id.startsWith(q) || compact.startsWith(q) || label.startsWith(q)) rank = 0;
-    else if (item.search.includes(q) || base.includes(q) || id.includes(q) || label.includes(q)) rank = 1;
+    if (base === q || (q === 'btc' && base === 'xbt') || compact === q || label === q) rank = 0;
+    else if (base.startsWith(q) || id.startsWith(q) || compact.startsWith(q) || label.startsWith(q)) rank = 1;
+    else if (item.search.includes(q) || base.includes(q) || id.includes(q) || label.includes(q)) rank = 2;
     if (rank === null) continue;
-    ranked.push({ item, rank, baseHits: base.startsWith(q) });
+    ranked.push({ item, rank, quote: quoteRank(item.quote), venue: VENUE_RANK[item.sourceId] ?? 9 });
   }
   ranked.sort((a, b) => {
     if (a.rank !== b.rank) return a.rank - b.rank;
-    if (a.baseHits !== b.baseHits) return a.baseHits ? -1 : 1;
+    if (a.quote !== b.quote) return a.quote - b.quote;
+    if (a.venue !== b.venue) return a.venue - b.venue;
     if (a.item.base.length !== b.item.base.length) return a.item.base.length - b.item.base.length;
     return a.item.label.localeCompare(b.item.label, 'en');
   });
