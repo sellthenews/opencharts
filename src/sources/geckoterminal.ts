@@ -30,7 +30,8 @@ interface GeckoJson {
 async function getJson(pathAndQuery: string): Promise<GeckoJson> {
   let lastErr: Error | null = null;
   const base = getStocksProxyUrl();
-  if (base) {
+  const viaWorker = async (): Promise<GeckoJson | null> => {
+    if (!base) return null;
     const url = `${base}/dex/gt${pathAndQuery}`;
     try {
       const res = await fetch(url, { headers: { Accept: 'application/json' } });
@@ -39,14 +40,25 @@ async function getJson(pathAndQuery: string): Promise<GeckoJson> {
     } catch (err) {
       lastErr = err instanceof Error ? err : new Error(String(err));
     }
-  }
-  const direct = `${GECKO_API}${pathAndQuery}`;
-  try {
-    const res = await fetch(direct, { headers: { Accept: 'application/json' } });
-    if (res.ok) return (await res.json()) as GeckoJson;
-    lastErr = new Error(`HTTP ${res.status} for ${direct}`);
-  } catch (err) {
-    lastErr = err instanceof Error ? err : new Error(String(err));
+    return null;
+  };
+  const direct = async (): Promise<GeckoJson | null> => {
+    const url = `${GECKO_API}${pathAndQuery}`;
+    try {
+      const res = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (res.ok) return (await res.json()) as GeckoJson;
+      lastErr = new Error(`HTTP ${res.status} for ${url}`);
+    } catch (err) {
+      lastErr = err instanceof Error ? err : new Error(String(err));
+    }
+    return null;
+  };
+  // Older history pages are beyond the CoinGecko Demo window (180 days), so the Worker could only
+  // use the shared keyless quota; ask GeckoTerminal from the browser first for those.
+  const order = pathAndQuery.includes('before_timestamp=') ? [direct, viaWorker] : [viaWorker, direct];
+  for (const attempt of order) {
+    const body = await attempt();
+    if (body) return body;
   }
   throw lastErr ?? new Error('GeckoTerminal unavailable');
 }
