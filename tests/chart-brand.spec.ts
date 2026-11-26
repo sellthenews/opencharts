@@ -13,8 +13,8 @@ test('the chart shows a Swapwick mark in the library-logo corner that ignores cl
   await expect(mark.locator('img')).toBeVisible();
   await expect(mark).toHaveCSS('pointer-events', 'none');
   const opacity = Number(await mark.evaluate((el) => getComputedStyle(el).opacity));
-  expect(opacity).toBeGreaterThanOrEqual(0.25);
-  expect(opacity).toBeLessThanOrEqual(0.35);
+  expect(opacity).toBeGreaterThanOrEqual(0.4);
+  expect(opacity).toBeLessThanOrEqual(0.55);
 
   const [m, c] = await Promise.all([mark.boundingBox(), page.locator('#chart').boundingBox()]);
   expect(m && c).toBeTruthy();
@@ -26,7 +26,7 @@ test('the chart shows a Swapwick mark in the library-logo corner that ignores cl
   await expect(page.locator('.site-foot a[href="https://www.npmjs.com/package/lightweight-charts"]')).toBeVisible();
 });
 
-test('the chart mark is smaller and on screen on a phone', async ({ browser }) => {
+test('the chart mark is on screen and a bit smaller on a phone', async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const page = await ctx.newPage();
   await page.goto('/');
@@ -38,7 +38,8 @@ test('the chart mark is smaller and on screen on a phone', async ({ browser }) =
   expect(box!.x).toBeGreaterThanOrEqual(0);
   expect(box!.x + box!.width).toBeLessThanOrEqual(390);
   expect(box!.y + box!.height).toBeLessThanOrEqual(844);
-  expect(box!.height).toBeLessThanOrEqual(16);
+  expect(box!.height).toBeLessThanOrEqual(22);
+  expect(box!.height).toBeGreaterThanOrEqual(14);
   await ctx.close();
 });
 

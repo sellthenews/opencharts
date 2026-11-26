@@ -5326,13 +5326,13 @@ select#pair[aria-hidden="true"] {
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin: 0;
   padding: 0;
   border: 0;
-  opacity: 0.32;
+  opacity: 0.48;
   color: var(--chart-text);
-  font-size: 11px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.03em;
   line-height: 1;
@@ -5342,9 +5342,9 @@ select#pair[aria-hidden="true"] {
 }
 
 #chart-brand img {
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
+  width: 21px;
+  height: 21px;
+  border-radius: 4px;
   display: block;
   flex-shrink: 0;
 }
@@ -5353,14 +5353,14 @@ select#pair[aria-hidden="true"] {
   #chart-brand {
     left: 8px;
     bottom: 8px;
-    gap: 4px;
-    font-size: 9px;
-    opacity: 0.3;
+    gap: 6px;
+    font-size: 13px;
+    opacity: 0.45;
   }
 
   #chart-brand img {
-    width: 11px;
-    height: 11px;
-    border-radius: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
   }
 }
