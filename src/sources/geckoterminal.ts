@@ -22,29 +22,31 @@ interface GeckoJson {
   errors?: { title?: string; detail?: string }[];
 }
 
+/**
+ * DEX data goes through the Swapwick Worker first: one shared edge cache and the project's
+ * CoinGecko Demo key (server side) instead of every browser spending the tight keyless quota.
+ * If the Worker is missing or failing, fall back to the keyless public GeckoTerminal API.
+ */
 async function getJson(pathAndQuery: string): Promise<GeckoJson> {
-  const direct = `${GECKO_API}${pathAndQuery}`;
   let lastErr: Error | null = null;
-  try {
-    const res = await fetch(direct, { headers: { Accept: 'application/json' } });
-    if (res.ok) return (await res.json()) as GeckoJson;
-    lastErr = new Error(`HTTP ${res.status} for ${direct}`);
-    if (res.status !== 429 && res.status < 500 && res.status !== 403) throw lastErr;
-  } catch (err) {
-    lastErr = err instanceof Error ? err : new Error(String(err));
-    if (/HTTP\s+[4]/.test(lastErr.message) && !/HTTP 429|HTTP 403/.test(lastErr.message)) throw lastErr;
-  }
   const base = getStocksProxyUrl();
   if (base) {
     const url = `${base}/dex/gt${pathAndQuery}`;
     try {
       const res = await fetch(url, { headers: { Accept: 'application/json' } });
-      if (res.status === 404) throw new Error(DEX_PROXY_MISSING);
-      if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-      return (await res.json()) as GeckoJson;
+      if (res.ok) return (await res.json()) as GeckoJson;
+      lastErr = new Error(res.status === 404 ? DEX_PROXY_MISSING : `HTTP ${res.status} for ${url}`);
     } catch (err) {
       lastErr = err instanceof Error ? err : new Error(String(err));
     }
+  }
+  const direct = `${GECKO_API}${pathAndQuery}`;
+  try {
+    const res = await fetch(direct, { headers: { Accept: 'application/json' } });
+    if (res.ok) return (await res.json()) as GeckoJson;
+    lastErr = new Error(`HTTP ${res.status} for ${direct}`);
+  } catch (err) {
+    lastErr = err instanceof Error ? err : new Error(String(err));
   }
   throw lastErr ?? new Error('GeckoTerminal unavailable');
 }
@@ -219,12 +221,13 @@ export function candlesFromOhlcvList(list: unknown[], intervalSec: number): Cand
   return out;
 }
 
-export async function fetchGeckoOhlcv(networkId: string, pool: string, interval: string, before?: number): Promise<Candle[]> {
+/** Full history loads ask for 1000 bars; open-candle polls pass a small `limit` so the shared cache stays cheap. */
+export async function fetchGeckoOhlcv(networkId: string, pool: string, interval: string, before?: number, limit = 1000): Promise<Candle[]> {
   const spec = geckoTimeframe(interval);
   if (!spec) throw new Error(`Unsupported DEX interval ${interval}`);
   const params = new URLSearchParams({
     aggregate: String(spec.aggregate),
-    limit: '1000',
+    limit: String(Math.max(1, Math.min(1000, Math.floor(limit)))),
     currency: 'token',
   });
   if (before && Number.isFinite(before)) params.set('before_timestamp', String(Math.floor(before)));

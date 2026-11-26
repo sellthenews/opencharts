@@ -21,6 +21,8 @@ export interface Env {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   APP_ORIGIN?: string;
+  /** CoinGecko Demo API key, stored as a Worker secret. Never commit or log it. */
+  COINGECKO_DEMO_KEY?: string;
 }
 
 export interface UserRow {

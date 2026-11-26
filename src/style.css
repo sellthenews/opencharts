@@ -99,6 +99,10 @@ body,
   text-decoration: underline;
 }
 
+.site-foot-credit {
+  color: var(--muted);
+}
+
 .site-foot-sep {
   color: var(--muted);
   margin: 0 0.55em;

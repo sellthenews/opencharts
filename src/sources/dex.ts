@@ -350,7 +350,13 @@ async function fetchLedgerCandles(network: DexNetwork, pair: DexPairRef, interva
 async function fetchGtCandles(pair: DexPairRef, interval: IntervalId, opts?: CandleQuery): Promise<Candle[]> {
   if (!pair.address) throw new Error('Missing pool address');
   const srcId = sourceIntervalFor(NATIVE_IDS, interval) ?? interval;
-  let candles = await fetchGeckoOhlcv(pair.networkId, pair.address, srcId, opts?.before);
+  // Polls only need the last bars. Ask upstream for just enough source bars to rebuild them.
+  let bars = 1000;
+  if (opts?.limit && opts.limit <= 5 && opts.before === undefined) {
+    const ratio = Math.max(1, Math.ceil((intervalSeconds(interval) ?? 86400) / Math.max(1, intervalSeconds(srcId) ?? 86400)));
+    bars = Math.min(1000, (opts.limit + 1) * ratio);
+  }
+  let candles = await fetchGeckoOhlcv(pair.networkId, pair.address, srcId, opts?.before, bars);
   if (pair.invert) candles = invertCandles(candles);
   if (srcId !== interval) candles = aggregateCandles(candles, interval);
   if (opts?.before !== undefined) candles = candles.filter((c) => c.time < opts.before!);

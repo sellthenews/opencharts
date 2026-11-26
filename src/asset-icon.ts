@@ -231,9 +231,11 @@ async function resolveXrplIcon(pairId: string, label: string): Promise<string | 
 }
 
 async function geckoJson(path: string): Promise<unknown | null> {
-  const urls = [`${GECKO_API}${path}`];
+  // Worker first: it caches icon lookups for a day and keeps the public GeckoTerminal quota free.
+  const urls: string[] = [];
   const proxy = getStocksProxyUrl();
   if (proxy) urls.push(`${proxy}/dex/gt${path}`);
+  urls.push(`${GECKO_API}${path}`);
   for (const url of urls) {
     const body = await fetchJson(url);
     if (body) return body;

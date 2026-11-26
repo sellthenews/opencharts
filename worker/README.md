@@ -20,11 +20,37 @@ Client cookies and headers are never forwarded. CORS is limited to the GitHub
 Pages origin and local Vite preview/dev origins (not `*`). Each client IP is
 limited to 60 requests per minute inside one Worker isolate.
 
-The frontend talks to official public endpoints first (they currently send
-`Access-Control-Allow-Origin: *`). The Worker is only a fallback when a
-browser, extension, or rate limit blocks those hosts. A 404 from an older
-Worker is turned into a clear “proxy not updated yet” status in the app; the
-chart starts working automatically after this Worker is redeployed.
+DEX pool data (`/dex/gt/…`) goes through this Worker first, and the browser only
+falls back to the keyless public GeckoTerminal API if the Worker fails. Ledger
+RPC still goes browser-first to the official nodes with this Worker as fallback.
+A 404 from an older Worker is turned into a clear “proxy not updated yet” status.
+
+## Shared cache and CoinGecko Demo key
+
+- Optional secret `COINGECKO_DEMO_KEY` (`wrangler secret put COINGECKO_DEMO_KEY`;
+  never in `wrangler.toml`, git, logs or chat). With it, a cache miss on
+  `/dex/gt/…` is fetched from `https://api.coingecko.com/api/v3/onchain/…` with the
+  `x-cg-demo-api-key` header. Without it, or on any CoinGecko error (401, 403, 429,
+  5xx, budget exhausted), the Worker uses keyless GeckoTerminal. After a CoinGecko
+  error it skips CoinGecko for 1 to 60 minutes (per isolate).
+- Credit guard: `worker/market.ts` counts every CoinGecko call per UTC day in D1
+  (`api_budget`, created on first use; `migrations/0002_api_budget.sql` is optional).
+  Hard stops: 300 per day and 9,000 per month (Demo plan is 10,000). Lists and search
+  stop at 150 per day so charts keep priority. Without D1 an in-memory guard of 100
+  per isolate per day is used.
+- Cache API TTLs (seconds, shared by all users; stretched 2x at 50% and 4x at 80% of
+  the daily budget, 2x when CoinGecko is not serving):
+  OHLCV 1m 60 · 5m 60 (last bars) / 120 (full) · 15m 120 / 300 · 1h 300 / 600 ·
+  4h 600 / 900 · 1D 600 / 1800; older pages (`before_timestamp`) 1 to 6 h;
+  pool detail 120; pool lists 300; search 600.
+  Yahoo by interval: 1m 30 · 2m–5m 60 · 15m–30m 120 · 1h 300 · 1d 300 ·
+  1wk/1mo 900; ranges 1d/5d 60; older pages 3600.
+  Ledger RPC reads: `server_info`/`ledger` 10, `amm_info`/`book_offers`/`account_info` 15,
+  `account_tx` 60, requests pinned to a past ledger 3600. Errors are never cached.
+- Browsers only reuse live data for 30 s (DEX) or 60 s (Yahoo) so polling stays fresh.
+- Cache hits are not counted toward the 60 requests/min/IP limit.
+- Responses carry `X-Swapwick-Cache: HIT|MISS` and `X-Swapwick-Upstream: coingecko|geckoterminal`.
+- Data from CoinGecko must be credited: the site footer links to coingecko.com.
 
 Changes in this Worker are not live until the owner deploys them with wrangler.
 

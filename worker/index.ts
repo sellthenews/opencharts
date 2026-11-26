@@ -11,6 +11,16 @@
  */
 
 import { tryHandleAccounts, type Env } from './accounts';
+import {
+  CG_ONCHAIN_BASE,
+  allowBurst,
+  geckoPolicy,
+  ledgerTtl,
+  reserveCredit,
+  sha256Hex,
+  stretchTtl,
+  yahooTtl,
+} from './market';
 
 const ALLOWED_ORIGINS = new Set([
   'https://swapwick.com',
@@ -83,6 +93,7 @@ function corsHeaders(origin: string | null): Headers {
     headers.set('Access-Control-Allow-Credentials', 'true');
     headers.set('Access-Control-Allow-Headers', 'Content-Type');
     headers.set('Access-Control-Max-Age', '86400');
+    headers.set('Access-Control-Expose-Headers', 'X-Swapwick-Cache, X-Swapwick-Upstream');
     headers.set('Vary', 'Origin');
   }
   return headers;
@@ -130,7 +141,7 @@ function buildUpstreamPath(url: URL, symbol: string | null): string {
   return `/v1/finance/search${url.search}`;
 }
 
-async function fetchUpstream(pathAndQuery: string, runtime: WorkerRuntime): Promise<Response> {
+async function fetchUpstream(pathAndQuery: string, runtime: WorkerRuntime, ttl: number): Promise<Response> {
   const doFetch = runtime.fetch ?? fetch;
   let lastError: Error | null = null;
   for (const base of UPSTREAMS) {
@@ -142,7 +153,7 @@ async function fetchUpstream(pathAndQuery: string, runtime: WorkerRuntime): Prom
           Accept: 'application/json',
           'User-Agent': UA,
         },
-        cf: { cacheTtl: CACHE_TTL_S, cacheEverything: true },
+        cf: { cacheTtl: ttl, cacheEverything: true },
       } as RequestInit);
       if (res.status >= 500) {
         lastError = new Error(`Upstream HTTP ${res.status}`);
@@ -156,7 +167,7 @@ async function fetchUpstream(pathAndQuery: string, runtime: WorkerRuntime): Prom
   throw lastError ?? new Error('Upstream unavailable');
 }
 
-function asJsonResponse(upstream: Response, body: ArrayBuffer): Response | null {
+function asJsonResponse(upstream: Response, body: ArrayBuffer, ttl: number): Response | null {
   const contentType = upstream.headers.get('Content-Type') || '';
   if (contentType && !/json/i.test(contentType)) return null;
   const text = new TextDecoder().decode(body);
@@ -170,29 +181,77 @@ function asJsonResponse(upstream: Response, body: ArrayBuffer): Response | null 
     statusText: upstream.statusText,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': `public, max-age=${CACHE_TTL_S}`,
+      'Cache-Control': `public, max-age=${ttl}`,
     },
   });
 }
 
-async function cachedUpstream(pathAndQuery: string, runtime: WorkerRuntime): Promise<Response> {
-  const cacheKeyUrl = `https://opencharts-proxy.cache${pathAndQuery}`;
-  if (runtime.cache) {
-    const hit = await runtime.cache.match(new Request(cacheKeyUrl, { method: 'GET' }));
-    if (hit) return hit;
+/** One upstream fetch per cache key at a time inside an isolate. */
+const inflight = new Map<string, Promise<Response>>();
+
+async function dedupe(key: string, load: () => Promise<Response>): Promise<Response> {
+  let task = inflight.get(key);
+  if (!task) {
+    task = load().finally(() => inflight.delete(key));
+    inflight.set(key, task);
   }
-  const upstream = await fetchUpstream(pathAndQuery, runtime);
-  const body = await upstream.arrayBuffer();
-  const stored = asJsonResponse(upstream, body);
-  if (!stored) throw new Error('Upstream did not return JSON');
-  if (runtime.cache && upstream.ok) {
-    const put = runtime.cache.put(new Request(cacheKeyUrl, { method: 'GET' }), stored.clone());
-    if (runtime.waitUntil) runtime.waitUntil(put);
-    else await put;
-  }
-  return stored;
+  return (await task).clone();
 }
 
+export interface MarketResult {
+  res: Response;
+  hit: boolean;
+}
+
+async function cacheMatch(runtime: WorkerRuntime, keyUrl: string): Promise<Response | null> {
+  if (!runtime.cache) return null;
+  return (await runtime.cache.match(new Request(keyUrl, { method: 'GET' }))) ?? null;
+}
+
+async function cachePut(runtime: WorkerRuntime, keyUrl: string, res: Response): Promise<void> {
+  if (!runtime.cache) return;
+  const put = runtime.cache.put(new Request(keyUrl, { method: 'GET' }), res);
+  if (runtime.waitUntil) runtime.waitUntil(put);
+  else await put;
+}
+
+function capMaxAge(cacheControl: string, cap: number): string {
+  return cacheControl.replace(/max-age=(\d+)/, (_m, n: string) => `max-age=${Math.min(Number(n), cap)}`);
+}
+
+/**
+ * Headers for the browser: the shared Cache API keeps the full TTL, but the browser only
+ * reuses short-lived data for a short time so polling still sees fresh bars.
+ */
+function marketResponse(result: MarketResult, origin: string | null, clientCap?: number): Response {
+  const { res, hit } = result;
+  const headers = new Headers();
+  headers.set('Content-Type', res.headers.get('Content-Type') || 'application/json; charset=utf-8');
+  const stored = res.headers.get('Cache-Control') || `public, max-age=${CACHE_TTL_S}`;
+  headers.set('Cache-Control', clientCap ? capMaxAge(stored, clientCap) : stored);
+  const upstream = res.headers.get('X-Swapwick-Upstream');
+  if (upstream) headers.set('X-Swapwick-Upstream', upstream);
+  headers.set('X-Swapwick-Cache', hit ? 'HIT' : 'MISS');
+  applyCors(headers, origin);
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
+async function cachedUpstream(pathAndQuery: string, ttl: number, runtime: WorkerRuntime, peeked = false): Promise<MarketResult> {
+  const cacheKeyUrl = `https://opencharts-proxy.cache${pathAndQuery}`;
+  if (!peeked) {
+    const hit = await cacheMatch(runtime, cacheKeyUrl);
+    if (hit) return { res: hit, hit: true };
+  }
+  const res = await dedupe(cacheKeyUrl, async () => {
+    const upstream = await fetchUpstream(pathAndQuery, runtime, ttl);
+    const body = await upstream.arrayBuffer();
+    const stored = asJsonResponse(upstream, body, ttl);
+    if (!stored) throw new Error('Upstream did not return JSON');
+    if (upstream.ok) await cachePut(runtime, cacheKeyUrl, stored.clone());
+    return stored;
+  });
+  return { res, hit: false };
+}
 
 const GT_BASE = 'https://api.geckoterminal.com/api/v2';
 const GT_NET = /^[a-z0-9_]{1,32}$/;
@@ -241,38 +300,81 @@ function parseRpcNetwork(pathname: string): 'xrpl' | 'xahau' | null {
   return null;
 }
 
-const GT_LIST_TTL_S = 300;
+/** After a CoinGecko 401/403/429/5xx, skip it for a while and use keyless GeckoTerminal. */
+let cgBlockedUntil = 0;
 
-function geckoCacheTtl(pathAndQuery: string): number {
-  return /\/ohlcv\//.test(pathAndQuery) ? CACHE_TTL_S : GT_LIST_TTL_S;
+export function resetGeckoStateForTests(): void {
+  cgBlockedUntil = 0;
+  inflight.clear();
 }
 
-async function proxyGecko(pathAndQuery: string, runtime: WorkerRuntime): Promise<Response> {
-  const ttl = geckoCacheTtl(pathAndQuery);
-  const cacheKeyUrl = `https://opencharts-proxy.cache/dex/gt${pathAndQuery}`;
-  if (runtime.cache) {
-    const hit = await runtime.cache.match(new Request(cacheKeyUrl, { method: 'GET' }));
-    if (hit) return hit;
-  }
+async function fetchCoinGecko(pathAndQuery: string, apiKey: string, runtime: WorkerRuntime): Promise<Response | null> {
   const doFetch = runtime.fetch ?? fetch;
-  const upstream = `${GT_BASE}${pathAndQuery}`;
-  const res = await doFetch(upstream, {
-    method: 'GET',
-    headers: { Accept: 'application/json', 'User-Agent': UA },
-  });
-  const contentType = res.headers.get('Content-Type') || 'application/json; charset=utf-8';
-  const body = await res.arrayBuffer();
-  const stored = new Response(body, {
-    status: res.status,
-    statusText: res.statusText,
-    headers: { 'Content-Type': contentType, 'Cache-Control': `public, max-age=${ttl}` },
-  });
-  if (runtime.cache && res.ok) {
-    const put = runtime.cache.put(new Request(cacheKeyUrl, { method: 'GET' }), stored.clone());
-    if (runtime.waitUntil) runtime.waitUntil(put);
-    else await put;
+  const now = Date.now();
+  try {
+    const res = await doFetch(`${CG_ONCHAIN_BASE}${pathAndQuery}`, {
+      method: 'GET',
+      headers: { Accept: 'application/json', 'User-Agent': UA, 'x-cg-demo-api-key': apiKey },
+    });
+    if (res.ok) return res;
+    if (res.status === 429) cgBlockedUntil = now + 5 * 60_000;
+    else if (res.status === 401 || res.status === 403) cgBlockedUntil = now + 60 * 60_000;
+    else if (res.status >= 500) cgBlockedUntil = now + 60_000;
+    return null;
+  } catch {
+    cgBlockedUntil = now + 60_000;
+    return null;
   }
+}
+
+async function loadGecko(pathAndQuery: string, cacheKeyUrl: string, runtime: WorkerRuntime, env?: Env): Promise<Response> {
+  const policy = geckoPolicy(pathAndQuery);
+  const apiKey = env?.COINGECKO_DEMO_KEY;
+  let upstream: Response | null = null;
+  let source: 'coingecko' | 'geckoterminal' = 'geckoterminal';
+  let share = 0;
+  if (apiKey && Date.now() >= cgBlockedUntil && allowBurst()) {
+    const priority = policy.kind === 'ohlcv' || policy.kind === 'detail' ? 'high' : 'low';
+    const reservation = await reserveCredit(env?.DB, priority, new Date(), runtime.waitUntil);
+    share = reservation.share;
+    if (reservation.ok) {
+      upstream = await fetchCoinGecko(pathAndQuery, apiKey, runtime);
+      if (upstream) source = 'coingecko';
+    }
+  }
+  if (!upstream) {
+    const doFetch = runtime.fetch ?? fetch;
+    upstream = await doFetch(`${GT_BASE}${pathAndQuery}`, {
+      method: 'GET',
+      headers: { Accept: 'application/json', 'User-Agent': UA },
+    });
+  }
+  const contentType = upstream.headers.get('Content-Type') || 'application/json; charset=utf-8';
+  const body = await upstream.arrayBuffer();
+  let ttl = 0;
+  if (upstream.ok) ttl = stretchTtl(policy.ttl, share, source === 'coingecko', Boolean(apiKey));
+  else if (upstream.status === 404) ttl = 30; // do not spend credits repeatedly on a missing pool
+  const stored = new Response(body, {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers: {
+      'Content-Type': contentType,
+      'Cache-Control': ttl > 0 ? `public, max-age=${ttl}` : 'no-store',
+      'X-Swapwick-Upstream': source,
+    },
+  });
+  if (ttl > 0) await cachePut(runtime, cacheKeyUrl, stored.clone());
   return stored;
+}
+
+async function proxyGecko(pathAndQuery: string, runtime: WorkerRuntime, env?: Env, peeked = false): Promise<MarketResult> {
+  const cacheKeyUrl = `https://opencharts-proxy.cache/dex/gt${pathAndQuery}`;
+  if (!peeked) {
+    const hit = await cacheMatch(runtime, cacheKeyUrl);
+    if (hit) return { res: hit, hit: true };
+  }
+  const res = await dedupe(cacheKeyUrl, () => loadGecko(pathAndQuery, cacheKeyUrl, runtime, env));
+  return { res, hit: false };
 }
 
 async function proxyLedger(network: 'xrpl' | 'xahau', payload: unknown, runtime: WorkerRuntime): Promise<Response> {
@@ -303,6 +405,101 @@ async function proxyLedger(network: 'xrpl' | 'xahau', payload: unknown, runtime:
   throw lastError ?? new Error('Upstream unavailable');
 }
 
+interface RpcCall {
+  network: 'xrpl' | 'xahau';
+  payload: { method: string; params: unknown[] };
+}
+
+type RpcParse = { call: RpcCall } | { error: Response };
+
+function parseRpcBody(payload: { method?: unknown; params?: unknown }, network: 'xrpl' | 'xahau', origin: string | null): RpcParse {
+  const method = typeof payload.method === 'string' ? payload.method : '';
+  if (!LEDGER_METHODS.has(method)) return { error: jsonError(403, 'Method not allowed', origin) };
+  const params = payload.params;
+  if (params !== undefined && (!Array.isArray(params) || params.length > 1 || (params[0] != null && typeof params[0] !== 'object'))) {
+    return { error: jsonError(403, 'Invalid params', origin) };
+  }
+  return { call: { network, payload: { method, params: (params as unknown[] | undefined) ?? [{}] } } };
+}
+
+async function rpcCacheKey(call: RpcCall): Promise<string> {
+  const hash = await sha256Hex(JSON.stringify(call.payload));
+  return `https://opencharts-proxy.cache/dex/rpc/${call.network}/${hash}`;
+}
+
+/** Read-only ledger RPC with a short shared cache; errors and non-success results are never stored. */
+async function cachedLedger(call: RpcCall, runtime: WorkerRuntime, peeked = false): Promise<MarketResult> {
+  const ttl = ledgerTtl(call.payload.method, call.payload.params);
+  const keyUrl = await rpcCacheKey(call);
+  if (ttl > 0 && !peeked) {
+    const hit = await cacheMatch(runtime, keyUrl);
+    if (hit) return { res: hit, hit: true };
+  }
+  const res = await dedupe(`${keyUrl}#${ttl}`, async () => {
+    const upstream = await proxyLedger(call.network, call.payload, runtime);
+    if (ttl > 0 && upstream.ok) {
+      const text = await upstream.clone().text();
+      let success = false;
+      try {
+        success = (JSON.parse(text) as { result?: { status?: string } }).result?.status === 'success';
+      } catch {
+        success = false;
+      }
+      if (success) {
+        const stored = new Response(text, {
+          status: 200,
+          headers: {
+            'Content-Type': upstream.headers.get('Content-Type') || 'application/json; charset=utf-8',
+            'Cache-Control': `public, max-age=${ttl}`,
+          },
+        });
+        await cachePut(runtime, keyUrl, stored);
+      }
+    }
+    return upstream;
+  });
+  return { res, hit: false };
+}
+
+function rpcResponse(result: MarketResult, origin: string | null): Response {
+  const headers = new Headers();
+  headers.set('Content-Type', result.res.headers.get('Content-Type') || 'application/json; charset=utf-8');
+  headers.set('Cache-Control', 'no-store');
+  headers.set('X-Swapwick-Cache', result.hit ? 'HIT' : 'MISS');
+  applyCors(headers, origin);
+  return new Response(result.res.body, { status: result.res.status, statusText: result.res.statusText, headers });
+}
+
+interface MarketRoute {
+  kind: 'yahoo' | 'gecko';
+  pathAndQuery: string;
+  ttl: number;
+  clientCap: number | undefined;
+}
+
+/** Resolve a cacheable GET route without touching the network. Null when invalid or not a market path. */
+function marketRoute(url: URL): MarketRoute | null {
+  const gtPath = parseGtPath(url.pathname);
+  if (gtPath) {
+    if (validateQuery(url, GT_PARAMS)) return null;
+    const pathAndQuery = `${gtPath}${url.search}`;
+    const policy = geckoPolicy(pathAndQuery);
+    const live = policy.kind === 'ohlcv' || policy.kind === 'detail';
+    return { kind: 'gecko', pathAndQuery, ttl: policy.ttl, clientCap: live ? 30 : undefined };
+  }
+  const symbol = parseChartPath(url.pathname);
+  const isSearch = url.pathname === '/v1/finance/search';
+  if (!symbol && !isSearch) return null;
+  if (validateQuery(url, symbol ? CHART_PARAMS : SEARCH_PARAMS)) return null;
+  if (isSearch && !url.searchParams.get('q')) return null;
+  return { kind: 'yahoo', pathAndQuery: buildUpstreamPath(url, symbol), ttl: yahooTtl(url), clientCap: 60 };
+}
+
+async function peekRoute(route: MarketRoute, runtime: WorkerRuntime): Promise<Response | null> {
+  const keyUrl = route.kind === 'gecko' ? `https://opencharts-proxy.cache/dex/gt${route.pathAndQuery}` : `https://opencharts-proxy.cache${route.pathAndQuery}`;
+  return cacheMatch(runtime, keyUrl);
+}
+
 export async function handleRequest(request: Request, runtime: WorkerRuntime = {}, env?: Env): Promise<Response> {
   const origin = request.headers.get('Origin');
 
@@ -310,6 +507,35 @@ export async function handleRequest(request: Request, runtime: WorkerRuntime = {
     const headers = corsHeaders(origin);
     headers.set('Cache-Control', 'public, max-age=86400');
     return new Response(null, { status: 204, headers });
+  }
+
+  const url = new URL(request.url);
+  const rpcNet = parseRpcNetwork(url.pathname);
+
+  // Cache hits are cheap and never count toward the per-IP limit.
+  let route: MarketRoute | null = null;
+  let rpcCall: RpcCall | null = null;
+  let rpcPeek: MarketResult | null = null;
+  if (request.method === 'GET') {
+    route = marketRoute(url);
+    if (route) {
+      const hit = await peekRoute(route, runtime);
+      if (hit) return marketResponse({ res: hit, hit: true }, origin, route.clientCap);
+    }
+  } else if (request.method === 'POST' && rpcNet) {
+    try {
+      const parsed = parseRpcBody((await request.clone().json()) as { method?: unknown; params?: unknown }, rpcNet, origin);
+      if ('call' in parsed) {
+        rpcCall = parsed.call;
+        if (ledgerTtl(rpcCall.payload.method, rpcCall.payload.params) > 0) {
+          const hit = await cacheMatch(runtime, await rpcCacheKey(rpcCall));
+          if (hit) rpcPeek = { res: hit, hit: true };
+        }
+      }
+    } catch {
+      /* handled below with the normal checks */
+    }
+    if (rpcPeek) return rpcResponse(rpcPeek, origin);
   }
 
   if (rateLimited(request)) {
@@ -321,10 +547,6 @@ export async function handleRequest(request: Request, runtime: WorkerRuntime = {
   const accounts = await tryHandleAccounts(request, env, { origin, jsonError, applyCors });
   if (accounts) return accounts;
 
-  const url = new URL(request.url);
-  const gtPath = parseGtPath(url.pathname);
-  const rpcNet = parseRpcNetwork(url.pathname);
-
   if (request.method === 'POST' && rpcNet) {
     let payload: { method?: unknown; params?: unknown };
     try {
@@ -332,19 +554,10 @@ export async function handleRequest(request: Request, runtime: WorkerRuntime = {
     } catch {
       return jsonError(400, 'Invalid JSON', origin);
     }
-    const method = typeof payload.method === 'string' ? payload.method : '';
-    if (!LEDGER_METHODS.has(method)) return jsonError(403, 'Method not allowed', origin);
-    const params = payload.params;
-    if (params !== undefined && (!Array.isArray(params) || params.length > 1 || (params[0] != null && typeof params[0] !== 'object'))) {
-      return jsonError(403, 'Invalid params', origin);
-    }
+    const parsed = parseRpcBody(payload, rpcNet, origin);
+    if ('error' in parsed) return parsed.error;
     try {
-      const upstream = await proxyLedger(rpcNet, { method, params: params ?? [{}] }, runtime);
-      const headers = new Headers();
-      headers.set('Content-Type', upstream.headers.get('Content-Type') || 'application/json; charset=utf-8');
-      headers.set('Cache-Control', 'no-store');
-      applyCors(headers, origin);
-      return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers });
+      return rpcResponse(await cachedLedger(parsed.call, runtime, true), origin);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       return jsonError(502, `Proxy error: ${message}`, origin);
@@ -355,16 +568,13 @@ export async function handleRequest(request: Request, runtime: WorkerRuntime = {
     return jsonError(405, 'Method not allowed', origin);
   }
 
+  const gtPath = parseGtPath(url.pathname);
   if (gtPath) {
     const invalid = validateQuery(url, GT_PARAMS);
     if (invalid) return jsonError(403, invalid, origin);
+    if (!route) return jsonError(404, 'Not found', origin);
     try {
-      const upstream = await proxyGecko(`${gtPath}${url.search}`, runtime);
-      const headers = new Headers();
-      headers.set('Content-Type', upstream.headers.get('Content-Type') || 'application/json; charset=utf-8');
-      headers.set('Cache-Control', upstream.headers.get('Cache-Control') || `public, max-age=${CACHE_TTL_S}`);
-      applyCors(headers, origin);
-      return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers });
+      return marketResponse(await proxyGecko(route.pathAndQuery, runtime, env, true), origin, route.clientCap);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       return jsonError(502, `Proxy error: ${message}`, origin);
@@ -388,13 +598,9 @@ export async function handleRequest(request: Request, runtime: WorkerRuntime = {
     if (!q) return jsonError(403, 'Missing q', origin);
   }
 
+  if (!route) return jsonError(404, 'Not found', origin);
   try {
-    const upstream = await cachedUpstream(buildUpstreamPath(url, symbol), runtime);
-    const headers = new Headers();
-    headers.set('Content-Type', 'application/json; charset=utf-8');
-    headers.set('Cache-Control', upstream.headers.get('Cache-Control') || `public, max-age=${CACHE_TTL_S}`);
-    applyCors(headers, origin);
-    return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers });
+    return marketResponse(await cachedUpstream(route.pathAndQuery, route.ttl, runtime, true), origin, route.clientCap);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return jsonError(502, `Proxy error: ${message}`, origin);

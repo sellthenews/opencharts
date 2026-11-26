@@ -450,3 +450,271 @@ test('XRPL GeckoTerminal pool addresses with dots are allowed and list responses
   assert.equal(list.status, 200);
   assert.ok((list.headers.get('Cache-Control') ?? '').includes('max-age=300'));
 });
+
+/* ---------- CoinGecko Demo key, shared cache, credit budget ---------- */
+
+import { geckoPolicy, ledgerTtl, reserveCredit, resetBudgetForTests, stretchTtl, yahooTtl, DAILY_CREDITS, type BudgetDb } from './market.ts';
+import { resetGeckoStateForTests } from './index.ts';
+
+const FAKE_KEY = 'CG-test-key-not-real';
+const POOL = '/dex/gt/networks/eth/pools/0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640/ohlcv/hour?aggregate=1&limit=1000&currency=token';
+
+function memoryCache(): Cache {
+  const store = new Map<string, Response>();
+  return {
+    match: async (r: Request) => store.get(String(r.url))?.clone(),
+    put: async (r: Request, res: Response) => {
+      store.set(String(r.url), res);
+    },
+  } as unknown as Cache;
+}
+
+function fakeDb(rows: Map<string, number> = new Map()): BudgetDb {
+  return {
+    prepare(sql: string) {
+      const run = async () => {
+        if (/INSERT INTO api_budget/.test(sql)) return undefined;
+        return undefined;
+      };
+      return {
+        run,
+        bind(...values: unknown[]) {
+          return {
+            run: async () => {
+              if (/INSERT INTO api_budget/.test(sql)) {
+                const day = String(values[0]);
+                rows.set(day, (rows.get(day) ?? 0) + 1);
+              }
+              return undefined;
+            },
+            first: async <T,>() => {
+              if (/FROM api_budget WHERE day = \?/.test(sql)) {
+                const used = rows.get(String(values[0]));
+                return (used === undefined ? null : { used }) as T | null;
+              }
+              const prefix = String(values[0]).replace('%', '');
+              let sum = 0;
+              for (const [day, used] of rows) if (day.startsWith(prefix)) sum += used;
+              return { used: sum } as T;
+            },
+          };
+        },
+      };
+    },
+  };
+}
+
+test('GeckoTerminal data comes from CoinGecko with the Demo key only on a cache miss', async () => {
+  resetRateLimit();
+  resetBudgetForTests();
+  resetGeckoStateForTests();
+  const seen: Array<{ url: string; headers: Headers }> = [];
+  const runtime = {
+    cache: memoryCache(),
+    fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+      seen.push({ url: String(input), headers: new Headers(init?.headers) });
+      return new Response(JSON.stringify({ data: { attributes: { ohlcv_list: [] } } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    },
+  };
+  const env = { COINGECKO_DEMO_KEY: FAKE_KEY } as Env;
+  const mk = () => new Request(`https://opencharts-proxy.workers.dev${POOL}`, { headers: { Origin: PAGES, Cookie: 'x=1' } });
+  const first = await handleRequest(mk(), runtime, env);
+  assert.equal(first.status, 200);
+  assert.equal(first.headers.get('X-Swapwick-Cache'), 'MISS');
+  assert.equal(first.headers.get('X-Swapwick-Upstream'), 'coingecko');
+  assert.equal(seen.length, 1);
+  assert.ok(seen[0]!.url.startsWith('https://api.coingecko.com/api/v3/onchain/networks/eth/pools/'));
+  assert.equal(seen[0]!.headers.get('x-cg-demo-api-key'), FAKE_KEY);
+  assert.equal(seen[0]!.headers.get('Cookie'), null);
+  // the key never reaches the browser
+  assert.ok(![...first.headers.values()].some((v) => v.includes(FAKE_KEY)));
+  assert.ok(!(await first.text()).includes(FAKE_KEY));
+
+  const second = await handleRequest(mk(), runtime, env);
+  assert.equal(second.status, 200);
+  assert.equal(second.headers.get('X-Swapwick-Cache'), 'HIT');
+  assert.equal(second.headers.get('X-Swapwick-Upstream'), 'coingecko');
+  assert.equal(seen.length, 1);
+  assert.equal(second.headers.get('Access-Control-Allow-Origin'), PAGES);
+  assert.match(second.headers.get('Cache-Control') ?? '', /max-age=30/); // browser reuse is capped
+});
+
+test('CoinGecko errors and an exhausted budget fall back to keyless GeckoTerminal', async () => {
+  resetRateLimit();
+  resetBudgetForTests();
+  resetGeckoStateForTests();
+  const urls: string[] = [];
+  const runtime = {
+    cache: memoryCache(),
+    fetch: async (input: RequestInfo | URL) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.startsWith('https://api.coingecko.com/')) return new Response('{"status":{"error_code":429}}', { status: 429, headers: { 'Content-Type': 'application/json' } });
+      return new Response('{"data":[]}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    },
+  };
+  const env = { COINGECKO_DEMO_KEY: FAKE_KEY } as Env;
+  const a = await handleRequest(req(POOL), runtime, env);
+  assert.equal(a.status, 200);
+  assert.equal(a.headers.get('X-Swapwick-Upstream'), 'geckoterminal');
+  assert.equal(urls.filter((u) => u.includes('coingecko.com')).length, 1);
+  // cooldown: the next miss goes straight to GeckoTerminal without touching CoinGecko again
+  const b = await handleRequest(req('/dex/gt/networks/base/pools?page=1'), runtime, env);
+  assert.equal(b.status, 200);
+  assert.equal(urls.filter((u) => u.includes('coingecko.com')).length, 1);
+
+  // daily budget exhausted in D1: CoinGecko is not called at all
+  resetGeckoStateForTests();
+  resetBudgetForTests();
+  const day = new Date().toISOString().slice(0, 10);
+  const rows = new Map([[day, DAILY_CREDITS]]);
+  const urls2: string[] = [];
+  const runtime2 = {
+    cache: memoryCache(),
+    fetch: async (input: RequestInfo | URL) => {
+      urls2.push(String(input));
+      return new Response('{"data":[]}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    },
+  };
+  const c = await handleRequest(req(POOL), runtime2, { COINGECKO_DEMO_KEY: FAKE_KEY, DB: fakeDb(rows) as unknown as Env['DB'] } as Env);
+  assert.equal(c.status, 200);
+  assert.equal(c.headers.get('X-Swapwick-Upstream'), 'geckoterminal');
+  assert.ok(urls2.every((u) => u.startsWith('https://api.geckoterminal.com/')));
+});
+
+test('credit budget counts in D1, reserves lists below charts, and stops at the monthly cap', async () => {
+  resetBudgetForTests();
+  const rows = new Map<string, number>();
+  const db = fakeDb(rows);
+  const now = new Date('2026-11-26T12:00:00Z');
+  const r = await reserveCredit(db, 'high', now);
+  assert.equal(r.ok, true);
+  assert.equal(rows.get('2026-11-26'), 1);
+  rows.set('2026-11-26', DAILY_CREDITS / 2);
+  assert.equal((await reserveCredit(db, 'low', now)).ok, false); // lists stop at half a day
+  assert.equal((await reserveCredit(db, 'high', now)).ok, true); // charts continue
+  rows.set('2026-11-26', 0);
+  rows.set('2026-11-01', 9000);
+  assert.equal((await reserveCredit(db, 'high', now)).ok, false); // month cap
+  assert.equal((await reserveCredit(db, 'high', new Date('2026-12-01T00:10:00Z'))).ok, true); // new month
+});
+
+test('TTL tables follow the timeframe and stretch when credits run low', () => {
+  assert.equal(geckoPolicy('/networks/eth/pools/0xa/ohlcv/minute?aggregate=1&limit=1000').ttl, 60);
+  assert.equal(geckoPolicy('/networks/eth/pools/0xa/ohlcv/minute?aggregate=5&limit=1000').ttl, 120);
+  assert.equal(geckoPolicy('/networks/eth/pools/0xa/ohlcv/minute?aggregate=15&limit=1000').ttl, 300);
+  assert.equal(geckoPolicy('/networks/eth/pools/0xa/ohlcv/hour?aggregate=1&limit=1000').ttl, 600);
+  assert.equal(geckoPolicy('/networks/eth/pools/0xa/ohlcv/hour?aggregate=4&limit=1000').ttl, 900);
+  assert.equal(geckoPolicy('/networks/eth/pools/0xa/ohlcv/day?aggregate=1&limit=1000').ttl, 1800);
+  // last-bar polls are cheaper to keep fresh
+  assert.equal(geckoPolicy('/networks/eth/pools/0xa/ohlcv/day?aggregate=1&limit=3').ttl, 600);
+  assert.equal(geckoPolicy('/networks/eth/pools/0xa/ohlcv/hour?aggregate=1&limit=3').ttl, 300);
+  // older pages are closed history
+  assert.equal(geckoPolicy('/networks/eth/pools/0xa/ohlcv/day?aggregate=1&limit=1000&before_timestamp=1700000000').ttl, 6 * 3600);
+  assert.deepEqual(geckoPolicy('/search/pools?query=weth'), { kind: 'search', ttl: 600 });
+  assert.deepEqual(geckoPolicy('/networks/eth/pools?page=1'), { kind: 'list', ttl: 300 });
+  assert.deepEqual(geckoPolicy('/networks/eth/pools/0xa'), { kind: 'detail', ttl: 120 });
+  assert.deepEqual(geckoPolicy('/networks/eth/pools/0xa?include=base_token'), { kind: 'icon', ttl: 86400 });
+  assert.equal(stretchTtl(600, 0.1, true, true), 600);
+  assert.equal(stretchTtl(600, 0.6, true, true), 1200);
+  assert.equal(stretchTtl(600, 0.9, true, true), 2400);
+  assert.equal(stretchTtl(600, 0, false, true), 1200);
+  assert.equal(stretchTtl(600, 0.9, true, false), 600);
+
+  assert.equal(yahooTtl(new URL('https://x/v8/finance/chart/AAPL?interval=1m&range=7d')), 30);
+  assert.equal(yahooTtl(new URL('https://x/v8/finance/chart/AAPL?interval=5m&range=60d')), 60);
+  assert.equal(yahooTtl(new URL('https://x/v8/finance/chart/AAPL?interval=1h&range=3mo')), 300);
+  assert.equal(yahooTtl(new URL('https://x/v8/finance/chart/AAPL?interval=1d&range=5y')), 300);
+  assert.equal(yahooTtl(new URL('https://x/v8/finance/chart/AAPL?interval=1d&range=5d')), 60);
+  assert.equal(yahooTtl(new URL('https://x/v8/finance/chart/AAPL?interval=1wk&range=max')), 900);
+  assert.equal(yahooTtl(new URL('https://x/v8/finance/chart/AAPL?interval=1d&range=5y&period2=1700000000')), 3600);
+
+  assert.equal(ledgerTtl('server_info', [{}]), 10);
+  assert.equal(ledgerTtl('amm_info', [{ ledger_index: 'validated' }]), 15);
+  assert.equal(ledgerTtl('book_offers', [{ ledger_index: 95000000 }]), 3600);
+  assert.equal(ledgerTtl('account_tx', [{ ledger_index_min: -1, ledger_index_max: -1 }]), 60);
+});
+
+test('a burst of misses spills over to keyless GeckoTerminal instead of tripping the CoinGecko limit', async () => {
+  resetRateLimit();
+  resetBudgetForTests();
+  resetGeckoStateForTests();
+  let cg = 0;
+  let gt = 0;
+  const runtime = {
+    cache: memoryCache(),
+    fetch: async (input: RequestInfo | URL) => {
+      if (String(input).startsWith('https://api.coingecko.com/')) cg += 1;
+      else gt += 1;
+      return new Response('{"data":[]}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    },
+  };
+  const env = { COINGECKO_DEMO_KEY: FAKE_KEY } as Env;
+  for (let i = 0; i < 55; i++) {
+    const res = await handleRequest(
+      new Request(`https://opencharts-proxy.workers.dev/dex/gt/networks/eth/pools/0x${i.toString(16).padStart(40, '0')}`, { headers: { 'CF-Connecting-IP': `203.0.113.${i}` } }),
+      runtime,
+      env,
+    );
+    assert.equal(res.status, 200);
+  }
+  assert.equal(cg, 40);
+  assert.equal(gt, 15);
+});
+
+test('cache hits do not count toward the per-IP limit', async () => {
+  resetRateLimit();
+  resetBudgetForTests();
+  resetGeckoStateForTests();
+  let upstream = 0;
+  const runtime = {
+    cache: memoryCache(),
+    fetch: async () => {
+      upstream += 1;
+      return new Response('{"data":[]}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    },
+  };
+  const mk = () => new Request(`https://opencharts-proxy.workers.dev${POOL}`, { headers: { Origin: PAGES, 'CF-Connecting-IP': '198.51.100.7' } });
+  for (let i = 0; i < 90; i++) {
+    const res = await handleRequest(mk(), runtime);
+    assert.equal(res.status, 200, `request ${i}`);
+  }
+  assert.equal(upstream, 1);
+});
+
+test('read-only ledger RPC reads are cached briefly, failures and unsafe methods are not', async () => {
+  resetRateLimit();
+  let upstream = 0;
+  let mode: 'ok' | 'error' = 'ok';
+  const runtime = {
+    cache: memoryCache(),
+    fetch: async () => {
+      upstream += 1;
+      const body = mode === 'ok' ? { result: { status: 'success', amm: {} } } : { result: { status: 'error', error: 'actNotFound' } };
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    },
+  };
+  const post = (method: string, params: unknown) =>
+    new Request('https://opencharts-proxy.workers.dev/dex/rpc/xrpl', {
+      method: 'POST',
+      headers: { Origin: PAGES, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method, params }),
+    });
+  const a = await handleRequest(post('amm_info', [{ amm_account: 'rX', ledger_index: 'validated' }]), runtime);
+  assert.equal(a.status, 200);
+  assert.equal(a.headers.get('X-Swapwick-Cache'), 'MISS');
+  const b = await handleRequest(post('amm_info', [{ amm_account: 'rX', ledger_index: 'validated' }]), runtime);
+  assert.equal(b.headers.get('X-Swapwick-Cache'), 'HIT');
+  assert.equal(b.headers.get('Cache-Control'), 'no-store');
+  assert.equal(upstream, 1);
+  // a different request is a different cache key
+  await handleRequest(post('amm_info', [{ amm_account: 'rY', ledger_index: 'validated' }]), runtime);
+  assert.equal(upstream, 2);
+  // error results are never stored
+  mode = 'error';
+  await handleRequest(post('account_info', [{ account: 'rZ' }]), runtime);
+  await handleRequest(post('account_info', [{ account: 'rZ' }]), runtime);
+  assert.equal(upstream, 4);
+  // unsafe methods are still refused
+  assert.equal((await handleRequest(post('submit', [{ tx_blob: '00' }]), runtime)).status, 403);
+});

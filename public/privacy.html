@@ -106,8 +106,8 @@
       <h2>Market data</h2>
       <p>
         The site requests public market data. When a direct request is blocked, a Cloudflare Worker may
-        request it from public sources, including Yahoo Finance, GeckoTerminal, and public XRPL and Xahau
-        ledger nodes. The proxy does not forward your cookies or account headers to those sources.
+        request it from public sources, including Yahoo Finance, CoinGecko (on-chain pool data, with
+        attribution), GeckoTerminal, and public XRPL and Xahau ledger nodes. The proxy does not forward your cookies or account headers to those sources.
         Requests through the Worker are rate-limited by client IP.
       </p>
 
@@ -168,7 +168,7 @@
       <h2 lang="pl">Dane rynkowe</h2>
       <p lang="pl">
         Strona pobiera publiczne dane rynkowe. Gdy bezpośrednie zapytanie jest zablokowane, Worker Cloudflare
-        może pobrać je z publicznych źródeł, w tym z Yahoo Finance, GeckoTerminal oraz publicznych węzłów
+        może pobrać je z publicznych źródeł, w tym z Yahoo Finance, CoinGecko (dane puli on-chain, z atrybucją), GeckoTerminal oraz publicznych węzłów
         rejestrów XRPL i Xahau. Pośrednik nie przesyła do tych źródeł Twoich ciasteczek ani nagłówków konta.
         Zapytania przez Workera są ograniczane według adresu IP klienta.
       </p>
