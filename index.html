@@ -30,19 +30,22 @@
           <span class="brand-name">Swapwick</span>
         </div>
 
-        <label class="field" id="exchange-field">
-          <span data-i18n="toolbar.exchange">Exchange</span>
-          <select id="source" data-source></select>
-        </label>
-
-        <label class="field" id="network-field" hidden>
-          <span data-i18n="toolbar.network">Network</span>
-          <select id="dex-network" data-network aria-label="Network" data-i18n-aria="toolbar.network"></select>
-        </label>
+        <!-- The source and network are chosen from the symbol search now. These selects only hold that state. -->
+        <div class="state-holders visually-hidden" aria-hidden="true">
+          <label class="field" id="exchange-field">
+            <span data-i18n="toolbar.exchange">Exchange</span>
+            <select id="source" data-source tabindex="-1"></select>
+          </label>
+          <label class="field" id="network-field">
+            <span data-i18n="toolbar.network">Network</span>
+            <select id="dex-network" data-network tabindex="-1" aria-label="Network" data-i18n-aria="toolbar.network"></select>
+          </label>
+        </div>
 
         <label class="field field-pair">
           <span data-i18n="toolbar.pair">Pair</span>
           <button type="button" id="pair-btn" title="Search symbol (start typing)" data-i18n-title="toolbar.searchSymbol">XRP/USD</button>
+          <span id="pair-src" class="pair-src" aria-hidden="true"></span>
           <button type="button" id="xrp-toggle" title="Switch between XRP and XRPN" data-i18n-title="toolbar.xrpToggle">XRPN</button>
           <select id="pair" data-pair class="visually-hidden" tabindex="-1" aria-hidden="true"></select>
         </label>
@@ -108,25 +111,6 @@
         </div>
         <button type="button" id="sidebar-btn" aria-pressed="true" title="Watchlist and alerts panel" data-i18n="toolbar.panel" data-i18n-title="toolbar.panelTitle">Panel</button>
         <button type="button" id="theme-btn" title="Switch light/dark theme" data-i18n-title="toolbar.themeTitle">Light theme</button>
-        <div class="settings-wrap">
-          <button type="button" id="settings-btn" title="Settings" aria-label="Settings" data-i18n-title="toolbar.settings" data-i18n-aria="toolbar.settings" aria-haspopup="menu" aria-expanded="false" aria-controls="settings-menu">
-            <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M6.5 1.2h3l.35 1.7c.42.16.81.39 1.16.67l1.65-.7 1.5 2.6-1.35 1.15c.08.4.12.8.12 1.22s-.04.82-.12 1.22l1.35 1.15-1.5 2.6-1.65-.7a5.3 5.3 0 0 1-1.16.67L9.5 14.8h-3l-.35-1.7a5.3 5.3 0 0 1-1.16-.67l-1.65.7-1.5-2.6 1.35-1.15A5.4 5.4 0 0 1 3 8.94c0-.42.04-.82.12-1.22L1.77 6.57l1.5-2.6 1.65.7c.35-.28.74-.51 1.16-.67L6.5 1.2ZM8 6.4A1.6 1.6 0 1 0 8 9.6 1.6 1.6 0 0 0 8 6.4Z"/></svg>
-            <span data-i18n="toolbar.settings">Settings</span>
-          </button>
-          <div id="settings-menu" hidden role="menu" aria-labelledby="settings-btn">
-            <div class="sheet-head">
-              <h2 data-i18n="toolbar.settings">Settings</h2>
-              <button type="button" id="settings-close" class="sheet-close" aria-label="Close" data-i18n-aria="mobile.close">×</button>
-            </div>
-            <button type="button" role="menuitem" id="settings-account" data-i18n="toolbar.account">Account</button>
-            <button type="button" role="menuitem" id="settings-export" data-i18n="toolbar.exportData">Export data</button>
-            <button type="button" role="menuitem" id="settings-import" data-i18n="toolbar.importData">Import data</button>
-            <button type="button" role="menuitem" id="settings-save-template" data-i18n="toolbar.saveTemplate">Save template…</button>
-            <button type="button" role="menuitem" id="settings-png" data-i18n="toolbar.savePng">Save chart image</button>
-            <button type="button" role="menuitem" id="settings-png-copy" data-i18n="toolbar.copyPng">Copy chart image</button>
-            <div id="settings-templates" class="settings-templates" role="group" aria-label="Templates" data-i18n-aria="toolbar.templates"></div>
-          </div>
-        </div>
         <input type="file" id="backup-file" accept="application/json,.json" hidden />
         <label class="field field-lang">
           <span class="visually-hidden" data-i18n="toolbar.language">Language</span>
@@ -140,6 +124,24 @@
           <div id="header-account-menu" hidden role="menu" aria-labelledby="header-account-btn">
             <button type="button" role="menuitem" id="header-account-open" data-i18n="toolbar.account">Account</button>
             <button type="button" role="menuitem" id="header-account-logout" data-i18n="account.signOut">Sign out</button>
+          </div>
+        </div>
+        <div class="settings-wrap">
+          <button type="button" id="settings-btn" class="icon-btn" title="Settings" aria-label="Settings" data-i18n-title="toolbar.settings" data-i18n-aria="toolbar.settings" aria-haspopup="menu" aria-expanded="false" aria-controls="settings-menu">
+            <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M6.5 1.2h3l.35 1.7c.42.16.81.39 1.16.67l1.65-.7 1.5 2.6-1.35 1.15c.08.4.12.8.12 1.22s-.04.82-.12 1.22l1.35 1.15-1.5 2.6-1.65-.7a5.3 5.3 0 0 1-1.16.67L9.5 14.8h-3l-.35-1.7a5.3 5.3 0 0 1-1.16-.67l-1.65.7-1.5-2.6 1.35-1.15A5.4 5.4 0 0 1 3 8.94c0-.42.04-.82.12-1.22L1.77 6.57l1.5-2.6 1.65.7c.35-.28.74-.51 1.16-.67L6.5 1.2ZM8 6.4A1.6 1.6 0 1 0 8 9.6 1.6 1.6 0 0 0 8 6.4Z"/></svg>
+          </button>
+          <div id="settings-menu" hidden role="menu" aria-labelledby="settings-btn">
+            <div class="sheet-head">
+              <h2 data-i18n="toolbar.settings">Settings</h2>
+              <button type="button" id="settings-close" class="sheet-close" aria-label="Close" data-i18n-aria="mobile.close">×</button>
+            </div>
+            <button type="button" role="menuitem" id="settings-account" data-i18n="toolbar.account">Account</button>
+            <button type="button" role="menuitem" id="settings-export" data-i18n="toolbar.exportData">Export data</button>
+            <button type="button" role="menuitem" id="settings-import" data-i18n="toolbar.importData">Import data</button>
+            <button type="button" role="menuitem" id="settings-save-template" data-i18n="toolbar.saveTemplate">Save template…</button>
+            <button type="button" role="menuitem" id="settings-png" data-i18n="toolbar.savePng">Save chart image</button>
+            <button type="button" role="menuitem" id="settings-png-copy" data-i18n="toolbar.copyPng">Copy chart image</button>
+            <div id="settings-templates" class="settings-templates" role="group" aria-label="Templates" data-i18n-aria="toolbar.templates"></div>
           </div>
         </div>
         <button type="button" id="more-btn" aria-expanded="false" aria-haspopup="dialog" aria-controls="more-pop" title="More" aria-label="More" data-i18n-title="toolbar.more" data-i18n-aria="toolbar.more">
@@ -255,28 +257,31 @@
       <div id="sym-modal" hidden>
         <div class="sym-modal-backdrop"></div>
         <div class="sym-modal-box" role="dialog" aria-modal="true" aria-labelledby="sym-modal-title">
-          <div class="ind-modal-head">
+          <div class="sym-head">
             <h2 id="sym-modal-title" data-i18n="sym.title">Search symbol</h2>
             <button type="button" id="sym-modal-close" aria-label="Close" data-i18n-aria="sym.close">×</button>
           </div>
-          <input id="sym-search" type="search" placeholder="Name or ticker, e.g. sol or aapl" data-i18n-placeholder="sym.placeholder" autocomplete="off" />
-          <div class="sym-filter-rows">
-            <div id="sym-cats" class="sym-filters" role="group" aria-label="Asset type" data-i18n-aria="sym.assetType">
-              <button type="button" data-sym-cat="all" class="is-active" data-i18n="sym.all">All</button>
-              <button type="button" data-sym-cat="crypto" data-i18n="sym.crypto">Crypto</button>
-              <button type="button" data-sym-cat="stocks" data-i18n="sym.stocks">Stocks</button>
-            </div>
-            <div id="sym-filters" class="sym-filters" role="group" aria-label="Exchange" data-i18n-aria="sym.exchange">
-              <button type="button" data-sym-filter="all" class="is-active" data-i18n="sym.all">All</button>
-              <button type="button" data-sym-filter="kraken">Kraken</button>
-              <button type="button" data-sym-filter="binance">Binance</button>
-              <button type="button" data-sym-filter="coinbase">Coinbase</button>
-              <button type="button" data-sym-filter="bitstamp">Bitstamp</button>
-              <button type="button" data-sym-filter="yahoo">Yahoo</button>
-              <button type="button" data-sym-filter="dex">DEX</button>
-            </div>
+          <div class="sym-searchbar">
+            <svg class="sym-search-icon" viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg>
+            <input id="sym-search" type="text" role="combobox" aria-controls="sym-results" aria-expanded="true" placeholder="Name or ticker, e.g. sol or aapl" data-i18n-placeholder="sym.placeholder" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" />
+            <button type="button" id="sym-clear" hidden aria-label="Clear" data-i18n-aria="sym.clear">×</button>
           </div>
-          <div id="sym-results" class="sym-results"></div>
+          <div class="sym-controls">
+            <div id="sym-cats" class="sym-tabs" role="tablist" aria-label="Asset type" data-i18n-aria="sym.assetType">
+              <button type="button" role="tab" data-sym-cat="all" class="is-active" data-i18n="sym.all">All</button>
+              <button type="button" role="tab" data-sym-cat="crypto" data-i18n="sym.crypto">Crypto</button>
+              <button type="button" role="tab" data-sym-cat="stocks" data-i18n="sym.stocks">Stocks</button>
+              <button type="button" role="tab" data-sym-cat="dex">DEX</button>
+              <button type="button" role="tab" data-sym-cat="xrpl">XRPL</button>
+              <button type="button" role="tab" data-sym-cat="xahau">Xahau</button>
+            </div>
+            <label class="sym-source">
+              <span class="visually-hidden" data-i18n="sym.sources">Source</span>
+              <select id="sym-source" aria-label="Source" data-i18n-aria="sym.sources"></select>
+            </label>
+          </div>
+          <div id="sym-results" class="sym-results" role="listbox"></div>
+          <div class="sym-hint" aria-hidden="true"><span>↑↓</span> <span>Enter</span> <span>Esc</span></div>
         </div>
       </div>
       <div id="ind-modal" hidden>

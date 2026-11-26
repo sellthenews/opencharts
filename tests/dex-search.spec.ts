@@ -19,7 +19,7 @@ async function candleCount(page: Page): Promise<number> {
 async function pickDexSymbol(page: Page, query: string, label: RegExp): Promise<void> {
   await page.locator('#pair-btn').click();
   await expect(page.locator('#sym-modal')).toBeVisible();
-  await page.locator('[data-sym-filter="dex"]').click();
+  await page.locator('[data-sym-cat="dex"]').click();
   await page.locator('#sym-search').fill(query);
   const row = page.locator('#sym-results .sym-row', { hasText: label }).first();
   await expect(row).toBeVisible({ timeout: 45_000 });
@@ -40,7 +40,7 @@ test('DEX search lists many XRPL pairs and loads candles on XRPL, Xahau, Ethereu
 
   await page.locator('#pair-btn').click();
   await expect(page.locator('#sym-modal')).toBeVisible();
-  await page.locator('[data-sym-filter="dex"]').click();
+  await page.locator('[data-sym-cat="dex"]').click();
   await expect(page.locator('#sym-search')).toHaveAttribute('placeholder', /currency\.issuer/i);
   await expect(page.locator('#sym-results .sym-row').nth(8)).toBeVisible({ timeout: 45_000 });
   const labels = await page.locator('#sym-results .sym-row').allTextContents();
@@ -70,7 +70,7 @@ test('DEX search lists many XRPL pairs and loads candles on XRPL, Xahau, Ethereu
 
   await page.locator('#pair-btn').click();
   await expect(page.locator('#sym-modal')).toBeVisible();
-  await page.locator('[data-sym-filter="dex"]').click();
+  await page.locator('[data-sym-cat="dex"]').click();
   await page.locator('#sym-search').fill('CLV');
   await expect(page.locator('#sym-results .sym-row', { hasText: /CLV/i }).first()).toBeVisible({ timeout: 30_000 });
   await page.keyboard.press('Escape');

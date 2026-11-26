@@ -20,11 +20,9 @@ test('DEX network select splits XRPL, Xahau and GeckoTerminal charts', async ({ 
   await page.goto('/');
   await waitReady(page, 45_000);
 
-  await expect(page.locator('#network-field')).toBeHidden();
   await expect(page.locator('#source')).toHaveValue('kraken');
 
   await page.selectOption('#source', 'dex');
-  await expect(page.locator('#network-field')).toBeVisible();
   await expect(page.locator('#dex-network')).toHaveValue('xrpl');
   await expect(page.locator('#pair')).toHaveValue(XRPL_PAIR);
   await expect(page.locator('#pair-btn')).toHaveText(/XRP\/RLUSD/i);
@@ -66,12 +64,11 @@ test('DEX network select splits XRPL, Xahau and GeckoTerminal charts', async ({ 
 
   await page.locator('#pair-btn').click();
   await expect(page.locator('#sym-modal')).toBeVisible();
-  await page.locator('[data-sym-filter="dex"]').click();
+  await page.locator('[data-sym-cat="dex"]').click();
   await expect(page.locator('#sym-results .sym-row').first()).toBeVisible({ timeout: 45_000 });
-  await expect(page.locator('#sym-results .sym-ex').first()).toHaveText(/DEX/);
+  await expect(page.locator('#sym-results .sym-ex').first()).toHaveText(/Xahau/);
   await page.keyboard.press('Escape');
 
   await page.selectOption('#source', 'kraken');
-  await expect(page.locator('#network-field')).toBeHidden();
   await waitReady(page, 45_000);
 });

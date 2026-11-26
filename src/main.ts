@@ -522,8 +522,6 @@ function fillNetworks(): void {
 }
 
 function syncNetworkField(): void {
-  const field = document.querySelector<HTMLElement>('#network-field');
-  if (field) field.hidden = sourceId !== 'dex';
   if (sourceId === 'dex') fillNetworks();
 }
 
@@ -938,7 +936,7 @@ function resizeCharts(): void {
 
 const PHONE_MQ = window.matchMedia('(max-width: 900px), (max-height: 500px) and (orientation: landscape)');
 const PORTRAIT_MQ = window.matchMedia('(max-width: 500px)');
-const MORE_ITEM_SELECTORS = ['#exchange-field', '#network-field', '#xrp-toggle', '.compare-wrap', '#theme-btn', '.settings-wrap', '.field-lang', '#layout-btns', '#chart-type-wrap', '#tz-field', '#live-status', '#candle-eta', '#status'] as const;
+const MORE_ITEM_SELECTORS = ['#xrp-toggle', '.compare-wrap', '#theme-btn', '.field-lang', '#layout-btns', '#chart-type-wrap', '#tz-field', '#live-status', '#candle-eta', '#status'] as const;
 const moreHomes = new Map<string, Comment>();
 
 function isPhoneLayout(): boolean {
@@ -1496,8 +1494,11 @@ symbolSearch = initSymbolSearch({
   modal: document.querySelector('#sym-modal')!,
   input: document.querySelector('#sym-search')!,
   results: document.querySelector('#sym-results')!,
-  filters: document.querySelector('#sym-filters')!,
+  tabs: document.querySelector('#sym-cats')!,
+  source: document.querySelector('#sym-source')!,
+  clearBtn: document.querySelector('#sym-clear')!,
   pairBtn: document.querySelector('#pair-btn')!,
+  pairSrc: document.querySelector<HTMLElement>('#pair-src'),
   closeBtn: document.querySelector('#sym-modal-close')!,
   onSelect: (src, pair) => applySelection(src, pair, true),
   onAdd: (src, pair) => {
