@@ -62,7 +62,7 @@ function newId(): string {
 }
 
 function isPairId(value: string): value is PairId {
-  return typeof value === 'string' && value.length > 0 && value.length < 48;
+  return typeof value === 'string' && value.length > 0 && value.length <= 200;
 }
 
 function normalizeItems(raw: unknown): WatchItem[] {
@@ -123,7 +123,8 @@ function formatPrice(price: number): string {
   if (!Number.isFinite(price)) return '—';
   if (price >= 1000) return price.toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
   if (price >= 1) return price.toLocaleString('en-US', { maximumFractionDigits: 4 });
-  return price.toLocaleString('en-US', { maximumFractionDigits: 6 });
+  if (price >= 0.0001) return price.toLocaleString('en-US', { maximumFractionDigits: 6 });
+  return price.toLocaleString('en-US', { maximumSignificantDigits: 4, maximumFractionDigits: 12 });
 }
 
 function formatPct(pct: number | null): string {
@@ -138,7 +139,7 @@ export class WatchlistPanel {
   private timer: number | null = null;
   private inflight = 0;
   private menu: HTMLElement | null = null;
-  private dragging: { kind: 'item' | 'section'; id: string } | null = null;
+  private dragging: { kind: 'item' | 'section'; id: string; section?: string } | null = null;
 
   constructor(
     private readonly root: HTMLElement,
@@ -211,12 +212,15 @@ export class WatchlistPanel {
     return true;
   }
 
-  removeItem(sourceId: string, pairId: PairId): boolean {
+  /** With sectionId ('' = loose) only that row goes; without it every copy in the list is removed. */
+  removeItem(sourceId: string, pairId: PairId, sectionId?: string): boolean {
     const list = this.activeList();
     const key = `${sourceId}:${pairId}`;
     const before = allListItems(list).length;
-    list.items = list.items.filter((i) => itemKey(i) !== key);
-    for (const s of list.sections) s.items = s.items.filter((i) => itemKey(i) !== key);
+    if (sectionId === undefined || sectionId === '') list.items = list.items.filter((i) => itemKey(i) !== key);
+    for (const s of list.sections) {
+      if (sectionId === undefined || sectionId === s.id) s.items = s.items.filter((i) => itemKey(i) !== key);
+    }
     if (allListItems(list).length === before) return false;
     this.persist();
     this.render();
@@ -268,8 +272,7 @@ export class WatchlistPanel {
           const ticker = await src.fetchTicker(item.pairId);
           if (seq !== this.inflight) return;
           this.quotes.set(itemKey(item), ticker);
-          const row = this.root.querySelector<HTMLElement>(`[data-watch-key="${itemKey(item)}"]`);
-          if (row) this.paintRow(row, ticker);
+          this.root.querySelectorAll<HTMLElement>(`[data-watch-key="${itemKey(item)}"]`).forEach((row) => this.paintRow(row, ticker));
         } catch {
           /* leave last known quote */
         }
@@ -382,7 +385,7 @@ export class WatchlistPanel {
       return;
     }
     if (row?.dataset.watchKey) {
-      this.dragging = { kind: 'item', id: row.dataset.watchKey };
+      this.dragging = { kind: 'item', id: row.dataset.watchKey, section: row.dataset.section ?? '' };
       dt.setData('text/plain', `item:${row.dataset.watchKey}`);
       dt.effectAllowed = 'move';
     }
@@ -404,14 +407,15 @@ export class WatchlistPanel {
     this.root.querySelectorAll('.is-drag-over').forEach((el) => el.classList.remove('is-drag-over'));
   }
 
-  private takeItem(key: string): WatchItem | null {
+  private takeItem(key: string, sectionId?: string): WatchItem | null {
     const list = this.activeList();
-    const fromLoose = list.items.findIndex((i) => itemKey(i) === key);
+    const fromLoose = sectionId ? -1 : list.items.findIndex((i) => itemKey(i) === key);
     if (fromLoose >= 0) {
       const [item] = list.items.splice(fromLoose, 1);
       return item ?? null;
     }
     for (const s of list.sections) {
+      if (sectionId && s.id !== sectionId) continue;
       const idx = s.items.findIndex((i) => itemKey(i) === key);
       if (idx >= 0) {
         const [item] = s.items.splice(idx, 1);
@@ -447,7 +451,7 @@ export class WatchlistPanel {
       return;
     }
     if (!itemKeyData) return;
-    const item = this.takeItem(itemKeyData);
+    const item = this.takeItem(itemKeyData, drag?.kind === 'item' ? drag.section : undefined);
     if (!item) return;
     const row = (ev.target as HTMLElement).closest<HTMLElement>('.watch-row');
     const sectionEl = (ev.target as HTMLElement).closest<HTMLElement>('.watch-section');
@@ -537,8 +541,11 @@ export class WatchlistPanel {
       ev.stopPropagation();
       const key = del.getAttribute('data-watch-remove');
       if (!key) return;
-      const [sourceId, pairId] = key.split(':');
-      if (sourceId && pairId) this.removeItem(sourceId, pairId as PairId);
+      const cut = key.indexOf(':');
+      const sourceId = key.slice(0, cut);
+      const pairId = key.slice(cut + 1);
+      const sectionId = del.closest<HTMLElement>('.watch-row')?.dataset.section ?? '';
+      if (cut > 0 && pairId) this.removeItem(sourceId, pairId as PairId, sectionId);
       return;
     }
     const row = el.closest<HTMLElement>('.watch-row');

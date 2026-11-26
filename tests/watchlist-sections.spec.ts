@@ -36,7 +36,7 @@ test('watchlist sections and row order persist after reload', async ({ page }) =
   const looseKeys = await page.locator('.watch-body > .watch-row').evaluateAll((els) =>
     els.map((el) => el.getAttribute('data-watch-key')),
   );
-  expect(looseKeys).toEqual(['kraken:BTCUSD', 'kraken:XRPUSD']);
+  expect(looseKeys).toEqual(['kraken:BTCUSD', 'kraken:XRPUSD', 'yahoo:XRPN']);
 
   fs.mkdirSync(path.dirname(SHOT), { recursive: true });
   await page.screenshot({ path: SHOT, fullPage: true });

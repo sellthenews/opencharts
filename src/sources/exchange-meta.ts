@@ -17,6 +17,7 @@ const CEX: Record<string, ExchangeMeta> = {
   coinbase: { key: 'coinbase', name: 'Coinbase', badge: 'C' },
   bitstamp: { key: 'bitstamp', name: 'Bitstamp', badge: 'Bs' },
   yahoo: { key: 'yahoo', name: 'Yahoo Finance', badge: 'Y' },
+  calc: { key: 'calc', name: 'Swapwick', badge: 'Σ' },
 };
 
 export function exchangeMeta(sourceId: string, networkId?: string): ExchangeMeta {

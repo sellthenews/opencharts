@@ -6,10 +6,11 @@ import { fetchJson } from './http';
 import type { DataSource } from './types';
 import { PAIR_LABELS } from './types';
 import { YAHOO_STOCKS } from './yahoo';
+import { CALC_PAIRS } from './calc';
 import { defaultPairsForNetwork, lookupDexPair } from './dex';
 import { loadDexNetworkId } from './dex-networks';
 
-export const SOURCE_FILTERS = ['all', 'kraken', 'binance', 'coinbase', 'bitstamp', 'yahoo', 'dex'] as const;
+export const SOURCE_FILTERS = ['all', 'kraken', 'binance', 'coinbase', 'bitstamp', 'yahoo', 'dex', 'calc'] as const;
 export type SourceFilter = (typeof SOURCE_FILTERS)[number];
 
 export type AssetKind = 'crypto' | 'stock';
@@ -152,6 +153,14 @@ export function formatPairLabel(sourceId: string, pairId: string): string {
     const hit = lookupSymbol(sourceId, pairId);
     if (hit) return hit.label;
     return splitPairLabel(fallbackNative('binance', pairId));
+  }
+  if (sourceId === 'yahoo') {
+    const y = YAHOO_STOCKS.find((s) => s.id === pairId);
+    if (y?.label) return y.label;
+  }
+  if (sourceId === 'calc') {
+    const c = CALC_PAIRS.find((p) => p.id === pairId);
+    if (c) return c.id.includes('.') ? c.id : c.label;
   }
   const known = PAIR_LABELS[pairId];
   if (known) return known;
@@ -357,7 +366,13 @@ async function fetchBitstamp(): Promise<SymbolInfo[]> {
 
 function fetchYahoo(): Promise<SymbolInfo[]> {
   return Promise.resolve(
-    YAHOO_STOCKS.map((s) => makeInfo('yahoo', s.id, s.id, s.id, 'USD', undefined, 'stock', s.name, s.id)),
+    YAHOO_STOCKS.map((s) => makeInfo('yahoo', s.id, s.id, s.id, 'USD', undefined, 'stock', s.name, s.label ?? s.id)),
+  );
+}
+
+function fetchCalc(): Promise<SymbolInfo[]> {
+  return Promise.resolve(
+    CALC_PAIRS.map((p) => makeInfo('calc', p.id, p.native, p.id.split('.')[0]!, p.id.includes('.') ? 'MC%' : 'XRP', undefined, 'crypto', p.label, p.label)),
   );
 }
 
@@ -377,6 +392,7 @@ const FETCHERS: Record<string, () => Promise<SymbolInfo[]>> = {
   bitstamp: fetchBitstamp,
   yahoo: fetchYahoo,
   dex: fetchDex,
+  calc: fetchCalc,
 };
 
 export function symbolFromYahooQuote(symbol: string, name?: string): SymbolInfo {
@@ -439,7 +455,7 @@ export type CategoryFilter = 'all' | 'crypto' | 'stocks';
 /** Dollar quotes first, then dollar stablecoins, then other fiat, then the rest. */
 const STABLE_QUOTES = new Set(['USDT', 'USDC', 'RLUSD']);
 const FIAT_QUOTES = new Set(['EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'BRL', 'TRY', 'PLN', 'KRW', 'MXN', 'ZAR', 'SGD', 'HKD', 'NZD', 'INR', 'IDR', 'ARS', 'UAH', 'RUB', 'COP', 'CZK', 'SEK', 'NOK', 'DKK', 'AED']);
-const VENUE_RANK: Record<string, number> = { kraken: 0, coinbase: 1, binance: 2, bitstamp: 3, yahoo: 4, dex: 5 };
+const VENUE_RANK: Record<string, number> = { kraken: 0, coinbase: 1, binance: 2, bitstamp: 3, yahoo: 4, dex: 5, calc: 6 };
 
 function quoteRank(quote: string): number {
   const q = quote.toUpperCase().replace(/^Z(?=[A-Z]{3}$)/, '');

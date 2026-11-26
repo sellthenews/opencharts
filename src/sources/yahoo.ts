@@ -48,7 +48,18 @@ function historyWindowSec(interval: string): number {
   }
 }
 
-export const YAHOO_STOCKS: { id: string; name: string }[] = [
+export const YAHOO_STOCKS: { id: string; name: string; label?: string }[] = [
+  { id: 'CHFPLN=X', name: 'Swiss franc / Polish zloty', label: 'CHF/PLN' },
+  { id: 'USDPLN=X', name: 'US dollar / Polish zloty', label: 'USD/PLN' },
+  { id: 'PL=F', name: 'Platinum futures (USD)', label: 'Platinum' },
+  { id: 'SI=F', name: 'Silver futures (USD/oz)', label: 'Silver' },
+  { id: 'GC=F', name: 'Gold futures (USD/oz) XAUUSD', label: 'Gold' },
+  { id: 'CL=F', name: 'WTI crude oil futures USOIL', label: 'WTI Crude' },
+  { id: '^GSPC', name: 'S&P 500 index SP500', label: 'S&P 500' },
+  { id: '^BKX', name: 'KBW Nasdaq Bank Index BKX', label: 'BKX' },
+  { id: 'ANT', name: 'Anthropic, PBC' },
+  { id: 'SPCX', name: 'Space Exploration Technologies' },
+  { id: 'XDD.WA', name: 'Mentzen S.A. (NewConnect, Warsaw)', label: 'XDD' },
   { id: 'XRPN', name: 'Evernorth Holdings' },
   { id: 'AAPL', name: 'Apple' },
   { id: 'MSFT', name: 'Microsoft' },
@@ -150,7 +161,7 @@ async function fetchChart(symbol: string, interval: string, range: string, opts?
 export const yahoo: DataSource = {
   id: 'yahoo',
   name: 'Yahoo (via Swapwick proxy)',
-  pairs: YAHOO_STOCKS.map((s) => ({ id: s.id, label: s.id, native: s.id })),
+  pairs: YAHOO_STOCKS.map((s) => ({ id: s.id, label: s.label ?? s.id, native: s.id })),
   nativeIntervals: NATIVE_IDS,
   async fetchCandles(pairId: PairId, interval: IntervalId, opts?: CandleQuery): Promise<Candle[]> {
     const symbol = this.pairs.find((p) => p.id === pairId)?.native ?? pairId;

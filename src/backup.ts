@@ -4,6 +4,7 @@
 import { t } from './i18n';
 
 import { STORAGE_PREFIX } from './storage';
+import { mergeWatchlists } from './watchlist-merge';
 
 export const BACKUP_FORMAT = 'opencharts-backup';
 export const BACKUP_VERSION = 1;
@@ -86,9 +87,12 @@ export function applyBackup(data: Record<string, string>, mode: 'replace' | 'mer
     for (const key of remove) store.removeItem(key);
   }
   for (const [key, value] of Object.entries(data)) {
-    if (key.startsWith(STORAGE_PREFIX)) store.setItem(key, value);
+    if (!key.startsWith(STORAGE_PREFIX)) continue;
+    store.setItem(key, mode === 'merge' && key === WATCHLISTS_KEY ? mergeWatchlists(store.getItem(key), value) : value);
   }
 }
+
+const WATCHLISTS_KEY = `${STORAGE_PREFIX}watchlists`;
 
 export function initBackupUi(opts: { setStatus: (text: string, error?: boolean) => void }): void {
   const btn = document.querySelector<HTMLButtonElement>('#settings-btn');

@@ -7,13 +7,14 @@ import { coinbase } from './coinbase';
 import { kraken } from './kraken';
 import { yahoo } from './yahoo';
 import { dex } from './dex';
+import { calc } from './calc';
 import type { DataSource } from './types';
 
 /**
  * Register a new exchange by adding its module and one line here.
  * Only include sources that allow public, key-free browser (CORS) access.
  */
-export const sources: DataSource[] = [kraken, binance, coinbase, bitstamp, yahoo, dex];
+export const sources: DataSource[] = [kraken, binance, coinbase, bitstamp, yahoo, dex, calc];
 
 export function getSource(id: string): DataSource | undefined {
   return sources.find((s) => s.id === id);
