@@ -4489,13 +4489,15 @@ html[data-mode="dex"] .sym-source {
   flex-wrap: nowrap;
 }
 
-.toolbar-left > * {
-  flex-shrink: 0;
-}
+@media (min-width: 501px) {
+  .toolbar-left > * {
+    flex-shrink: 0;
+  }
 
-.toolbar-left .field-pair {
-  flex-shrink: 1;
-  min-width: 0;
+  .toolbar-left .field-pair {
+    flex-shrink: 1;
+    min-width: 0;
+  }
 }
 
 #intervals .interval,
@@ -4806,4 +4808,19 @@ html[dir="rtl"] #lang-menu {
   .brand-name {
     display: none;
   }
+}
+
+
+#pair.visually-hidden,
+select#pair[aria-hidden="true"] {
+  position: absolute;
+  width: 1px !important;
+  height: 1px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
