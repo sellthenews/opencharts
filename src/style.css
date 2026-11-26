@@ -4804,7 +4804,7 @@ html[dir="rtl"] #lang-menu {
 }
 
 
-@media (max-width: 1200px) {
+@media (min-width: 501px) and (max-width: 1200px) {
   .brand-name,
   .interval-favs {
     display: none;
@@ -4845,7 +4845,7 @@ select#pair[aria-hidden="true"] {
 
   .toolbar #pair-btn {
     min-width: 56px;
-    max-width: 30vw;
+    max-width: 28vw;
   }
 
   .toolbar .interval-menu-btn,
