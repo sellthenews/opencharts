@@ -4,7 +4,11 @@
 import { t } from './i18n';
 
 export const SUPPORT_XRP_ADDRESS = 'rEo9s1W4u1R5STTB287JxhxffSxDftVkPJ';
+export const SUPPORT_RLUSD_ISSUER = 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De';
+export const SUPPORT_RLUSD_CURRENCY = '524C555344000000000000000000000000000000';
 export const SUPPORT_XAMAN_URL = `https://xaman.app/detect/request:${SUPPORT_XRP_ADDRESS}`;
+export const SUPPORT_XAMAN_RLUSD_URL =
+  `${SUPPORT_XAMAN_URL}?currency=${SUPPORT_RLUSD_CURRENCY}&issuer=${SUPPORT_RLUSD_ISSUER}`;
 
 function closeSettings(): void {
   const menu = document.querySelector<HTMLElement>('#settings-menu');
@@ -44,6 +48,22 @@ export function initSupport(): void {
 
   addressEl.textContent = SUPPORT_XRP_ADDRESS;
   xaman.href = SUPPORT_XAMAN_URL;
+
+  const assetBtns = modal.querySelectorAll<HTMLButtonElement>('[data-support-asset]');
+  function setAsset(asset: 'xrp' | 'rlusd'): void {
+    xaman!.href = asset === 'rlusd' ? SUPPORT_XAMAN_RLUSD_URL : SUPPORT_XAMAN_URL;
+    for (const btn of assetBtns) {
+      const on = btn.dataset.supportAsset === asset;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+  }
+  for (const btn of assetBtns) {
+    btn.addEventListener('click', () => {
+      const asset = btn.dataset.supportAsset === 'rlusd' ? 'rlusd' : 'xrp';
+      setAsset(asset);
+    });
+  }
 
   function setOpen(open: boolean): void {
     modal!.hidden = !open;
